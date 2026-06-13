@@ -1,3 +1,4 @@
+import { cors } from '@elysiajs/cors';
 import { getSemaphore } from "@henrygd/semaphore";
 import { Elysia, NotFoundError, t } from "elysia";
 import ExpiryMap from "expiry-map";
@@ -57,10 +58,9 @@ function log(str: string) {
 //////////////////////////////////////////////////////////////////////////////
 
 export const app = new Elysia()
-  .use(openapiSpec)
-  // .onError(({ error, code }) => {
-  //   if (code === "VALIDATION") return error.detail(error.message);
-  // })
+    .use(cors({
+        origin: 'https://collegelacrossenews.com'
+    }))
   .guard({
     detail: { hide: true },
     query: v.object({
