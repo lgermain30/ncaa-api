@@ -882,5 +882,5 @@ async function getLacrosseStandings(path: string) {
 
   const data = await res.json();
 
-return JSON.stringify(data);
+return Response.json(data);
 }
