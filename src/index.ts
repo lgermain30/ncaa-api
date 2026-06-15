@@ -865,7 +865,13 @@ async function getLacrosseStandings(path: string) {
  const url =
 "https://www.lax.com/pages/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
 
-  const res = await fetch(url);
+  const res = await fetch(url, {
+  headers: {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://www.lax.com/pages/conferences?year=2026&division=1&conference=all",
+    "Accept": "application/json"
+  }
+});
 
   if (!res.ok) {
     throw new Error(`Could not fetch Lax.com standings: ${res.status}`);
