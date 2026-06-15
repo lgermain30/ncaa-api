@@ -862,8 +862,8 @@ function getStandingsHeaders(table: HTMLTableElement) {
   return headings;
 }
 async function getLacrosseStandings(path: string) {
-  const url =
-    "https://www.lax.com/pages/conferences?year=2026&division=1&conference=all";
+ const url =
+"https://www.lax.com/pages/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
 
   const res = await fetch(url);
 
@@ -871,31 +871,6 @@ async function getLacrosseStandings(path: string) {
     throw new Error(`Could not fetch Lax.com standings: ${res.status}`);
   }
 
-  const html = await res.text();
-  const { document } = parseHTML(html);
+  const data = await res.json();
 
-  return html.includes("umbc")
-  ? "FOUND_UMBC"
-  : "UMBC_NOT_FOUND";
-
-  const standings: any[] = [];
-
-  for (const row of rows) {
-    const cells = row.querySelectorAll("td");
-
-    if (cells.length < 6) continue;
-
-  const teamLink = cells[1]?.querySelector("a.team-link");
-
-    standings.push({
-      rank: cells[0]?.textContent?.trim() || "",
-team: teamLink?.getAttribute("href")?.split("url_name=")[1]?.split("&")[0] || "",
-      overall: cells[2]?.textContent?.trim() || "",
-      conference: cells[3]?.textContent?.trim() || "",
-      goalsFor: cells[4]?.textContent?.trim() || "",
-      goalsAgainst: cells[5]?.textContent?.trim() || ""
-    });
-  }
-
-  return JSON.stringify(standings);
-}
+return JSON.stringify(data);
