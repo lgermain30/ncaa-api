@@ -880,7 +880,11 @@ async function getLacrosseStandings(path: string) {
 );
   }
 
-  const data = await res.json();
+  const text = await res.text();
 
-return Response.json(data);
+return new Response(text, {
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
 }
