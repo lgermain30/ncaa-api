@@ -868,6 +868,11 @@ async function getLacrosseStandings(path: string) {
   const division = parts[3];
 
   const url = `https://data.ncaa.com/casablanca/standings/${sport}/${division}/standings.json`;
+  return JSON.stringify({
+  sport,
+  division,
+  url
+});
 log(`Fetching lacrosse standings ${url}`);
  const res = await fetch(url);
 
