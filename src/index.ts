@@ -865,22 +865,10 @@ function getStandingsHeaders(table: HTMLTableElement) {
   return headings;
 }
 async function getLacrosseStandings(path: string) {
-  const parts = path.split("/");
-
-  const sport = parts[2];
-  const division = parts[3];
-
-  const url = `https://data.ncaa.com/casablanca/standings/${sport}/${division}/standings.json`;
-
-log(`Fetching lacrosse standings ${url}`);
- const res = await fetch(url);
-
-if (!res.ok) {
-  log(`Lacrosse standings fetch failed: ${res.status} ${res.statusText} URL=${url}`);
-  throw new Error("Could not fetch lacrosse standings");
-}
-
-  return JSON.stringify(await res.json());
+  return JSON.stringify({
+    source: "lax.com",
+    url: "https://www.lax.com/pages/conferences?year=2026&division=1&conference=all"
+  });
 }
 process.on("SIGINT", async () => {
   console.log("\nShutting down...");
