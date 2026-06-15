@@ -862,7 +862,7 @@ function getStandingsHeaders(table: HTMLTableElement) {
   return headings;
 }
 async function getLacrosseStandings(path: string) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  Bun.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
  const url =
 "http://www.laxshop.com/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
 
