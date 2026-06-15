@@ -863,7 +863,7 @@ function getStandingsHeaders(table: HTMLTableElement) {
 }
 async function getLacrosseStandings(path: string) {
  const url =
-"https://www.laxshop.com/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
+"http://www.laxshop.com/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
 
   const res = await fetch(url, {
   headers: {
