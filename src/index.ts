@@ -703,8 +703,14 @@ async function getTodayUrl(sport: string, division: string): Promise<string> {
  */
 async function getData(opts: { path: string; page?: string }) {
   // fetch html
-  const url = `https://www.ncaa.com${opts.path}${opts.page && Number(opts.page) > 1 ? `/p${opts.page}` : ""
+  const url = `https://www.ncaa.com${opts.path}${opts.page && Number(opts.page) > 1 ? `/p${opts.page}` : ""                                              
     }`;
+  if (
+  opts.path.includes("/standings/lacrosse-men/") ||
+  opts.path.includes("/standings/lacrosse-women/")
+) {
+  return await getLacrosseStandings(opts.path);
+}
   log(`Fetching ${url}`);
   const res = await fetch(url);
 
@@ -714,12 +720,7 @@ async function getData(opts: { path: string; page?: string }) {
 
   // parse with linkedom
   const { document } = parseHTML(await res.text());
-if (
-  opts.path.includes("/standings/lacrosse-men/") ||
-  opts.path.includes("/standings/lacrosse-women/")
-) {
-  return await getLacrosseStandings(opts.path);
-}
+
   const table = document.querySelector("main table") as HTMLTableElement;
 
   if (!table) {
