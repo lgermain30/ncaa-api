@@ -873,12 +873,12 @@ async function getLacrosseStandings(path: string) {
     "Accept": "application/json"
   }
 });
-
+if (!res.ok) {
+  throw new Error(
+    `Could not fetch Lax.com standings: ${res.status} URL=${url}`
+  );
+}
 const text = await res.text();
 
-return JSON.stringify({
-  status: res.status,
-  url,
-  first500: text.substring(0, 500)
-});
+return text;
 }
