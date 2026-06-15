@@ -874,9 +874,9 @@ async function getLacrosseStandings(path: string) {
   const html = await res.text();
   const { document } = parseHTML(html);
 
-  const rows = document.querySelectorAll(
-    "table.lacrosse-conferences_table tr"
-  );
+  return html.includes("umbc")
+  ? "FOUND_UMBC"
+  : "UMBC_NOT_FOUND";
 
   const standings: any[] = [];
 
