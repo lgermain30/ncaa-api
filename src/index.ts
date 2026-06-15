@@ -876,16 +876,9 @@ async function getLacrosseStandings(path: string) {
 
 const text = await res.text();
 
-return new Response(
-  JSON.stringify({
-    status: res.status,
-    url,
-    first500: text.substring(0, 500)
-  }),
-  {
-    headers: {
-      "Content-Type": "application/json"
-    }
-  }
-);
+return JSON.stringify({
+  status: res.status,
+  url,
+  first500: text.substring(0, 500)
+});
 }
