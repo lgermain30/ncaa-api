@@ -714,15 +714,22 @@ async function getData(opts: { path: string; page?: string }) {
 
   // parse with linkedom
   const { document } = parseHTML(await res.text());
-
+if (
+  opts.path.includes("/standings/lacrosse-men/") ||
+  opts.path.includes("/standings/lacrosse-women/")
+) {
+  return await getLacrosseStandings(opts.path);
+}
   const table = document.querySelector("main table") as HTMLTableElement;
 
   if (!table) {
     throw new Error("Could not parse data");
   }
 
-  const route = opts.path.split("/")[1];
+   const route = opts.path.split("/")[1];
 
+  
+  
   // find general info
   const sport = document.querySelector("h2.page-title")?.textContent?.trim() ?? "";
 
@@ -853,7 +860,22 @@ function getStandingsHeaders(table: HTMLTableElement) {
 
   return headings;
 }
+async function getLacrosseStandings(path: string) {
+  const parts = path.split("/");
 
+  const sport = parts[2];
+  const division = parts[3];
+
+  const url = `https://data.ncaa.com/casablanca/standings/${sport}/${division}/standings.json`;
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error("Could not fetch lacrosse standings");
+  }
+
+  return JSON.stringify(await res.json());
+}
 process.on("SIGINT", async () => {
   console.log("\nShutting down...");
   await app.stop();
