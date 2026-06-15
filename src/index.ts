@@ -872,9 +872,8 @@ log(`Fetching lacrosse standings ${url}`);
  const res = await fetch(url);
 
 if (!res.ok) {
-  throw new Error(
-    `Could not fetch lacrosse standings: ${res.status} ${res.statusText} URL=${url}`
-  );
+  log(`Lacrosse standings fetch failed: ${res.status} ${res.statusText} URL=${url}`);
+  throw new Error("Could not fetch lacrosse standings");
 }
 
   return JSON.stringify(await res.json());
