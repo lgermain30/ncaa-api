@@ -864,7 +864,7 @@ function getStandingsHeaders(table: HTMLTableElement) {
 async function getLacrosseStandings(path: string) {
   Bun.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
  const url =
-"http://www.laxshop.com/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
+"https://www.laxshop.com/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
 
   const res = await fetch(url, {
   headers: {
