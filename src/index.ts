@@ -866,7 +866,7 @@ async function getLacrosseStandings(path: string) {
  const url =
 "https://www.laxshop.com/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
 
-  const res = await fetch(url, {
+ const res = await fetch(url, {
   headers: {
     "User-Agent": "Mozilla/5.0",
     "Referer": "https://www.lax.com/pages/conferences?year=2026&division=1&conference=all",
@@ -874,17 +874,18 @@ async function getLacrosseStandings(path: string) {
   }
 });
 
-  if (!res.ok) {
-    throw new Error(
-  `Could not fetch Lax.com standings: ${res.status} URL=${url}`
+const text = await res.text();
+
+return new Response(
+  JSON.stringify({
+    status: res.status,
+    url,
+    first500: text.substring(0, 500)
+  }),
+  {
+    headers: {
+      "Content-Type": "application/json"
+    }
+  }
 );
-  }
-
-  const text = await res.text();
-
-return new Response(text, {
-  headers: {
-    "Content-Type": "application/json"
-  }
-});
 }
