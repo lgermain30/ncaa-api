@@ -885,11 +885,11 @@ async function getLacrosseStandings(path: string) {
 
     if (cells.length < 6) continue;
 
-    const teamLink = row.querySelector("a.team-link");
+  const teamLink = cells[1]?.querySelector("a.team-link");
 
     standings.push({
       rank: cells[0]?.textContent?.trim() || "",
-      team: teamLink?.textContent?.trim() || "",
+team: teamLink?.getAttribute("href")?.split("url_name=")[1]?.split("&")[0] || "",
       overall: cells[2]?.textContent?.trim() || "",
       conference: cells[3]?.textContent?.trim() || "",
       goalsFor: cells[4]?.textContent?.trim() || "",
