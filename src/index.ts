@@ -872,11 +872,30 @@ async function getLacrosseStandings(path: string) {
   }
 
   const html = await res.text();
+  const { document } = parseHTML(html);
 
-  return JSON.stringify({
-    source: "lax.com",
-    url,
-    htmlLength: html.length,
-    preview: html.slice(0, 500)
-  });
+  const rows = document.querySelectorAll(
+    "table.lacrosse-conferences_table tr"
+  );
+
+  const standings: any[] = [];
+
+  for (const row of rows) {
+    const cells = row.querySelectorAll("td");
+
+    if (cells.length < 6) continue;
+
+    const teamLink = row.querySelector("a.team-link");
+
+    standings.push({
+      rank: cells[0]?.textContent?.trim() || "",
+      team: teamLink?.textContent?.trim() || "",
+      overall: cells[2]?.textContent?.trim() || "",
+      conference: cells[3]?.textContent?.trim() || "",
+      goalsFor: cells[4]?.textContent?.trim() || "",
+      goalsAgainst: cells[5]?.textContent?.trim() || ""
+    });
+  }
+
+  return JSON.stringify(standings);
 }
