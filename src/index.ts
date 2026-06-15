@@ -869,11 +869,13 @@ async function getLacrosseStandings(path: string) {
 
   const url = `https://data.ncaa.com/casablanca/standings/${sport}/${division}/standings.json`;
 log(`Fetching lacrosse standings ${url}`);
-  const res = await fetch(url);
+ const res = await fetch(url);
 
-  if (!res.ok) {
-    throw new Error("Could not fetch lacrosse standings");
-  }
+if (!res.ok) {
+  throw new Error(
+    `Could not fetch lacrosse standings: ${res.status} ${res.statusText} URL=${url}`
+  );
+}
 
   return JSON.stringify(await res.json());
 }
