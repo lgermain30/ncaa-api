@@ -709,7 +709,10 @@ async function getData(opts: { path: string; page?: string }) {
   opts.path.includes("/standings/lacrosse-men/") ||
   opts.path.includes("/standings/lacrosse-women/")
 ) {
-  return await getLacrosseStandings(opts.path);
+  return JSON.stringify({
+  test: "lacrosse route reached",
+  path: opts.path
+});
 }
   log(`Fetching ${url}`);
   const res = await fetch(url);
