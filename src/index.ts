@@ -874,7 +874,9 @@ async function getLacrosseStandings(path: string) {
 });
 
   if (!res.ok) {
-    throw new Error(`Could not fetch Lax.com standings: ${res.status}`);
+    throw new Error(
+  `Could not fetch Lax.com standings: ${res.status} URL=${url}`
+);
   }
 
   const data = await res.json();
