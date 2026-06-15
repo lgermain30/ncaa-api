@@ -862,13 +862,21 @@ function getStandingsHeaders(table: HTMLTableElement) {
   return headings;
 }
 async function getLacrosseStandings(path: string) {
+  const url =
+    "https://www.lax.com/pages/conferences?year=2026&division=1&conference=all";
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Could not fetch Lax.com standings: ${res.status}`);
+  }
+
+  const html = await res.text();
+
   return JSON.stringify({
     source: "lax.com",
-    url: "https://www.lax.com/pages/conferences?year=2026&division=1&conference=all"
+    url,
+    htmlLength: html.length,
+    preview: html.slice(0, 500)
   });
 }
-process.on("SIGINT", async () => {
-  console.log("\nShutting down...");
-  await app.stop();
-  process.exit(0);
-});
