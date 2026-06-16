@@ -880,7 +880,8 @@ console.log("SPORT:", sportSlug, "DIVISION:", divisionSlug);
 
   const url =
     `https://www.laxshop.com/shopify_stats.php?division=${division}&year=${year}&action=getConferencesTeams`;
-
+console.log("URL:", url);
+console.log("SPORT:", sportSlug);
   const res = await fetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0",
