@@ -64,8 +64,9 @@ export const app = new Elysia()
   .guard({
     detail: { hide: true },
     query: v.object({
-      page: v.optional(v.pipe(v.string(), v.toNumber(), v.minValue(1), v.maxValue(20))),
-    }),
+  page: v.optional(v.pipe(v.string(), v.toNumber(), v.minValue(1), v.maxValue(20))),
+  season: v.optional(v.string()),
+}),
   })
   // redirect index to github page
   .get("/", ({ redirect }) => redirect("/openapi"))
