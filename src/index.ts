@@ -868,7 +868,7 @@ async function getLacrosseStandings(path: string) {
 
   const divisionSlug = parts[2] || "d1";
 const sportSlug = parts[1] || "lacrosse-men";
-console.log("SPORT:", sportSlug, "DIVISION:", divisionSlug);
+
   const divisionMap: Record<string, string> =
   sportSlug === "lacrosse-women"
     ? {
@@ -887,8 +887,7 @@ console.log("SPORT:", sportSlug, "DIVISION:", divisionSlug);
 
   const url =
     `https://www.laxshop.com/shopify_stats.php?division=${division}&year=${year}&action=getConferencesTeams`;
-console.log("URL:", url);
-console.log("SPORT:", sportSlug);
+
   const res = await fetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0",
