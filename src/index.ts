@@ -621,22 +621,30 @@ export const app = new Elysia()
           division: validDivisions,
         }),
       })
-      .get("/", async ({ query: { page }, path, cache, cacheKey }) => {
-        if (cache.has(cacheKey)) {
-          return cache.get(cacheKey);
+      .get("/", async ({ query, path, cache, cacheKey }) => {
+        const page = query.page;
+        const season = typeof query.season === "string" ? query.season : undefined;
+        const fixedCacheKey = season ? `${cacheKey}?season=${season}` : cacheKey;
+
+        if (cache.has(fixedCacheKey)) {
+          return cache.get(fixedCacheKey);
         }
-        // fetch data
-        const data = JSON.stringify(await getData({ path, page }));
-        cache.set(cacheKey, data);
+
+        const data = JSON.stringify(await getData({ path, page, season }));
+        cache.set(fixedCacheKey, data);
         return data;
       })
-      .get("/*", async ({ query: { page }, path, cache, cacheKey }) => {
-        if (cache.has(cacheKey)) {
-          return cache.get(cacheKey);
+      .get("/*", async ({ query, path, cache, cacheKey }) => {
+        const page = query.page;
+        const season = typeof query.season === "string" ? query.season : undefined;
+        const fixedCacheKey = season ? `${cacheKey}?season=${season}` : cacheKey;
+
+        if (cache.has(fixedCacheKey)) {
+          return cache.get(fixedCacheKey);
         }
-        // fetch data
-        const data = JSON.stringify(await getData({ path, page }));
-        cache.set(cacheKey, data);
+
+        const data = JSON.stringify(await getData({ path, page, season }));
+        cache.set(fixedCacheKey, data);
         return data;
       },
         {
@@ -701,7 +709,7 @@ async function getTodayUrl(sport: string, division: string): Promise<string> {
  * @param opts.path - path to fetch from ncaa.com
  * @param opts.page - page number to fetch
  */
-async function getData(opts: { path: string; page?: string }) {
+async function getData(opts: { path: string; page?: string; season?: string }) {
   // fetch html
   const url = `https://www.ncaa.com${opts.path}${opts.page && Number(opts.page) > 1 ? `/p${opts.page}` : ""                                              
     }`;
@@ -709,7 +717,7 @@ async function getData(opts: { path: string; page?: string }) {
   opts.path.includes("/standings/lacrosse-men/") ||
   opts.path.includes("/standings/lacrosse-women/")
 ) {
-  return await getLacrosseStandings(opts.path);
+  return await getLacrosseStandings(opts.path, opts.season);
 }
   log(`Fetching ${url}`);
   const res = await fetch(url);
@@ -861,7 +869,7 @@ function getStandingsHeaders(table: HTMLTableElement) {
 
   return headings;
 }
-async function getLacrosseStandings(path: string) {
+async function getLacrosseStandings(path: string, season?: string) {
   Bun.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
   const parts = path.split("/").filter(Boolean);
@@ -883,7 +891,7 @@ const sportSlug = parts[1] || "lacrosse-men";
       };
 
   const division = divisionMap[divisionSlug] || "1";
-  const year = new URLSearchParams(path.split("?")[1] || "").get("season") || "2026";
+  const year = season || "2026";
 
   const url =
     `https://www.laxshop.com/shopify_stats.php?division=${division}&year=${year}&action=getConferencesTeams`;
