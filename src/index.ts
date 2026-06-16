@@ -96,7 +96,7 @@ export const app = new Elysia()
     }
   )
   // validate request / set cache key
-  .resolve(({ request, path, query: { page }, status }) => {
+  .resolve(({ request, path, query: { page, season }, status }) => {
     // validate custom header value
     if (
       process.env.NCAA_HEADER_KEY &&
@@ -115,7 +115,7 @@ export const app = new Elysia()
     }
     return {
       cache: validRoutes.get(basePath) ?? cache_45s,
-      cacheKey: page ? `${path}?page=${page}` : path,
+      cacheKey: `${path}?page=${page || ""}&season=${season || ""}`,
     };
   })
   .onBeforeHandle(({ set, cache, cacheKey }) => {
