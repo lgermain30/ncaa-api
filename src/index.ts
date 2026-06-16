@@ -869,11 +869,18 @@ async function getLacrosseStandings(path: string) {
   const divisionSlug = parts[2] || "d1";
 const sportSlug = parts[1] || "lacrosse-men";
 console.log("SPORT:", sportSlug, "DIVISION:", divisionSlug);
-  const divisionMap: Record<string, string> = {
-    d1: "1",
-    d2: "2",
-    d3: "3",
-  };
+  const divisionMap: Record<string, string> =
+  sportSlug === "lacrosse-women"
+    ? {
+        d1: "4",
+        d2: "5",
+        d3: "6",
+      }
+    : {
+        d1: "1",
+        d2: "2",
+        d3: "3",
+      };
 
   const division = divisionMap[divisionSlug] || "1";
   const year = "2026";
