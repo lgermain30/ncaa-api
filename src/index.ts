@@ -863,22 +863,36 @@ function getStandingsHeaders(table: HTMLTableElement) {
 }
 async function getLacrosseStandings(path: string) {
   Bun.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
- const url =
-"https://www.laxshop.com/shopify_stats.php?division=1&year=2026&action=getConferencesTeams";
 
- const res = await fetch(url, {
-  headers: {
-    "User-Agent": "Mozilla/5.0",
-    "Referer": "https://www.lax.com/pages/conferences?year=2026&division=1&conference=all",
-    "Accept": "application/json"
+  const parts = path.split("/").filter(Boolean);
+
+  const divisionSlug = parts[2] || "d1";
+
+  const divisionMap: Record<string, string> = {
+    d1: "1",
+    d2: "2",
+    d3: "3",
+  };
+
+  const division = divisionMap[divisionSlug] || "1";
+  const year = "2026";
+
+  const url =
+    `https://www.laxshop.com/shopify_stats.php?division=${division}&year=${year}&action=getConferencesTeams`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "Referer": `https://www.lax.com/pages/conferences?year=${year}&division=${division}&conference=all`,
+      "Accept": "application/json"
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `Could not fetch Lax.com standings: ${res.status} URL=${url}`
+    );
   }
-});
-if (!res.ok) {
-  throw new Error(
-    `Could not fetch Lax.com standings: ${res.status} URL=${url}`
-  );
-}
-const text = await res.text();
 
-return text;
+  return await res.text();
 }
