@@ -883,7 +883,7 @@ const sportSlug = parts[1] || "lacrosse-men";
       };
 
   const division = divisionMap[divisionSlug] || "1";
-  const year = "2026";
+  const year = new URLSearchParams(path.split("?")[1] || "").get("season") || "2026";
 
   const url =
     `https://www.laxshop.com/shopify_stats.php?division=${division}&year=${year}&action=getConferencesTeams`;
