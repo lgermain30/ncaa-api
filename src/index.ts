@@ -867,7 +867,8 @@ async function getLacrosseStandings(path: string) {
   const parts = path.split("/").filter(Boolean);
 
   const divisionSlug = parts[2] || "d1";
-
+const sportSlug = parts[1] || "lacrosse-men";
+console.log("SPORT:", sportSlug, "DIVISION:", divisionSlug);
   const divisionMap: Record<string, string> = {
     d1: "1",
     d2: "2",
