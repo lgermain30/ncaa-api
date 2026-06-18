@@ -36,6 +36,7 @@ const cache_24h = new ExpiryMap(24 * 60 * 60 * 1000);
 // valid routes for the app with their respective caches
 const validRoutes = new Map([
   ["lax-stats", cache_30m],
+  ["player", cache_30m],
   ["stats", cache_30m],
   ["rankings", cache_30m],
   ["standings", cache_30m],
@@ -145,7 +146,22 @@ export const app = new Elysia()
     return status(502, String(e));
   }
 })
+.get("/player/:id", async ({ params, query, cache, cacheKey, status }) => {
+  try {
+    const season =
+      typeof query.season === "string" ? query.season : "2026";
 
+    const data = await getLaxPlayer(
+      params.id,
+      season
+    );
+
+    cache.set(cacheKey, data);
+    return data;
+  } catch (e) {
+    return status(502, String(e));
+  }
+})
   .get("/schools-index", async ({ cache, cacheKey, status }) => {
     const req = await fetch("https://www.ncaa.com/json/schools");
     try {
@@ -972,3 +988,29 @@ async function getLaxStats(
 
   return await res.text();
 }
+
+async function getLaxPlayer(
+  playerId: string,
+  season?: string
+) {
+  const year = season || "2026";
+
+  const url =
+    `https://www.lax.com/pages/player?player_id=${playerId}&year=${year}`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "Accept": "text/html"
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `Could not fetch Lax.com player: ${res.status} URL=${url}`
+    );
+  }
+
+  return await res.text();
+}
+
