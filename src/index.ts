@@ -128,6 +128,9 @@ export const app = new Elysia()
   })
   // schools-index route to return list of all schools
     .get("/lax-stats/:sport/:division", async ({ params, query, cache, cacheKey, status }) => {
+
+    Bun.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
     const season = typeof query.season === "string" ? query.season : "2026";
 
     const sportSlug = params.sport;
