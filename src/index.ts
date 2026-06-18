@@ -126,6 +126,37 @@ export const app = new Elysia()
     }
   })
   // schools-index route to return list of all schools
+    .get("/lax-stats/:sport/:division", async ({ params, query, cache, cacheKey, status }) => {
+    const season = typeof query.season === "string" ? query.season : "2026";
+
+    const sportSlug = params.sport;
+    const divisionSlug = params.division;
+
+    const divisionMap: Record<string, string> =
+      sportSlug === "lacrosse-women"
+        ? { d1: "4", d2: "5", d3: "6" }
+        : { d1: "1", d2: "2", d3: "3" };
+
+    const division = divisionMap[divisionSlug] || "1";
+
+    const url = `https://www.laxshop.com/shopify_stats.php?year=${season}&division=${division}&action=getStats`;
+
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "Referer": `https://www.lax.com/pages/stats?year=${season}&division=${division}`,
+        "Accept": "application/json"
+      }
+    });
+
+    if (!res.ok) {
+      return status(502, `Could not fetch Lax.com stats: ${res.status}`);
+    }
+
+    const text = await res.text();
+    cache.set(cacheKey, text);
+    return text;
+  })
   .get("/schools-index", async ({ cache, cacheKey, status }) => {
     const req = await fetch("https://www.ncaa.com/json/schools");
     try {
