@@ -129,38 +129,23 @@ export const app = new Elysia()
   })
   // schools-index route to return list of all schools
     .get("/lax-stats/:sport/:division", async ({ params, query, cache, cacheKey, status }) => {
+  try {
+    const season =
+      typeof query.season === "string" ? query.season : "2026";
 
+    const data = await getLaxStats(
+      params.sport,
+      params.division,
+      season
+    );
 
-    const season = typeof query.season === "string" ? query.season : "2026";
+    cache.set(cacheKey, data);
+    return data;
+  } catch (e) {
+    return status(502, String(e));
+  }
+})
 
-    const sportSlug = params.sport;
-    const divisionSlug = params.division;
-
-    const divisionMap: Record<string, string> =
-      sportSlug === "lacrosse-women"
-        ? { d1: "4", d2: "5", d3: "6" }
-        : { d1: "1", d2: "2", d3: "3" };
-
-    const division = divisionMap[divisionSlug] || "1";
-
-    const url = `https://www.laxshop.com/shopify_stats.php?year=${season}&division=${division}&action=getStats`;
-
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        "Referer": `https://www.lax.com/pages/stats?year=${season}&division=${division}`,
-        "Accept": "application/json"
-      }
-    });
-
-    if (!res.ok) {
-      return status(502, `Could not fetch Lax.com stats: ${res.status}`);
-    }
-
-    const text = await res.text();
-    cache.set(cacheKey, text);
-    return text;
-  })
   .get("/schools-index", async ({ cache, cacheKey, status }) => {
     const req = await fetch("https://www.ncaa.com/json/schools");
     try {
@@ -942,6 +927,46 @@ const sportSlug = parts[1] || "lacrosse-men";
   if (!res.ok) {
     throw new Error(
       `Could not fetch Lax.com standings: ${res.status} URL=${url}`
+    );
+  }
+
+  return await res.text();
+}
+async function getLaxStats(
+  sportSlug: string,
+  divisionSlug: string,
+  season?: string
+) {
+  const divisionMap: Record<string, string> =
+    sportSlug === "lacrosse-women"
+      ? {
+          d1: "4",
+          d2: "5",
+          d3: "6",
+        }
+      : {
+          d1: "1",
+          d2: "2",
+          d3: "3",
+        };
+
+  const division = divisionMap[divisionSlug] || "1";
+  const year = season || "2026";
+
+  const url =
+    `https://www.laxshop.com/shopify_stats.php?year=${year}&division=${division}&action=getStats`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "Referer": `https://www.lax.com/pages/stats?year=${year}&division=${division}`,
+      "Accept": "application/json"
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `Could not fetch Lax.com stats: ${res.status} URL=${url}`
     );
   }
 
