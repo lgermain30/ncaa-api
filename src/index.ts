@@ -895,7 +895,7 @@ const sportSlug = parts[1] || "lacrosse-men";
   const year = season || "2026";
 
   const url =
-    `https://www.laxshop.com/shopify_stats.php?division=${division}&year=${year}&action=getConferencesTeams`;
+    `https://www.laxshop.com/shopify_stats.php?division=${division}&year=${year}&action=getConferences`;
 
   const res = await fetch(url, {
     headers: {
