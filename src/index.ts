@@ -995,22 +995,43 @@ async function getLaxPlayer(
 ) {
   const year = season || "2026";
 
-  const url =
-    `https://www.lax.com/pages/player?player_id=${playerId}&year=${year}`;
+  const divisions = [
+    { sport: "lacrosse-men", division: "d1" },
+    { sport: "lacrosse-men", division: "d2" },
+    { sport: "lacrosse-men", division: "d3" },
+    { sport: "lacrosse-women", division: "d1" },
+    { sport: "lacrosse-women", division: "d2" },
+    { sport: "lacrosse-women", division: "d3" },
+  ];
 
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      "Accept": "text/html"
+  for (const item of divisions) {
+    const raw = await getLaxStats(item.sport, item.division, year);
+    const json = JSON.parse(raw);
+
+    for (const category of Object.keys(json)) {
+      const players = json[category];
+
+      if (!Array.isArray(players)) continue;
+
+      const player = players.find(
+        (p) => String(p.player_id) === String(playerId)
+      );
+
+      if (player) {
+        return JSON.stringify({
+          player,
+          category,
+          sport: item.sport,
+          division: item.division,
+          season: year
+        });
+      }
     }
-  });
-
-  if (!res.ok) {
-    throw new Error(
-      `Could not fetch Lax.com player: ${res.status} URL=${url}`
-    );
   }
 
-  return await res.text();
+  return JSON.stringify({
+    error: "Player not found",
+    playerId,
+    season: year
+  });
 }
-
