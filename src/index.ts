@@ -58,6 +58,7 @@ function log(str: string) {
 //////////////////////////////// ELYSIA //////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 export const app = new Elysia()
     .use(cors({
         origin: 'https://collegelacrossenews.com'
@@ -129,7 +130,6 @@ export const app = new Elysia()
   // schools-index route to return list of all schools
     .get("/lax-stats/:sport/:division", async ({ params, query, cache, cacheKey, status }) => {
 
-    Bun.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
     const season = typeof query.season === "string" ? query.season : "2026";
 
@@ -906,7 +906,6 @@ function getStandingsHeaders(table: HTMLTableElement) {
   return headings;
 }
 async function getLacrosseStandings(path: string, season?: string) {
-  Bun.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
   const parts = path.split("/").filter(Boolean);
 
