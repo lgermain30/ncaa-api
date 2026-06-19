@@ -1,3 +1,4 @@
+import * as cheerio from "cheerio";
 import { cors } from '@elysiajs/cors';
 import { getSemaphore } from "@henrygd/semaphore";
 import { Elysia, NotFoundError, t } from "elysia";
