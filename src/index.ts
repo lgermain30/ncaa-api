@@ -1013,9 +1013,15 @@ async function getLaxPlayer(
 
       if (!Array.isArray(players)) continue;
 
-      const player = players.find(
-        (p) => String(p.player_id) === String(playerId)
-      );
+if (players.length > 0) {
+  console.log("CATEGORY:", category);
+  console.log("PLAYER KEYS:", Object.keys(players[0]));
+  console.log("SAMPLE PLAYER:", players[0]);
+}
+
+const player = players.find(
+  (p) => String(p.player_id) === String(playerId)
+);
 
       if (player) {
         return JSON.stringify({
