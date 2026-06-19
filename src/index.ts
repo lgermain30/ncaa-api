@@ -163,6 +163,16 @@ export const app = new Elysia()
     return status(502, String(e));
   }
 })
+  .get("/player-bio/:id", async ({ params, cache, cacheKey, status }) => {
+  try {
+    const data = await getNcaaPlayerBio(params.id);
+
+    cache.set(cacheKey, data);
+    return data;
+  } catch (e) {
+    return status(502, String(e));
+  }
+})
   .get("/schools-index", async ({ cache, cacheKey, status }) => {
     const req = await fetch("https://www.ncaa.com/json/schools");
     try {
@@ -1051,4 +1061,41 @@ const player = players.find(
     playerId,
     season: year
   });
+}
+async function getNcaaPlayerBio(ncaaId: string) {
+  const url = `https://stats.ncaa.org/players/${ncaaId}`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0"
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(`NCAA player fetch failed: ${res.status}`);
+  }
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  const bio = {
+    class: "",
+    number: "",
+    position: "",
+    hometown: "",
+    highSchool: ""
+  };
+
+  $("dt").each((_, el) => {
+    const label = $(el).text().trim();
+    const value = $(el).next("dd").text().trim();
+
+    if (label.includes("Class")) bio.class = value;
+    if (label.includes("Jersey")) bio.number = value;
+    if (label.includes("Position")) bio.position = value;
+    if (label.includes("Hometown")) bio.hometown = value;
+    if (label.includes("High School")) bio.highSchool = value;
+  });
+
+  return JSON.stringify(bio);
 }
