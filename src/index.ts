@@ -1089,13 +1089,32 @@ const player = players.find(
     }
   }
 
-  return JSON.stringify({
-    player,
-    stats,
-    sport: item.sport,
-    division: item.division,
-    season: year
-  });
+  let gameData = [];
+let masterData = {};
+
+try {
+  const playerRes = await fetch(
+    `https://www.lax.com/shopify_stats.php?player_id=${playerId}&year=${year}&action=getPlayer`
+  );
+
+  const playerJson = await playerRes.json();
+
+  gameData = playerJson.game_data || [];
+  masterData = playerJson.master_data || {};
+} catch (e) {
+  gameData = [];
+  masterData = {};
+}
+
+return JSON.stringify({
+  player,
+  stats,
+  masterData,
+  gameData,
+  sport: item.sport,
+  division: item.division,
+  season: year
+});
 }
     }
   }
