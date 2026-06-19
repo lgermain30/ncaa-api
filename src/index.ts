@@ -1094,7 +1094,7 @@ let masterData = {};
 
 try {
   const playerRes = await fetch(
-    'https://www.lax.com/php/shopify_stats.php?player_id=${playerId}&year=${year}&action=getPlayer'
+    `https://www.lax.com/php/shopify_stats.php?player_id=${playerId}&year=${year}&action=getPlayer`
   );
 return JSON.stringify({
   status: playerRes.status,
