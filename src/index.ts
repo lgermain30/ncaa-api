@@ -167,9 +167,18 @@ export const app = new Elysia()
   .get("/player/:id/history", async ({ params, cache, cacheKey, status }) => {
   try {
 
-    const html = await fetch(
-      `https://stats.ncaa.org/players/${params.id}`
-    ).then(r => r.text());
+    const res = await fetch(
+  `https://stats.ncaa.org/players/${params.id}`,
+  {
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "Referer": "https://stats.ncaa.org/",
+      "Accept": "text/html,application/xhtml+xml",
+    }
+  }
+);
+
+const html = await res.text();
 
     const seasons = [];
 
