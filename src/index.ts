@@ -179,6 +179,7 @@ export const app = new Elysia()
 );
 
 const html = await res.text();
+    return html.substring(0, 3000);
 
     const seasons = [];
 
