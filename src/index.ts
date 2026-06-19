@@ -1017,15 +1017,32 @@ const player = players.find(
   (p) => String(p.player_id) === String(playerId)
 );
 
-      if (player) {
+     if (player) {
 
   const stats = {};
 
   for (const statCategory of Object.keys(json)) {
-
     const statPlayers = json[statCategory];
 
     if (!Array.isArray(statPlayers)) continue;
+
+    const statPlayer = statPlayers.find(
+      (p) => String(p.player_id) === String(playerId)
+    );
+
+    if (statPlayer) {
+      stats[statCategory] = statPlayer;
+    }
+  }
+
+  return JSON.stringify({
+    player,
+    stats,
+    sport: item.sport,
+    division: item.division,
+    season: year
+  });
+}
 
     const statPlayer = statPlayers.find(
       (p) => String(p.player_id) === String(playerId)
