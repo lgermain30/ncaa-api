@@ -1064,7 +1064,7 @@ const player = players.find(
   });
 }
 async function getNcaaPlayerBio(ncaaId: string) {
-  const url = `https://stats.ncaa.org/players/${ncaaId}`;
+  const url = `https://www.ncaa.com/player/${ncaaId}`;
 
   const res = await fetch(url, {
   headers: {
