@@ -1044,24 +1044,6 @@ const player = players.find(
   });
 }
 
-    const statPlayer = statPlayers.find(
-      (p) => String(p.player_id) === String(playerId)
-    );
-
-    if (statPlayer) {
-      stats[statCategory] = statPlayer;
-    }
-  }
-
-  return JSON.stringify({
-    player,
-    stats,
-    sport: item.sport,
-    division: item.division,
-    season: year
-  });
-}
-    }
 
   return JSON.stringify({
     error: "Player not found",
