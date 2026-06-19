@@ -1067,10 +1067,12 @@ async function getNcaaPlayerBio(ncaaId: string) {
   const url = `https://stats.ncaa.org/players/${ncaaId}`;
 
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0"
-    }
-  });
+  headers: {
+    "User-Agent": "Mozilla/5.0",
+    "Referer": "https://stats.ncaa.org/",
+    "Accept": "text/html,application/xhtml+xml",
+  }
+});
 
   if (!res.ok) {
     throw new Error(`NCAA player fetch failed: ${res.status}`);
