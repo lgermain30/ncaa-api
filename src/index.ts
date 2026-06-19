@@ -1043,8 +1043,8 @@ const player = players.find(
     season: year
   });
 }
-
-
+    }
+  }
   return JSON.stringify({
     error: "Player not found",
     playerId,
