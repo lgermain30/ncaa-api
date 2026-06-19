@@ -38,6 +38,7 @@ const cache_24h = new ExpiryMap(24 * 60 * 60 * 1000);
 const validRoutes = new Map([
   ["lax-stats", cache_30m],
   ["player", cache_30m],
+  ["player-bio", cache_30m],
   ["stats", cache_30m],
   ["rankings", cache_30m],
   ["standings", cache_30m],
