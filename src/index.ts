@@ -1062,7 +1062,6 @@ const player = players.find(
   });
 }
     }
-  }
 
   return JSON.stringify({
     error: "Player not found",
