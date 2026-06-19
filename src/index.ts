@@ -1018,14 +1018,32 @@ const player = players.find(
 );
 
       if (player) {
-        return JSON.stringify({
-          player,
-          category,
-          sport: item.sport,
-          division: item.division,
-          season: year
-        });
-      }
+
+  const stats = {};
+
+  for (const statCategory of Object.keys(json)) {
+
+    const statPlayers = json[statCategory];
+
+    if (!Array.isArray(statPlayers)) continue;
+
+    const statPlayer = statPlayers.find(
+      (p) => String(p.player_id) === String(playerId)
+    );
+
+    if (statPlayer) {
+      stats[statCategory] = statPlayer;
+    }
+  }
+
+  return JSON.stringify({
+    player,
+    stats,
+    sport: item.sport,
+    division: item.division,
+    season: year
+  });
+}
     }
   }
 
