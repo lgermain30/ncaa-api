@@ -164,6 +164,39 @@ export const app = new Elysia()
     return status(502, String(e));
   }
 })
+  .get("/player/:id/history", async ({ params, cache, cacheKey, status }) => {
+  try {
+
+    const html = await fetch(
+      `https://stats.ncaa.org/players/${params.id}`
+    ).then(r => r.text());
+
+    const seasons = [];
+
+    const regex = /<a href="\/players\/(\d+)">(\d{4}-\d{2})<\/a>/g;
+
+    let match;
+
+    while ((match = regex.exec(html)) !== null) {
+      seasons.push({
+        season: match[2],
+        playerId: match[1]
+      });
+    }
+
+    const data = {
+      currentPlayerId: params.id,
+      seasons
+    };
+
+    cache.set(cacheKey, data);
+
+    return data;
+
+  } catch (e) {
+    return status(502, String(e));
+  }
+})
   .get("/player-bio/:id", async ({ params, cache, cacheKey, status }) => {
   try {
     const data = await getNcaaPlayerBio(params.id);
