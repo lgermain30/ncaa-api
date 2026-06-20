@@ -1,0 +1,17 @@
+[
+  {
+    "conference": "acc",
+    "platform": "prestosports",
+    "standingsUrl": "https://theacc.com/standings.aspx?path=mlax"
+  },
+  {
+    "conference": "americaeast",
+    "platform": "sidearm",
+    "standingsUrl": "https://americaeast.com/standings.aspx?path=mlax"
+  },
+  {
+    "conference": "asun",
+    "platform": "prestosports",
+    "standingsUrl": "https://asunsports.org/standings.aspx?standings=257"
+  }
+]
