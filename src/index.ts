@@ -248,7 +248,9 @@ const html = await res.text();
 
   let standings = [];
 
-if (conference.platform === "prestosports") {
+if (conference.platform === "debug") {
+  standings = parseDebugStandings(html);
+} else if (conference.platform === "prestosports") {
   standings = parsePrestoStandings(html);
 } else if (conference.platform === "prestosports_asun") {
   standings = parsePrestoStandingsAsun(html);
@@ -1296,6 +1298,25 @@ function parseSidearmStandings(html: string) {
         goalsForAgainst: "",
         streak: cells[8]
       });
+    }
+  });
+
+  return rows;
+}
+
+function parseDebugStandings(html: string) {
+  const $ = cheerio.load(html);
+
+  const rows: any[] = [];
+
+  $("tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
+
+    if (cells.length > 0) {
+      rows.push({ cells });
     }
   });
 
