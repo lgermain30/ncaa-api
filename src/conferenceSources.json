@@ -45,5 +45,11 @@
   "name": "MAAC",
   "platform": "sidearm_maac",
   "standingsUrl": "https://maacsports.com/standings.aspx?standings=303"
+},
+  {
+  "conference": "nec",
+  "name": "NEC",
+  "platform": "sidearm",
+  "standingsUrl": "https://northeastconference.org/standings.aspx?path=mlax"
 }
 ]
