@@ -41,9 +41,9 @@
     "standingsUrl": "https://ivyleague.com/standings.aspx?path=mlax"
   },
   {
-    "conference": "maac",
-    "name": "MAAC",
-    "platform": "sidearm",
-    "standingsUrl": "https://maacsports.com/standings.aspx?standings=303"
-  }
+  "conference": "maac",
+  "name": "MAAC",
+  "platform": "sidearm_maac",
+  "standingsUrl": "https://maacsports.com/standings.aspx?standings=303"
+}
 ]
