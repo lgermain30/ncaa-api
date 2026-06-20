@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import conferenceSources from "./conferenceSources.json";
 import { cors } from '@elysiajs/cors';
 import { getSemaphore } from "@henrygd/semaphore";
 import { Elysia, NotFoundError, t } from "elysia";
@@ -42,6 +43,7 @@ const validRoutes = new Map([
   ["stats", cache_30m],
   ["rankings", cache_30m],
   ["standings", cache_30m],
+  ["official-standings", cache_30m],
   ["history", cache_30m],
   ["schedule", cache_30m],
   ["schools-index", cache_30m],
@@ -215,6 +217,25 @@ const html = await res.text();
   } catch (e) {
     return status(502, String(e));
   }
+})
+  .get("/official-standings/:conference", async ({ params }) => {
+
+  const conference = conferenceSources.find(
+    (c: any) => c.conference === params.conference
+  );
+
+  if (!conference) {
+    return {
+      error: "Conference not found"
+    };
+  }
+
+  return {
+    conference: conference.conference,
+    platform: conference.platform,
+    standingsUrl: conference.standingsUrl
+  };
+
 })
   .get("/schools-index", async ({ cache, cacheKey, status }) => {
     const req = await fetch("https://www.ncaa.com/json/schools");
