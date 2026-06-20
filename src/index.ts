@@ -1240,8 +1240,19 @@ function parseSidearmStandings(html: string) {
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length > 0) {
-      rows.push({ cells });
+    if (cells.length >= 9) {
+      rows.push({
+        team: cells[0],
+        conferenceRecord: cells[2],
+        conferencePct: cells[4],
+        overallRecord: cells[5],
+        overallPct: cells[7],
+        home: "",
+        away: "",
+        neutral: "",
+        goalsForAgainst: "",
+        streak: cells[8]
+      });
     }
   });
 
