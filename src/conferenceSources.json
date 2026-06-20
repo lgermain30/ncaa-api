@@ -32,7 +32,7 @@
 },
   {
   "conference": "caa",
-  "platform": "sidearm",
+  "platform": "sidearm_caa",
   "standingsUrl": "https://caasports.com/standings.aspx?path=mlax"
 }
 ]
