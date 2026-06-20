@@ -1258,3 +1258,32 @@ function parsePrestoStandings(html: string) {
 
   return rows;
 }
+function parseSidearmStandings(html: string) {
+  const $ = cheerio.load(html);
+
+  const rows: any[] = [];
+
+  $("table tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
+
+    if (cells.length >= 9) {
+      rows.push({
+        team: cells[0],
+        conferenceRecord: cells[2],
+        conferencePct: cells[4],
+        overallRecord: cells[5],
+        overallPct: cells[7],
+        home: "",
+        away: "",
+        neutral: "",
+        goalsForAgainst: "",
+        streak: cells[8]
+      });
+    }
+  });
+
+  return rows;
+}
