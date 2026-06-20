@@ -1452,7 +1452,7 @@ function parseSidearmStandingsACC(html: string) {
         away: cells[9] || "",
         neutral: cells[10] || "",
         goalsForAgainst: cells[11] || "",
-        streak: cells[12] || ""]
+        streak: cells[12] || ""
       });
     }
   });
