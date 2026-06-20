@@ -218,22 +218,39 @@ const html = await res.text();
     return status(502, String(e));
   }
 })
-  .get("/official-standings/:conference", async ({ params }) => {
+  .get("/official-standings/:conference", async ({ params, status }) => {
 
   const conference = conferenceSources.find(
     (c: any) => c.conference === params.conference
   );
 
   if (!conference) {
-    return {
+    return status(404, {
       error: "Conference not found"
-    };
+    });
   }
+
+  const res = await fetch(conference.standingsUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      "Accept": "text/html"
+    }
+  });
+
+  if (!res.ok) {
+    return status(502, {
+      error: "Could not fetch standings page",
+      url: conference.standingsUrl
+    });
+  }
+
+  const html = await res.text();
 
   return {
     conference: conference.conference,
     platform: conference.platform,
-    standingsUrl: conference.standingsUrl
+    standingsUrl: conference.standingsUrl,
+    htmlLength: html.length
   };
 
 })
