@@ -246,7 +246,7 @@ const html = await res.text();
 
   const html = await res.text();
 
-  let standings = [];
+ let standings = [];
 
 if (conference.platform === "boost") {
   standings = parseBoostStandings(html);
@@ -254,9 +254,8 @@ if (conference.platform === "boost") {
   standings = parsePrestoStandings(html);
 } else if (conference.platform === "prestosports_asun") {
   standings = parsePrestoStandingsAsun(html);
- else if (conference.platform === "sidearm_caa") {
+} else if (conference.platform === "sidearm_caa") {
   standings = parseSidearmStandingsCAA(html);
-}
 } else if (conference.platform === "sidearm") {
   standings = parseSidearmStandings(html);
 }
