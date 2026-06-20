@@ -1552,9 +1552,9 @@ function parseSidearmStandingsA10(html: string) {
   console.log("A10 HTML LENGTH:", html.length);
   const rows: any[] = [];
 
-  $("tr").each((_, row) => {
+  $("table.sidearm-standings-table tbody tr").each((_, row) => {
     const cells = $(row)
-      .find("td")
+      .find("td.hide-on-medium-down")
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
