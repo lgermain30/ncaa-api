@@ -233,6 +233,15 @@ const html = await res.text();
       if (!res.ok) continue;
 
       const html = await res.text();
+      if (conference.conference === "americaeast") {
+  results.push({
+    conference: "americaeast-debug",
+    htmlLength: html.length,
+    hasStandingsTable: html.includes("sidearm-standings-table"),
+    hasHideMedium: html.includes("hide-on-medium-down"),
+    sample: html.slice(0, 1000)
+  });
+}
       let standings = [];
 
       if (conference.platform === "boost") standings = parseBoostStandings(html);
