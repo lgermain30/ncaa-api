@@ -1561,14 +1561,14 @@ function parseSidearmStandingsA10(html: string) {
       rows.push({
         team: cells[0].replace(/\s*[-x\^]+/g, "").trim(),
         conferenceRecord: cells[1] || "",
-        conferencePct: cells[2] || "",
-        overallRecord: cells[3] || "",
-        overallPct: cells[4] || "",
+conferencePct: cells[3] || "",
+overallRecord: cells[4] || "",
+overallPct: cells[5] || "",
         home: "",
         away: "",
         neutral: "",
         goalsForAgainst: "",
-        streak: cells[5] || ""
+        streak: cells[6] || ""
       });
     }
   });
