@@ -20,29 +20,30 @@
     "standingsUrl": "https://atlantic10.com/standings.aspx?path=mlax"
   },
   {
-  "conference": "bigten",
-  "platform": "boost",
-  "standingsUrl": "https://bigten.org/standings.aspx?path=mlax"
-},
+    "conference": "bigten",
+    "platform": "boost",
+    "standingsUrl": "https://bigten.org/standings.aspx?path=mlax"
+  },
   {
-  "conference": "bigeast",
-  "name": "Big East",
-  "platform": "sidearm",
-  "standingsUrl": "https://www.bigeast.com/standings.aspx?path=mlax"
-},
+    "conference": "bigeast",
+    "name": "Big East",
+    "platform": "sidearm",
+    "standingsUrl": "https://www.bigeast.com/standings.aspx?path=mlax"
+  },
   {
-  "conference": "caa",
-  "platform": "sidearm_caa",
-  "standingsUrl": "https://caasports.com/standings.aspx?path=mlax"
-},
+    "conference": "caa",
+    "platform": "sidearm_caa",
+    "standingsUrl": "https://caasports.com/standings.aspx?path=mlax"
+  },
   {
-  "conference": "ivy",
-  "platform": "sidearm_ivy",
-  "standingsUrl": "https://ivyleague.com/standings.aspx?path=mlax"
-},
-"maac": {
-  "name": "MAAC",
-  "platform": "sidearm",
-  "standingsUrl": "https://maacsports.com/standings.aspx?standings=303"
-}
-}
+    "conference": "ivy",
+    "platform": "sidearm_ivy",
+    "standingsUrl": "https://ivyleague.com/standings.aspx?path=mlax"
+  },
+  {
+    "conference": "maac",
+    "name": "MAAC",
+    "platform": "sidearm",
+    "standingsUrl": "https://maacsports.com/standings.aspx?standings=303"
+  }
+]
