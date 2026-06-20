@@ -1,7 +1,7 @@
 [
   {
     "conference": "acc",
-"platform": "prestosports",
+    "platform": "prestosports",
     "standingsUrl": "https://theacc.com/standings.aspx?path=mlax"
   },
   {
@@ -9,7 +9,7 @@
     "platform": "sidearm",
     "standingsUrl": "https://americaeast.com/standings.aspx?path=mlax"
   },
-   {
+  {
     "conference": "asun",
     "platform": "prestosports_asun",
     "standingsUrl": "https://asunsports.org/standings.aspx?standings=257"
@@ -18,5 +18,10 @@
     "conference": "atlantic10",
     "platform": "sidearm",
     "standingsUrl": "https://atlantic10.com/standings.aspx?path=mlax"
+  },
+  {
+    "conference": "bigten",
+    "platform": "sidearm",
+    "standingsUrl": "https://bigten.org/standings.aspx?path=mlax"
   }
 ]
