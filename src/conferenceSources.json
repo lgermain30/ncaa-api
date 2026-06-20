@@ -37,7 +37,7 @@
 },
   {
   "conference": "ivy",
-  "platform": "sidearm",
+  "platform": "sidearm_caa",
   "standingsUrl": "https://ivyleague.com/standings.aspx?path=mlax"
 }
 ]
