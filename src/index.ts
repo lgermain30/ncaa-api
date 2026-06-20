@@ -1314,19 +1314,19 @@ function parsePrestoStandings(html: string) {
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 6) {
+    if (cells.length >= 9) {
       rows.push({
-        team: cells[0].replace(/\s*\*$/g, "").trim(),
-        conferenceRecord: cells[1] || "",
-        conferencePct: cells[2] || "",
-        overallRecord: cells[3] || "",
-        overallPct: cells[4] || "",
-        home: cells[5] || "",
-        away: cells[6] || "",
-        neutral: cells[7] || "",
-        goalsForAgainst: cells[8] || "",
-        streak: cells[9] || ""
-      });
+  team: cells[0].replace(/\s*\*$/g, "").trim(),
+  conferenceRecord: cells[2] || "",
+  conferencePct: cells[4] || "",
+  overallRecord: cells[6] || "",
+  overallPct: cells[8] || "",
+  home: cells[10] || "",
+  away: cells[11] || "",
+  neutral: cells[12] || "",
+  goalsForAgainst: "",
+  streak: cells[13] || cells[9] || ""
+});
     }
   });
 
