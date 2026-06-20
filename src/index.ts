@@ -1285,19 +1285,19 @@ function parseSidearmStandings(html: string) {
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 9) {
+    if (cells.length >= 14) {
       rows.push({
-        team: cells[0],
-        conferenceRecord: cells[2],
-        conferencePct: cells[4],
-        overallRecord: cells[5],
-        overallPct: cells[7],
-        home: "",
-        away: "",
-        neutral: "",
-        goalsForAgainst: "",
-        streak: cells[8]
-      });
+  team: cells[0],
+  conferenceRecord: cells[2],
+  conferencePct: cells[4],
+  overallRecord: cells[6],
+  overallPct: cells[8],
+  home: cells[10] || "",
+  away: cells[11] || "",
+  neutral: cells[12] || "",
+  goalsForAgainst: "",
+  streak: cells[13] || ""
+});
     }
   });
 
