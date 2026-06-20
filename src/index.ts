@@ -246,12 +246,15 @@ const html = await res.text();
 
   const html = await res.text();
 
-  return {
-    conference: conference.conference,
-    platform: conference.platform,
-    standingsUrl: conference.standingsUrl,
-    htmlLength: html.length
-  };
+  const standings = parsePrestoStandings(html);
+
+return {
+  conference: conference.conference,
+  platform: conference.platform,
+  standingsUrl: conference.standingsUrl,
+  count: standings.length,
+  standings
+};
 
 })
  
@@ -1201,4 +1204,27 @@ async function getNcaaPlayerBio(ncaaId: string) {
   });
 
   return JSON.stringify(bio);
+}
+function parsePrestoStandings(html: string) {
+  const $ = cheerio.load(html);
+
+  const rows: any[] = [];
+
+  $("table tbody tr").each((_, row) => {
+    const cells = $(row).find("td").map((_, cell) =>
+      $(cell).text().replace(/\s+/g, " ").trim()
+    ).get();
+
+    if (cells.length >= 4) {
+      rows.push({
+        team: cells[0],
+        conferenceRecord: cells[1],
+        conferencePct: cells[2],
+        overallRecord: cells[3],
+        overallPct: cells[4] || ""
+      });
+    }
+  });
+
+  return rows;
 }
