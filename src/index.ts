@@ -260,6 +260,8 @@ if (conference.platform === "boost") {
   standings = parseSidearmStandingsIvy(html);
   } else if (conference.platform === "sidearm_maac") {
   standings = parseSidearmStandingsMAAC(html);
+  } else if (conference.platform === "sidearm_nec") {
+  standings = parseSidearmStandingsNEC(html);
 } else if (conference.platform === "sidearm") {
   standings = parseSidearmStandings(html);
 }
@@ -1426,6 +1428,35 @@ function parseSidearmStandingsMAAC(html: string) {
         neutral: cells[11],
         goalsForAgainst: "",
         streak: cells[12]
+      });
+    }
+  });
+
+  return rows;
+}
+
+function parseSidearmStandingsNEC(html: string) {
+  const $ = cheerio.load(html);
+  const rows: any[] = [];
+
+  $("table tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
+
+    if (cells.length >= 8) {
+      rows.push({
+        team: cells[1].replace("*", "").trim(),
+        conferenceRecord: cells[2],
+        conferencePct: cells[3],
+        overallRecord: cells[4],
+        overallPct: cells[5],
+        home: "",
+        away: "",
+        neutral: "",
+        goalsForAgainst: "",
+        streak: cells[7]
       });
     }
   });
