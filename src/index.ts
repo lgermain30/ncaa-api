@@ -1230,9 +1230,20 @@ function parsePrestoStandings(html: string) {
   return rows;
 }
 function parseSidearmStandings(html: string) {
-  return [
-    {
-      test: "SIDEARM PARSER REACHED"
+  const $ = cheerio.load(html);
+
+  const rows: any[] = [];
+
+  $("table tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
+
+    if (cells.length > 0) {
+      rows.push({ cells });
     }
-  ];
+  });
+
+  return rows;
 }
