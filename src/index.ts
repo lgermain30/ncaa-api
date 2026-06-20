@@ -1210,18 +1210,24 @@ function parsePrestoStandings(html: string) {
 
   const rows: any[] = [];
 
-  $("table tbody tr").each((_, row) => {
-    const cells = $(row).find("td").map((_, cell) =>
-      $(cell).text().replace(/\s+/g, " ").trim()
-    ).get();
+  $("table.sidearm-standings-table tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td.hide-on-medium-down")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
 
-    if (cells.length >= 4) {
+    if (cells.length >= 5) {
       rows.push({
         team: cells[0],
         conferenceRecord: cells[1],
         conferencePct: cells[2],
         overallRecord: cells[3],
-        overallPct: cells[4] || ""
+        overallPct: cells[4],
+        home: cells[5] || "",
+        away: cells[6] || "",
+        neutral: cells[7] || "",
+        goalsForAgainst: cells[8] || "",
+        streak: cells[9] || ""
       });
     }
   });
