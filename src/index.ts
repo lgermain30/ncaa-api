@@ -1551,19 +1551,19 @@ function parseSidearmStandingsA10(html: string) {
   const $ = cheerio.load(html);
   const rows: any[] = [];
 
-  $("table.sidearm-standings-table tbody tr").each((_, row) => {
+  $("tr").each((_, row) => {
     const cells = $(row)
       .find("td.hide-on-medium-down")
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 6) {
+    if (cells.length >= 7) {
       rows.push({
         team: cells[0].replace(/\s*[-x\^]+/g, "").trim(),
         conferenceRecord: cells[1] || "",
-conferencePct: cells[3] || "",
-overallRecord: cells[4] || "",
-overallPct: cells[5] || "",
+        conferencePct: cells[3] || "",
+        overallRecord: cells[4] || "",
+        overallPct: cells[5] || "",
         home: "",
         away: "",
         neutral: "",
@@ -1572,7 +1572,7 @@ overallPct: cells[5] || "",
       });
     }
   });
-console.log("A10 ROWS FOUND:", rows.length);
+
   return rows;
 }
 function parseSidearmStandingsPatriot(html: string) {
