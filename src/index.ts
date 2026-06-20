@@ -1549,6 +1549,7 @@ function parseSidearmStandingsNEC(html: string) {
 }
 function parseSidearmStandingsA10(html: string) {
   const $ = cheerio.load(html);
+  console.log("A10 HTML LENGTH:", html.length);
   const rows: any[] = [];
 
   $("tr").each((_, row) => {
@@ -1572,7 +1573,7 @@ function parseSidearmStandingsA10(html: string) {
       });
     }
   });
-
+console.log("A10 ROWS:", rows.length);
   return rows;
 }
 function parseSidearmStandingsPatriot(html: string) {
