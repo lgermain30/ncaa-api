@@ -1355,7 +1355,11 @@ function parsePrestoStandingsAsun(html: string) {
 }
 function parseSidearmStandings(html: string) {
   const $ = cheerio.load(html);
-
+  
+console.log("HTML LENGTH:", html.length);
+console.log("HAS STANDINGS:", html.includes("sidearm-standings-table"));
+console.log("HAS TBODY:", html.includes("<tbody"));
+  
   const rows: any[] = [];
 
   $("tr").each((_, row) => {
