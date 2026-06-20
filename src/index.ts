@@ -1229,7 +1229,7 @@ function parsePrestoStandings(html: string) {
 
   return rows;
 }
-function parseSidearmStandings(html: string) {
+function parsePrestoStandings(html: string) {
   const $ = cheerio.load(html);
 
   const rows: any[] = [];
@@ -1240,18 +1240,18 @@ function parseSidearmStandings(html: string) {
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 9) {
+    if (cells.length >= 13) {
       rows.push({
         team: cells[0],
         conferenceRecord: cells[2],
-        conferencePct: cells[4],
-        overallRecord: cells[5],
+        conferencePct: cells[5],
+        overallRecord: cells[4],
         overallPct: cells[7],
-        home: "",
-        away: "",
-        neutral: "",
-        goalsForAgainst: "",
-        streak: cells[8]
+        home: cells[8],
+        away: cells[9],
+        neutral: cells[10],
+        goalsForAgainst: cells[11],
+        streak: cells[12]
       });
     }
   });
