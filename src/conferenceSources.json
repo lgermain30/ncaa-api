@@ -51,5 +51,11 @@
   "name": "NEC",
   "platform": "sidearm_nec",
   "standingsUrl": "https://necsports.com/standings.aspx?path=mlacrosse"
+},
+  {
+  "conference": "patriot",
+  "name": "Patriot League",
+  "platform": "sidearm",
+  "standingsUrl": "https://patriotleague.org/standings.aspx?standings=2220"
 }
 ]
