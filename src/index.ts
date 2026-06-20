@@ -246,7 +246,13 @@ const html = await res.text();
 
   const html = await res.text();
 
-  const standings = parsePrestoStandings(html);
+  let standings = [];
+
+if (conference.platform === "prestosports") {
+  standings = parsePrestoStandings(html);
+} else if (conference.platform === "sidearm") {
+  standings = parseSidearmStandings(html);
+}
 
 return {
   conference: conference.conference,
@@ -1222,4 +1228,11 @@ function parsePrestoStandings(html: string) {
   });
 
   return rows;
+}
+function parseSidearmStandings(html: string) {
+  return [
+    {
+      test: "SIDEARM PARSER REACHED"
+    }
+  ];
 }
