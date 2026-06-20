@@ -39,5 +39,10 @@
   "conference": "ivy",
   "platform": "sidearm_ivy",
   "standingsUrl": "https://ivyleague.com/standings.aspx?path=mlax"
+},
+"maac": {
+  "name": "MAAC",
+  "platform": "sidearm",
+  "standingsUrl": "https://maacsports.com/standings.aspx?standings=303"
 }
-]
+}
