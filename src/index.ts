@@ -1553,22 +1553,22 @@ function parseSidearmStandingsA10(html: string) {
 
   $("tr").each((_, row) => {
     const cells = $(row)
-      .find("td.hide-on-medium-down")
+      .find("td")
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 7) {
+    if (cells.length >= 9) {
       rows.push({
         team: cells[0].replace(/\s*[-x\^]+/g, "").trim(),
-        conferenceRecord: cells[1] || "",
-        conferencePct: cells[3] || "",
-        overallRecord: cells[4] || "",
-        overallPct: cells[5] || "",
+        conferenceRecord: cells[2] || "",
+        conferencePct: cells[5] || "",
+        overallRecord: cells[6] || "",
+        overallPct: cells[7] || "",
         home: "",
         away: "",
         neutral: "",
         goalsForAgainst: "",
-        streak: cells[6] || ""
+        streak: cells[8] || ""
       });
     }
   });
