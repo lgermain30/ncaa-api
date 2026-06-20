@@ -1311,14 +1311,29 @@ function parseBoostStandings(html: string) {
 
   if (!match) return [];
 
-  const data = JSON.parse(match[1]);
+  const json = JSON.parse(match[1]);
+  const fallback = json?.props?.pageProps?.fallback || {};
+  const firstKey = Object.keys(fallback)[0];
+  const data = fallback[firstKey]?.data || [];
 
-  return [
-    {
-      debug:
-        data?.props?.pageProps?.standings ||
-        data?.props?.pageProps ||
-        "NO STANDINGS FOUND"
+  return data.map((team: any) => {
+    const stats: any = {};
+
+    for (const item of team.data || []) {
+      Object.assign(stats, item);
     }
-  ];
+
+    return {
+      team: team.market,
+      conferenceRecord: stats.conf_record || "",
+      conferencePct: stats.conf_pct || "",
+      overallRecord: stats.ovr_record || "",
+      overallPct: stats.ovr_pct || "",
+      home: stats.home_record || "",
+      away: stats.away_record || "",
+      neutral: stats.neutral_record || "",
+      goalsForAgainst: "",
+      streak: stats.streak || ""
+    };
+  });
 }
