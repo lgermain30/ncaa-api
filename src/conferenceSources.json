@@ -23,5 +23,11 @@
   "conference": "bigten",
   "platform": "boost",
   "standingsUrl": "https://bigten.org/standings.aspx?path=mlax"
+},
+  {
+  "conference": "bigeast",
+  "name": "Big East",
+  "platform": "sidearm",
+  "standingsUrl": "https://www.bigeast.com/standings.aspx?path=mlax"
 }
 ]
