@@ -55,7 +55,7 @@
   {
   "conference": "patriot",
   "name": "Patriot League",
-  "platform": "sidearm",
+  "platform": "sidearm_maac",
   "standingsUrl": "https://patriotleague.org/standings.aspx?standings=2220"
 }
 ]
