@@ -1268,7 +1268,7 @@ async function getNcaaPlayerBio(ncaaId: string) {
   return JSON.stringify(bio);
 }
 
-function parseSidearmStandings(html: string) {
+function parseSidearmStandingsOld(html: string) {
   const $ = cheerio.load(html);
   const rows: any[] = [];
 
@@ -1380,6 +1380,7 @@ function parseSidearmStandings(html: string) {
     }
   });
 
+  console.log("SIDEARM ROWS FOUND:", rows.length);
   return rows;
 }
 
