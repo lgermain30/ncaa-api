@@ -1370,16 +1370,16 @@ console.log("HAS TBODY:", html.includes("<tbody"));
 
     if (cells.length >= 6) {
       rows.push({
-  team: cells[0],
-  conferenceRecord: cells[1],
-  conferencePct: cells[2],
-  overallRecord: cells[3],
-  overallPct: cells[4],
+  team: cells[0].replace(/\s*[-x\^]+/g, "").trim(),
+conferenceRecord: cells[2] || "",
+conferencePct: cells[4] || "",
+overallRecord: cells[5] || "",
+overallPct: cells[7] || "",
   home: "",
 away: "",
 neutral: "",
   goalsForAgainst: "",
-  streak: cells[5] || ""
+  streak: cells[8] || ""
 });
     }
   });
