@@ -233,15 +233,7 @@ const html = await res.text();
       if (!res.ok) continue;
 
       const html = await res.text();
-      if (conference.conference === "americaeast") {
-  results.push({
-    conference: "americaeast-debug",
-    htmlLength: html.length,
-    hasStandingsTable: html.includes("sidearm-standings-table"),
-    hasHideMedium: html.includes("hide-on-medium-down"),
-    sample: html.slice(0, 1000)
-  });
-}
+     
       let standings = [];
 
       if (conference.platform === "boost") standings = parseBoostStandings(html);
@@ -1298,6 +1290,34 @@ function parseSidearmStandings(html: string) {
         neutral: "",
         goalsForAgainst: "",
         streak: cells[5] || ""
+      });
+    }
+  });
+
+  return rows;
+}
+function parsePrestoStandings(html: string) {
+  const $ = cheerio.load(html);
+  const rows: any[] = [];
+
+  $("table tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
+
+    if (cells.length >= 6) {
+      rows.push({
+        team: cells[0].replace(/\s*\*$/g, "").trim(),
+        conferenceRecord: cells[1] || "",
+        conferencePct: cells[2] || "",
+        overallRecord: cells[3] || "",
+        overallPct: cells[4] || "",
+        home: cells[5] || "",
+        away: cells[6] || "",
+        neutral: cells[7] || "",
+        goalsForAgainst: cells[8] || "",
+        streak: cells[9] || ""
       });
     }
   });
