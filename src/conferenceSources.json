@@ -49,7 +49,7 @@
   {
   "conference": "nec",
   "name": "NEC",
-  "platform": "sidearm",
+  "platform": "sidearm_nec",
   "standingsUrl": "https://necsports.com/standings.aspx?path=mlacrosse"
 }
 ]
