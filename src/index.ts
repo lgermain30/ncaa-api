@@ -1216,8 +1216,19 @@ function parsePrestoStandings(html: string) {
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length > 0) {
-      rows.push({ cells });
+    if (cells.length >= 14) {
+      rows.push({
+        team: cells[0],
+        conferenceRecord: cells[2],
+        conferencePct: cells[5],
+        overallRecord: cells[4],
+        overallPct: cells[9],
+        home: cells[10],
+        away: cells[11],
+        neutral: cells[12],
+        goalsForAgainst: "",
+        streak: cells[13]
+      });
     }
   });
 
