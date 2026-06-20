@@ -1368,18 +1368,18 @@ console.log("HAS TBODY:", html.includes("<tbody"));
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 14) {
+    if (cells.length >= 6) {
       rows.push({
   team: cells[0],
-  conferenceRecord: cells[2],
-  conferencePct: cells[4],
-  overallRecord: cells[6],
-  overallPct: cells[8],
-  home: cells[10] || "",
-  away: cells[11] || "",
-  neutral: cells[12] || "",
+  conferenceRecord: cells[1],
+  conferencePct: cells[2],
+  overallRecord: cells[3],
+  overallPct: cells[4],
+  home: "",
+away: "",
+neutral: "",
   goalsForAgainst: "",
-  streak: cells[13] || ""
+  streak: cells[5] || ""
 });
     }
   });
