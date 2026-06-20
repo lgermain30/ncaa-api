@@ -1572,7 +1572,7 @@ overallPct: cells[5] || "",
       });
     }
   });
-
+console.log("A10 ROWS FOUND:", rows.length);
   return rows;
 }
 function parseSidearmStandingsPatriot(html: string) {
