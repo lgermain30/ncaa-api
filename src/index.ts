@@ -256,6 +256,8 @@ if (conference.platform === "boost") {
   standings = parsePrestoStandingsAsun(html);
 } else if (conference.platform === "sidearm_caa") {
   standings = parseSidearmStandingsCAA(html);
+} else if (conference.platform === "sidearm_ivy") {
+  standings = parseSidearmStandingsCAA(html);
 } else if (conference.platform === "sidearm") {
   standings = parseSidearmStandings(html);
 }
