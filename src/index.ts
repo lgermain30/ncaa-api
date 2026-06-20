@@ -1267,29 +1267,28 @@ async function getNcaaPlayerBio(ncaaId: string) {
   return JSON.stringify(bio);
 }
 
-function parsePrestoStandings(html: string) {
+function parseSidearmStandings(html: string) {
   const $ = cheerio.load(html);
-
   const rows: any[] = [];
 
-  $("table tbody tr").each((_, row) => {
+  $("table.sidearm-standings-table tbody tr").each((_, row) => {
     const cells = $(row)
-      .find("td")
+      .find("td.hide-on-medium-down")
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 13) {
+    if (cells.length >= 6) {
       rows.push({
-        team: cells[0],
-        conferenceRecord: cells[2],
-        conferencePct: cells[5],
-        overallRecord: cells[4],
-        overallPct: cells[7],
-        home: cells[8],
-        away: cells[9],
-        neutral: cells[10],
-        goalsForAgainst: cells[11],
-        streak: cells[12]
+        team: cells[0].replace(/\s*\^|\s*\*$/g, "").trim(),
+        conferenceRecord: cells[1] || "",
+        conferencePct: cells[2] || "",
+        overallRecord: cells[3] || "",
+        overallPct: cells[4] || "",
+        home: "",
+        away: "",
+        neutral: "",
+        goalsForAgainst: "",
+        streak: cells[5] || ""
       });
     }
   });
