@@ -10,8 +10,8 @@
     "standingsUrl": "https://americaeast.com/standings.aspx?path=mlax"
   },
   {
-    "conference": "asun",
-    "platform": "prestosports",
+  "conference": "asun",
+  "platform": "prestosports_asun",
     "standingsUrl": "https://asunsports.org/standings.aspx?standings=257"
   }
 ]
