@@ -239,6 +239,7 @@ const html = await res.text();
       if (conference.platform === "boost") standings = parseBoostStandings(html);
       else if (conference.platform === "prestosports") standings = parsePrestoStandings(html);
       else if (conference.platform === "prestosports_asun") standings = parsePrestoStandingsAsun(html);
+       else if (conference.platform === "sidearm_acc") standings = parseSidearmStandingsACC(html); 
       else if (conference.platform === "sidearm_caa") standings = parseSidearmStandingsCAA(html);
       else if (conference.platform === "sidearm_ivy") standings = parseSidearmStandingsIvy(html);
       else if (conference.platform === "sidearm_maac") standings = parseSidearmStandingsMAAC(html);
@@ -1429,7 +1430,35 @@ function parseBoostStandings(html: string) {
     };
   });
 }
+function parseSidearmStandingsACC(html: string) {
+  const $ = cheerio.load(html);
 
+  const rows: any[] = [];
+
+  $("table tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
+
+    if (cells.length >= 13) {
+      rows.push({
+        team: cells[1],
+        conferenceRecord: cells[3],
+        conferencePct: cells[5],
+        overallRecord: cells[6],
+        overallPct: cells[7],
+        home: cells[8] || "",
+        away: cells[9] || "",
+        neutral: cells[10] || "",
+        goalsForAgainst: cells[11] || "",
+        streak: cells[12] || ""]
+      });
+    }
+  });
+
+  return rows;
+}
 function parseSidearmStandingsCAA(html: string) {
   const $ = cheerio.load(html);
 
