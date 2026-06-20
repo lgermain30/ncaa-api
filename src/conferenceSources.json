@@ -29,5 +29,10 @@
   "name": "Big East",
   "platform": "sidearm",
   "standingsUrl": "https://www.bigeast.com/standings.aspx?path=mlax"
+},
+  {
+  "conference": "caa",
+  "platform": "sidearm",
+  "standingsUrl": "https://caasports.com/standings.aspx?path=mlax"
 }
 ]
