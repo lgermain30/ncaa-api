@@ -218,6 +218,47 @@ const html = await res.text();
     return status(502, String(e));
   }
 })
+  .get("/official-standings", async ({ status }) => {
+  try {
+    const results = [];
+
+    for (const conference of conferenceSources) {
+      const res = await fetch(conference.standingsUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          "Accept": "text/html"
+        }
+      });
+
+      if (!res.ok) continue;
+
+      const html = await res.text();
+      let standings = [];
+
+      if (conference.platform === "boost") standings = parseBoostStandings(html);
+      else if (conference.platform === "prestosports") standings = parsePrestoStandings(html);
+      else if (conference.platform === "prestosports_asun") standings = parsePrestoStandingsAsun(html);
+      else if (conference.platform === "sidearm_caa") standings = parseSidearmStandingsCAA(html);
+      else if (conference.platform === "sidearm_ivy") standings = parseSidearmStandingsIvy(html);
+      else if (conference.platform === "sidearm_maac") standings = parseSidearmStandingsMAAC(html);
+      else if (conference.platform === "sidearm_nec") standings = parseSidearmStandingsNEC(html);
+      else if (conference.platform === "sidearm_patriot") standings = parseSidearmStandingsPatriot(html);
+      else if (conference.platform === "sidearm") standings = parseSidearmStandings(html);
+
+      results.push({
+        conference: conference.name || conference.conference,
+        slug: conference.conference,
+        platform: conference.platform,
+        count: standings.length,
+        standings
+      });
+    }
+
+    return results;
+  } catch (e) {
+    return status(502, String(e));
+  }
+})
   .get("/official-standings/:conference", async ({ params, status }) => {
 
   const conference = conferenceSources.find(
