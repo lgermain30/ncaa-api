@@ -21,7 +21,7 @@
   },
   {
   "conference": "bigten",
-  "platform": "debug",
+  "platform": "boost",
   "standingsUrl": "https://bigten.org/standings.aspx?path=mlax"
 }
 ]
