@@ -1358,7 +1358,7 @@ function parseSidearmStandings(html: string) {
 
   const rows: any[] = [];
 
-  $("table tbody tr").each((_, row) => {
+  $("tr").each((_, row) => {
     const cells = $(row)
       .find("td")
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
