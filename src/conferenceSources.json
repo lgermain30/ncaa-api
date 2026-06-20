@@ -20,8 +20,8 @@
     "standingsUrl": "https://atlantic10.com/standings.aspx?path=mlax"
   },
   {
-    "conference": "bigten",
-    "platform": "sidearm",
-    "standingsUrl": "https://bigten.org/standings.aspx?path=mlax"
-  }
+  "conference": "bigten",
+  "platform": "debug",
+  "standingsUrl": "https://bigten.org/standings.aspx?path=mlax"
+}
 ]
