@@ -1441,22 +1441,22 @@ function parseSidearmStandingsNEC(html: string) {
 
   $("table tbody tr").each((_, row) => {
     const cells = $(row)
-      .find("td")
+      .find("td.hide-on-medium-down")
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 8) {
+    if (cells.length >= 9) {
       rows.push({
-        team: cells[1].replace("*", "").trim(),
-        conferenceRecord: cells[2],
-        conferencePct: cells[3],
-        overallRecord: cells[4],
-        overallPct: cells[5],
-        home: "",
-        away: "",
-        neutral: "",
+        team: cells[0].replace("*", "").trim(),
+        conferenceRecord: cells[1],
+        conferencePct: cells[2],
+        overallRecord: cells[3],
+        overallPct: cells[4],
+        home: cells[6],
+        away: cells[7],
+        neutral: cells[8],
         goalsForAgainst: "",
-        streak: cells[7]
+        streak: cells[5]
       });
     }
   });
