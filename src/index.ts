@@ -1337,3 +1337,33 @@ function parseBoostStandings(html: string) {
     };
   });
 }
+
+function parseSidearmStandingsCAA(html: string) {
+  const $ = cheerio.load(html);
+
+  const rows: any[] = [];
+
+  $("table tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
+
+    if (cells.length >= 9) {
+      rows.push({
+        team: cells[1],
+        conferenceRecord: cells[3],
+        conferencePct: cells[5],
+        overallRecord: cells[6],
+        overallPct: cells[7],
+        home: "",
+        away: "",
+        neutral: "",
+        goalsForAgainst: "",
+        streak: cells[8]
+      });
+    }
+  });
+
+  return rows;
+}
