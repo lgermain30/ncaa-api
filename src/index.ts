@@ -248,8 +248,8 @@ const html = await res.text();
 
   let standings = [];
 
-if (conference.platform === "debug") {
-  standings = parseDebugStandings(html);
+if (conference.platform === "boost") {
+  standings = parseBoostStandings(html);
 } else if (conference.platform === "prestosports") {
   standings = parsePrestoStandings(html);
 } else if (conference.platform === "prestosports_asun") {
@@ -1304,21 +1304,21 @@ function parseSidearmStandings(html: string) {
   return rows;
 }
 
-function parseDebugStandings(html: string) {
-  const $ = cheerio.load(html);
+function parseBoostStandings(html: string) {
+  const match = html.match(
+    /<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/
+  );
 
-  const rows: any[] = [];
+  if (!match) return [];
 
-  $("tr").each((_, row) => {
-    const cells = $(row)
-      .find("td")
-      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
-      .get();
+  const data = JSON.parse(match[1]);
 
-    if (cells.length > 0) {
-      rows.push({ cells });
+  return [
+    {
+      debug:
+        data?.props?.pageProps?.standings ||
+        data?.props?.pageProps ||
+        "NO STANDINGS FOUND"
     }
-  });
-
-  return rows;
+  ];
 }
