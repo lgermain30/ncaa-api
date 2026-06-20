@@ -257,7 +257,7 @@ if (conference.platform === "boost") {
 } else if (conference.platform === "sidearm_caa") {
   standings = parseSidearmStandingsCAA(html);
 } else if (conference.platform === "sidearm_ivy") {
-  standings = parseSidearmStandingsCAA(html);
+  standings = parseSidearmStandingsIvy(html);
 } else if (conference.platform === "sidearm") {
   standings = parseSidearmStandings(html);
 }
@@ -1358,6 +1358,36 @@ function parseSidearmStandingsCAA(html: string) {
         team: cells[1],
         conferenceRecord: cells[3],
         conferencePct: cells[5],
+        overallRecord: cells[6],
+        overallPct: cells[7],
+        home: "",
+        away: "",
+        neutral: "",
+        goalsForAgainst: "",
+        streak: cells[8]
+      });
+    }
+  });
+
+  return rows;
+}
+
+function parseSidearmStandingsIvy(html: string) {
+  const $ = cheerio.load(html);
+
+  const rows: any[] = [];
+
+  $("table tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+      .get();
+
+    if (cells.length >= 9) {
+      rows.push({
+        team: cells[0].replace("*", "").trim(),
+        conferenceRecord: cells[2],
+        conferencePct: cells[4],
         overallRecord: cells[6],
         overallPct: cells[7],
         home: "",
