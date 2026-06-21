@@ -255,13 +255,14 @@ else if (conference.platform === "sidearm_patriot") {
 else if (conference.platform === "sidearm") {
   standings = parseSidearmStandings(html);
 }
-      results.push({
-        conference: conference.name || conference.conference,
-        slug: conference.conference,
-        platform: conference.platform,
-        count: standings.length,
-        standings
-      });
+     results.push({
+  conference: conference.name || conference.conference,
+  slug: conference.conference,
+  logo: conference.logo || "",
+  platform: conference.platform,
+  count: standings.length,
+  standings
+});
     }
 
     return results;
