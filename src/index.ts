@@ -1586,6 +1586,7 @@ function parseSidearmStandingsA10(html: string) {
       .find("td")
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
+    console.log("A10 CELLS:", cells.length);
 
     if (cells.length >= 9) {
       rows.push({
