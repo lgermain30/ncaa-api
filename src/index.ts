@@ -1583,7 +1583,7 @@ function parseSidearmStandingsA10(html: string) {
 
   $("table.sidearm-standings-table tbody tr").each((_, row) => {
     const cells = $(row)
-      .find("td.hide-on-medium-down")
+      .find("td")
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
