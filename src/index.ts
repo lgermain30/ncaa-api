@@ -1344,19 +1344,19 @@ function parsePrestoStandingsAsun(html: string) {
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 14) {
+    if (cells.length >= 9) {
       rows.push({
-        team: cells[0],
-        conferenceRecord: cells[2],
-        conferencePct: cells[5],
-        overallRecord: cells[4],
-        overallPct: cells[9],
-        home: cells[10],
-        away: cells[11],
-        neutral: cells[12],
-        goalsForAgainst: "",
-        streak: cells[13]
-      });
+  team: cells[1] || cells[0],
+  conferenceRecord: cells[3] || cells[2],
+  conferencePct: cells[5] || cells[4],
+  overallRecord: cells[6] || "",
+  overallPct: cells[7] || "",
+  home: "",
+  away: "",
+  neutral: "",
+  goalsForAgainst: "",
+  streak: cells[8] || ""
+});
     }
   });
 
