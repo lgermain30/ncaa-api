@@ -1379,20 +1379,33 @@ console.log("HAS TBODY:", html.includes("<tbody"));
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-    if (cells.length >= 9) {
-      rows.push({
-  team: (cells[0] || "").replace(/\s*[x\^*]+/g, "").trim(),
-  conferenceRecord: cells[2] || "",
-  conferencePct: cells[4] || "",
-  overallRecord: cells[6] || "",
-  overallPct: cells[7] || "",
-  home: "",
-  away: "",
-  neutral: "",
-  goalsForAgainst: "",
-  streak: cells[8] || ""
-});
-    }
+   if (cells.length >= 14) {
+  rows.push({
+    team: (cells[0] || "").replace(/\s*[-x\^*]+/g, "").trim(),
+    conferenceRecord: cells[2] || "",
+    conferencePct: cells[4] || "",
+    overallRecord: cells[6] || "",
+    overallPct: cells[8] || "",
+    home: "",
+    away: "",
+    neutral: "",
+    goalsForAgainst: "",
+    streak: cells[13] || ""
+  });
+} else if (cells.length >= 9) {
+  rows.push({
+    team: (cells[0] || "").replace(/\s*[-x\^*]+/g, "").trim(),
+    conferenceRecord: cells[2] || "",
+    conferencePct: cells[4] || "",
+    overallRecord: cells[6] || "",
+    overallPct: cells[7] || "",
+    home: "",
+    away: "",
+    neutral: "",
+    goalsForAgainst: "",
+    streak: cells[8] || ""
+  });
+}
   });
 
   console.log("SIDEARM ROWS FOUND:", rows.length);
