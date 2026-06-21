@@ -318,7 +318,7 @@ if (conference.platform === "boost") {
 } else if (conference.platform === "sidearm") {
   standings = parseSidearmStandings(html);
 }
-
+console.log("A10 ROW COUNT:", standings.length);
 return {
   conference: conference.conference,
   platform: conference.platform,
