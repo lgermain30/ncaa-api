@@ -315,6 +315,8 @@ if (conference.platform === "boost") {
   standings = parseSidearmStandingsNEC(html);
   } else if (conference.platform === "sidearm_patriot") {
   standings = parseSidearmStandingsPatriot(html);
+  } else if (conference.platform === "sidearm_a10") {
+  standings = parseSidearmStandingsA10(html);
 } else if (conference.platform === "sidearm") {
   standings = parseSidearmStandings(html);
 }
