@@ -1,13 +1,4 @@
 [
-  {
-  "conference": "acc",
-  "name": "ACC",
-  "logo": "/conference-logos/acc.png",
-  "platform": "sidearm_acc",
-  "standingsUrl": "https://theacc.com/standings.aspx?path=mlax",
-  "seasonUrls": {
-    "2025": "https://theacc.com/standings.aspx?standings=119"
-  }
 {
 "conference": "acc",
 "name": "ACC",
@@ -18,76 +9,6 @@
 "2025": "https://theacc.com/standings.aspx?standings=119"
 }
 },
-  {
-    "conference": "americaeast",
-    "name": "America East",
-    "logo": "/conference-logos/americaeast.png",
-    "platform": "sidearm",
-    "standingsUrl": "https://americaeast.com/standings.aspx?path=mlax"
-  },
-  {
-    "conference": "asun",
-    "name": "ASUN",
-    "logo": "/conference-logos/asun.png",
-    "platform": "prestosports_asun",
-    "standingsUrl": "https://asunsports.org/standings.aspx?standings=257"
-  },
-  {
-    "conference": "atlantic10",
-    "name": "Atlantic 10",
-    "logo": "/conference-logos/atlantic10.png",
-    "platform": "sidearm_a10",
-    "standingsUrl": "https://atlantic10.com/standings.aspx?path=mlax"
-  },
-  {
-    "conference": "bigten",
-    "name": "Big Ten",
-    "logo": "/conference-logos/bigten.png",
-    "platform": "boost",
-    "standingsUrl": "https://bigten.org/standings.aspx?path=mlax"
-  },
-  {
-    "conference": "bigeast",
-    "name": "Big East",
-    "logo": "/conference-logos/bigeast.png",
-    "platform": "sidearm",
-    "standingsUrl": "https://www.bigeast.com/standings.aspx?path=mlax"
-  },
-  {
-    "conference": "caa",
-    "name": "CAA",
-    "logo": "/conference-logos/caa.png",
-    "platform": "sidearm_caa",
-    "standingsUrl": "https://caasports.com/standings.aspx?path=mlax"
-  },
-  {
-    "conference": "ivy",
-    "name": "Ivy League",
-    "logo": "/conference-logos/ivy.png",
-    "platform": "sidearm_ivy",
-    "standingsUrl": "https://ivyleague.com/standings.aspx?path=mlax"
-  },
-  {
-    "conference": "maac",
-    "name": "MAAC",
-    "logo": "/conference-logos/maac.png",
-    "platform": "sidearm_maac",
-    "standingsUrl": "https://maacsports.com/standings.aspx?standings=303"
-  },
-  {
-    "conference": "nec",
-    "name": "NEC",
-    "logo": "/conference-logos/nec.png",
-    "platform": "sidearm_nec",
-    "standingsUrl": "https://necsports.com/standings.aspx?path=mlacrosse"
-  },
-  {
-    "conference": "patriot",
-    "name": "Patriot League",
-    "logo": "/conference-logos/patriot.png",
-    "platform": "sidearm_patriot",
-    "standingsUrl": "https://patriotleague.org/standings.aspx?standings=2220"
-  }
 {
 "conference": "americaeast",
 "name": "America East",
