@@ -310,6 +310,8 @@ if (conference.platform === "boost") {
 } else if (conference.platform === "prestosports") {
   standings = parsePrestoStandings(html);
 } else if (conference.platform === "prestosports_asun") {
+  } else if (conference.platform === "sidearm_acc") {
+  standings = parseSidearmStandingsACC(html);
   standings = parsePrestoStandingsAsun(html);
 } else if (conference.platform === "sidearm_caa") {
   standings = parseSidearmStandingsCAA(html);
