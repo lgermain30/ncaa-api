@@ -218,12 +218,17 @@ const html = await res.text();
     return status(502, String(e));
   }
 })
-  .get("/official-standings", async ({ status }) => {
+  .get("/official-standings", async ({ query, status }) => {
+   const season =
+  typeof query.season === "string" ? query.season : "2026"; 
   try {
     const results = [];
 
     for (const conference of conferenceSources) {
-      const res = await fetch(conference.standingsUrl, {
+      const standingsUrl =
+  conference.seasonUrls?.[season] || conference.standingsUrl;
+
+const res = await fetch(standingsUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0",
           "Accept": "text/html"
@@ -260,6 +265,8 @@ else if (conference.platform === "sidearm") {
   slug: conference.conference,
   logo: conference.logo || "",
   platform: conference.platform,
+       standingsUrl,
+season,
   count: standings.length,
   standings
 });
