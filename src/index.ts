@@ -1399,9 +1399,12 @@ console.log("HAS TBODY:", html.includes("<tbody"));
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-   if (cells.length >= 14) {
+   if (cells.length >= 9) {
   rows.push({
-    team: (cells[0] || "").replace(/\s*[-x\^*]+/g, "").trim(),
+    team: (cells[0] || "")
+  .replace(/\s*[-x\^*]+/g, "")
+  .replace(/y$/, "")
+  .trim(),
     conferenceRecord: cells[2] || "",
     conferencePct: cells[4] || "",
     overallRecord: cells[6] || "",
@@ -1414,7 +1417,10 @@ console.log("HAS TBODY:", html.includes("<tbody"));
   });
 } else if (cells.length >= 9) {
   rows.push({
-    team: (cells[0] || "").replace(/\s*[-x\^*]+/g, "").trim(),
+    team: (cells[0] || "")
+  .replace(/\s*[-x\^*]+/g, "")
+  .replace(/y$/, "")
+  .trim(),
     conferenceRecord: cells[2] || "",
     conferencePct: cells[4] || "",
     overallRecord: cells[6] || "",
