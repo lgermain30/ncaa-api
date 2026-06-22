@@ -57,10 +57,17 @@
 "name": "Big Ten",
 "logo": "/conference-logos/bigten.png",
 "platform": "boost",
-"standingsUrl": "https://bigten.org/standings.aspx?path=mlax",
+"standingsUrl": "https://bigten.org/mlax/standings/2026/",
 "seasonUrls": {
 "2025": "https://bigten.org/mlax/standings/2025/",
-  "2024": "https://bigten.org/mlax/standings/2024/"
+  "2024": "https://bigten.org/mlax/standings/2024/",
+  "2023": "https://bigten.org/mlax/standings/2023/",
+  "2022": "https://bigten.org/mlax/standings/2022/",
+  "2021": "https://bigten.org/mlax/standings/2021/",
+  "2020": "https://bigten.org/mlax/standings/2020/",
+  "2019": "https://bigten.org/mlax/standings/2019/",
+  "2018": "https://bigten.org/mlax/standings/2018/",
+  "2017": "https://bigten.org/mlax/standings/2017/"
 }
 },
 {
