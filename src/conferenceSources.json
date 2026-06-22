@@ -34,7 +34,10 @@
 "platform": "prestosports_asun",
 "standingsUrl": "https://asunsports.org/standings.aspx?standings=257",
 "seasonUrls": {
-"2025": "https://asunsports.org/standings.aspx?standings=247"
+  "2025": "https://asunsports.org/standings.aspx?standings=247",
+  "2024": "https://asunsports.org/standings.aspx?standings=237",
+  "2023": "https://asunsports.org/standings.aspx?standings=227",
+  "2022": "https://asunsports.org/standings.aspx?standings=217"
 }
 },
 {
