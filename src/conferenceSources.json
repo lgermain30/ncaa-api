@@ -69,7 +69,17 @@
 "platform": "sidearm",
 "standingsUrl": "https://www.bigeast.com/standings.aspx?path=mlax",
 "seasonUrls": {
-"2025": "https://www.bigeast.com/standings.aspx?standings=1116"
+"2025": "https://www.bigeast.com/standings.aspx?standings=1116",
+  "2024": "https://www.bigeast.com/standings.aspx?standings=1106",
+  "2023": "https://www.bigeast.com/standings.aspx?standings=1031",
+  "2022": "https://www.bigeast.com/standings.aspx?standings=25",
+  "2020": "https://www.bigeast.com/standings.aspx?standings=22",
+  "2019": "https://www.bigeast.com/standings.aspx?standings=18",
+  "2018": "https://www.bigeast.com/standings.aspx?standings=1052",
+  "2017": "https://www.bigeast.com/standings.aspx?standings=1053",
+  "2016": "https://www.bigeast.com/standings.aspx?standings=16",
+  "2015": "https://www.bigeast.com/standings.aspx?standings=7",
+  "2014": "https://www.bigeast.com/standings.aspx?standings=6"
 }
 },
 {
