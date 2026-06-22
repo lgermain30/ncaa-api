@@ -13,7 +13,7 @@
 "conference": "americaeast",
 "name": "America East",
 "logo": "/conference-logos/americaeast.png",
-"platform": "sidearm",
+"platform": "sidearm_americaeast"
 "standingsUrl": "https://americaeast.com/standings.aspx?path=mlax",
 "seasonUrls": {
 "2025": "https://americaeast.com/standings.aspx?standings=2090"
