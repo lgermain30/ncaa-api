@@ -330,11 +330,14 @@ if (conference.platform === "boost") {
 }
 
 console.log("ROW COUNT:", standings.length);
+
 return {
   conference: conference.conference,
+  name: conference.name || conference.conference,
+  logo: conference.logo || "",
   platform: conference.platform,
   standingsUrl,
-season,
+  season,
   count: standings.length,
   standings
 };
