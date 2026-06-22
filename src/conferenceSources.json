@@ -1,11 +1,14 @@
 [
   {
-    "conference": "acc",
-    "name": "ACC",
-    "logo": "/conference-logos/acc.png",
-    "platform": "sidearm_acc",
-    "standingsUrl": "https://theacc.com/standings.aspx?path=mlax"
-  },
+  "conference": "acc",
+  "name": "ACC",
+  "logo": "/conference-logos/acc.png",
+  "platform": "sidearm_acc",
+  "standingsUrl": "https://theacc.com/standings.aspx?path=mlax",
+  "seasonUrls": {
+    "2025": "https://theacc.com/standings.aspx?standings=119"
+  }
+},
   {
     "conference": "americaeast",
     "name": "America East",
