@@ -1399,7 +1399,7 @@ console.log("HAS TBODY:", html.includes("<tbody"));
       .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
       .get();
 
-   if (cells.length >= 9) {
+   if (cells.length >=14) {
   rows.push({
     team: (cells[0] || "")
   .replace(/\s*[-x\^*]+/g, "")
