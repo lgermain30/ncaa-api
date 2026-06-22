@@ -59,7 +59,8 @@
 "platform": "boost",
 "standingsUrl": "https://bigten.org/standings.aspx?path=mlax",
 "seasonUrls": {
-"2025": "https://bigten.org/mlax/standings/2025/"
+"2025": "https://bigten.org/mlax/standings/2025/",
+  "2024": "https://bigten.org/mlax/standings/2024/"
 }
 },
 {
