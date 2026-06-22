@@ -97,7 +97,25 @@
 "platform": "sidearm_caa",
 "standingsUrl": "https://caasports.com/standings.aspx?path=mlax",
 "seasonUrls": {
-"2025": "https://caasports.com/standings.aspx?standings=225"
+"2025": "https://caasports.com/standings.aspx?standings=225",
+  "2024": "https://caasports.com/standings.aspx?standings=212",
+  "2023": "https://caasports.com/standings.aspx?standings=193",
+  "2022": "https://caasports.com/standings.aspx?standings=182",
+  "2021": "https://caasports.com/standings.aspx?standings=163",
+  "2020": "https://caasports.com/standings.aspx?standings=157",
+  "2019": "https://caasports.com/standings.aspx?standings=145",
+  "2018": "https://caasports.com/standings.aspx?standings=135",
+  "2017": "https://caasports.com/standings.aspx?standings=123",
+  "2016": "https://caasports.com/standings.aspx?standings=110",
+  "2015": "https://caasports.com/standings.aspx?standings=98",
+  "2014": "https://caasports.com/standings.aspx?standings=18",
+  "2013": "https://caasports.com/standings.aspx?standings=17",
+  "2012": "https://caasports.com/standings.aspx?standings=16",
+  "2011": "https://caasports.com/standings.aspx?standings=15",
+  "2010": "https://caasports.com/standings.aspx?standings=14",
+  "2009": "https://caasports.com/standings.aspx?standings=13",
+  "2008": "https://caasports.com/standings.aspx?standings=12",
+  "2007": "https://caasports.com/standings.aspx?standings=11"
 }
 },
 {
