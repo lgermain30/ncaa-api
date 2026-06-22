@@ -284,7 +284,10 @@ else if (conference.platform === "sidearm") {
     });
   }
 
-  const res = await fetch(conference.standingsUrl, {
+  const standingsUrl =
+  conference.seasonUrls?.[season] || conference.standingsUrl;
+
+const res = await fetch(standingsUrl, {
     headers: {
       "User-Agent": "Mozilla/5.0",
       "Accept": "text/html"
@@ -327,7 +330,8 @@ console.log("A10 ROW COUNT:", standings.length);
 return {
   conference: conference.conference,
   platform: conference.platform,
-  standingsUrl: conference.standingsUrl,
+  standingsUrl,
+season,
   count: standings.length,
   standings
 };
