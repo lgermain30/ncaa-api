@@ -1468,18 +1468,19 @@ console.log("ACC HAS TABLE:", html.includes("sidearm-standings-table"));
       .get();
 
     if (cells.length >= 13) {
-      rows.push({
-        team: cells[1],
-        conferenceRecord: cells[3],
-        conferencePct: cells[5],
-        overallRecord: cells[6],
-        overallPct: cells[7],
-        home: cells[8] || "",
-        away: cells[9] || "",
-        neutral: cells[10] || "",
-        goalsForAgainst: cells[11] || "",
-        streak: cells[12] || ""
-      });
+  rows.push({
+    team: cells[0].replace(/\s*[-x\^*]+/g, "").trim(),
+    conferenceRecord: cells[2] || "",
+    conferencePct: cells[4] || "",
+    overallRecord: cells[6] || "",
+    overallPct: cells[7] || "",
+    home: cells[8] || "",
+    away: cells[9] || "",
+    neutral: cells[10] || "",
+    goalsForAgainst: cells[11] || "",
+    streak: cells[12] || ""
+  });
+}
     } else if (cells.length >= 9) {
       rows.push({
         team: cells[0].replace(/\s*[-x\^*]+/g, "").trim(),
