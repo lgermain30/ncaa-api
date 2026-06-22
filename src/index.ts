@@ -1480,7 +1480,6 @@ console.log("ACC HAS TABLE:", html.includes("sidearm-standings-table"));
     goalsForAgainst: cells[11] || "",
     streak: cells[12] || ""
   });
-}
     } else if (cells.length >= 9) {
       rows.push({
         team: cells[0].replace(/\s*[-x\^*]+/g, "").trim(),
