@@ -310,25 +310,26 @@ if (conference.platform === "boost") {
 } else if (conference.platform === "prestosports") {
   standings = parsePrestoStandings(html);
 } else if (conference.platform === "prestosports_asun") {
-  } else if (conference.platform === "sidearm_acc") {
-  standings = parseSidearmStandingsACC(html);
   standings = parsePrestoStandingsAsun(html);
+} else if (conference.platform === "sidearm_acc") {
+  standings = parseSidearmStandingsACC(html);
 } else if (conference.platform === "sidearm_caa") {
   standings = parseSidearmStandingsCAA(html);
 } else if (conference.platform === "sidearm_ivy") {
   standings = parseSidearmStandingsIvy(html);
-  } else if (conference.platform === "sidearm_maac") {
+} else if (conference.platform === "sidearm_maac") {
   standings = parseSidearmStandingsMAAC(html);
-  } else if (conference.platform === "sidearm_nec") {
+} else if (conference.platform === "sidearm_nec") {
   standings = parseSidearmStandingsNEC(html);
-  } else if (conference.platform === "sidearm_patriot") {
+} else if (conference.platform === "sidearm_patriot") {
   standings = parseSidearmStandingsPatriot(html);
-  } else if (conference.platform === "sidearm_a10") {
+} else if (conference.platform === "sidearm_a10") {
   standings = parseSidearmStandingsA10(html);
 } else if (conference.platform === "sidearm") {
   standings = parseSidearmStandings(html);
 }
-console.log("A10 ROW COUNT:", standings.length);
+
+console.log("ROW COUNT:", standings.length);
 return {
   conference: conference.conference,
   platform: conference.platform,
