@@ -1403,7 +1403,8 @@ console.log("HAS TBODY:", html.includes("<tbody"));
   rows.push({
     team: (cells[0] || "")
   .replace(/\s*[-x\^*]+/g, "")
-  .replace(/y$/, "")
+  .replace(/Bryanty$/, "Bryant")
+.replace(/UMBCy$/, "UMBC")
   .trim(),
     conferenceRecord: cells[2] || "",
     conferencePct: cells[4] || "",
@@ -1419,7 +1420,8 @@ console.log("HAS TBODY:", html.includes("<tbody"));
   rows.push({
     team: (cells[0] || "")
   .replace(/\s*[-x\^*]+/g, "")
-  .replace(/y$/, "")
+  .replace(/Bryanty$/, "Bryant")
+.replace(/UMBCy$/, "UMBC")
   .trim(),
     conferenceRecord: cells[2] || "",
     conferencePct: cells[4] || "",
