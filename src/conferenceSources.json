@@ -16,7 +16,11 @@
 "platform": "sidearm",
 "standingsUrl": "https://americaeast.com/standings.aspx?path=mlax",
 "seasonUrls": {
-"2025": "https://americaeast.com/standings.aspx?standings=2090"
+  "2025": "https://americaeast.com/standings.aspx?standings=2090",
+  "2024": "https://americaeast.com/standings.aspx?standings=1945",
+  "2023": "https://americaeast.com/standings.aspx?standings=1800",
+  "2022": "https://americaeast.com/standings.aspx?standings=1655",
+  "2021": "https://americaeast.com/standings.aspx?standings=1510"
 }
 },
 {
