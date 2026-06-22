@@ -1360,11 +1360,13 @@ function parsePrestoStandingsAsun(html: string) {
 
   const rows: any[] = [];
 
-  $("table tbody tr").each((_, row) => {
-    const cells = $(row)
-  .find('td:not(.hide-on-large)')
-  .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
-  .get();
+ $("table tbody tr").each((_, row) => {
+  const cells = $(row)
+    .find("td")
+    .map((_, cell) => $(cell).text().replace(/\s+/g, " ").trim())
+    .get();
+
+  console.log(cells);
 
     if (cells.length >= 14) {
       rows.push({
