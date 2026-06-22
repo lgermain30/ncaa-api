@@ -47,7 +47,9 @@
 "platform": "sidearm_a10",
 "standingsUrl": "https://atlantic10.com/standings.aspx?path=mlax",
 "seasonUrls": {
-"2025": "https://atlantic10.com/standings.aspx?standings=168"
+"2025": "https://atlantic10.com/standings.aspx?standings=168",
+  "2024": "https://atlantic10.com/standings.aspx?standings=151",
+  "2023": "https://atlantic10.com/standings.aspx?standings=134"
 }
 },
 {
