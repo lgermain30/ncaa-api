@@ -1455,6 +1455,8 @@ function parseBoostStandings(html: string) {
 function parseSidearmStandingsACC(html: string) {
   const $ = cheerio.load(html);
   const rows: any[] = [];
+  console.log("ACC HTML LENGTH:", html.length);
+console.log("ACC HAS TABLE:", html.includes("sidearm-standings-table"));
 
   $("table tbody tr").each((_, row) => {
     const cells = $(row)
@@ -1490,7 +1492,7 @@ function parseSidearmStandingsACC(html: string) {
       });
     }
   });
-
+console.log("ACC ROWS:", rows.length);
   return rows;
 }
 function parseSidearmStandingsCAA(html: string) {
