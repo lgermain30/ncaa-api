@@ -17,10 +17,14 @@
 "standingsUrl": "https://americaeast.com/standings.aspx?path=mlax",
 "seasonUrls": {
   "2025": "https://americaeast.com/standings.aspx?standings=2090",
-  "2024": "https://americaeast.com/standings.aspx?standings=1945",
-  "2023": "https://americaeast.com/standings.aspx?standings=1800",
-  "2022": "https://americaeast.com/standings.aspx?standings=1655",
-  "2021": "https://americaeast.com/standings.aspx?standings=1510"
+  "2024": "https://americaeast.com/standings.aspx?standings=2074",
+  "2023": "https://americaeast.com/standings.aspx?standings=1064",
+  "2022": "https://americaeast.com/standings.aspx?standings=1053",
+  "2021": "https://americaeast.com/standings.aspx?standings=1038",
+  "2020": "https://americaeast.com/standings.aspx?standings=1032",
+  "2019": "https://americaeast.com/standings.aspx?standings=23",
+  "2018": "https://americaeast.com/standings.aspx?standings=13",
+  "2017": "https://americaeast.com/standings.aspx?standings=9",
 }
 },
 {
