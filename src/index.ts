@@ -270,7 +270,9 @@ else if (conference.platform === "sidearm") {
     return status(502, String(e));
   }
 })
-  .get("/official-standings/:conference", async ({ params, status }) => {
+  .get("/official-standings/:conference", async ({ params, query, status }) => {
+      const season =
+    typeof query.season === "string" ? query.season : "2026";
 
   const conference = conferenceSources.find(
     (c: any) => c.conference === params.conference
