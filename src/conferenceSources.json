@@ -170,7 +170,26 @@
 "platform": "sidearm_patriot",
 "standingsUrl": "https://patriotleague.org/standings.aspx?standings=2220",
 "seasonUrls": {
-"2025": "https://patriotleague.org/standings.aspx?standings=2199"
+"2025": "https://patriotleague.org/standings.aspx?standings=2199",
+  "2024": "https://patriotleague.org/standings.aspx?standings=2184",
+  "2023": "https://patriotleague.org/standings.aspx?standings=2165",
+  "2022": "https://patriotleague.org/standings.aspx?standings=2148",
+  "2021": "https://patriotleague.org/standings.aspx?standings=2120",
+  "2020": "https://patriotleague.org/standings.aspx?standings=1109",
+  "2019": "https://patriotleague.org/standings.aspx?standings=1089",
+  "2018": "https://patriotleague.org/standings.aspx?standings=1062",
+  "2017": "https://patriotleague.org/standings.aspx?standings=54",
+  "2016": "https://patriotleague.org/standings.aspx?standings=10"
+}"2025": "https://patriotleague.org/standings.aspx?standings=2199",
+  "2024": "https://patriotleague.org/standings.aspx?standings=2184",
+  "2023": "https://patriotleague.org/standings.aspx?standings=2165",
+  "2022": "https://patriotleague.org/standings.aspx?standings=2148",
+  "2021": "https://patriotleague.org/standings.aspx?standings=2120",
+  "2020": "https://patriotleague.org/standings.aspx?standings=1109",
+  "2019": "https://patriotleague.org/standings.aspx?standings=1089",
+  "2018": "https://patriotleague.org/standings.aspx?standings=1062",
+  "2017": "https://patriotleague.org/standings.aspx?standings=54",
+  "2016": "https://patriotleague.org/standings.aspx?standings=10"
 }
 }
 ]
