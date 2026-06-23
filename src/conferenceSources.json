@@ -135,7 +135,13 @@
 "platform": "sidearm_maac",
 "standingsUrl": "https://maacsports.com/standings.aspx?standings=303",
 "seasonUrls": {
-"2025": "https://maacsports.com/standings.aspx?standings=290"
+"2025": "https://maacsports.com/standings.aspx?standings=290",
+  "2024": "https://maacsports.com/standings.aspx?standings=275",
+  "2023": "https://maacsports.com/standings.aspx?standings=240",
+  "2022": "https://maacsports.com/standings.aspx?standings=229",
+  "2021": "https://maacsports.com/standings.aspx?standings=203",
+  "2020": "https://maacsports.com/standings.aspx?standings=194",
+  "2019": "https://maacsports.com/standings.aspx?standings=170"
 }
 },
 {
