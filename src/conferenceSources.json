@@ -125,7 +125,21 @@
 "platform": "sidearm_ivy",
 "standingsUrl": "https://ivyleague.com/standings.aspx?path=mlax",
 "seasonUrls": {
-"2025": "https://ivyleague.com/standings.aspx?standings=2270"
+  "2025": "https://ivyleague.com/standings.aspx?standings=2270",
+  "2024": "https://ivyleague.com/standings.aspx?standings=2251",
+  "2023": "https://ivyleague.com/standings.aspx?standings=2232",
+  "2022": "https://ivyleague.com/standings.aspx?standings=2196",
+  "2020": "https://ivyleague.com/standings.aspx?standings=2175",
+  "2019": "https://ivyleague.com/standings.aspx?standings=1158",
+  "2018": "https://ivyleague.com/standings.aspx?standings=1091",
+  "2017": "https://ivyleague.com/standings.aspx?standings=6",
+  "2016": "https://ivyleague.com/standings.aspx?standings=1076",
+  "2015": "https://ivyleague.com/standings.aspx?standings=1077",
+  "2014": "https://ivyleague.com/standings.aspx?standings=1078",
+  "2013": "https://ivyleague.com/standings.aspx?standings=1084",
+  "2012": "https://ivyleague.com/standings.aspx?standings=1085",
+  "2011": "https://ivyleague.com/standings.aspx?standings=1088",
+  "2010": "https://ivyleague.com/standings.aspx?standings=1089"
 }
 },
 {
