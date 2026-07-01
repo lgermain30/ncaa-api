@@ -1,25 +1,3 @@
-// Type definitions for NCAA API data structures
-
-export interface NewScoreboardParams {
-  sportCode: string;
-  division: number | string;
-  seasonYear: number;
-  week?: number;
-  contestDate?: string;
-}
-
-export interface Team {
-  isHome: boolean;
-  isWinner: boolean;
-  score?: number;
-  nameShort: string;
-  name6Char?: string;
-  seoname?: string;
-  seed?: number;
-  teamRank?: number;
-  conferenceSeo?: string;
-}
-
 export interface Contest {
   contestId?: string;
   teams: Team[];
@@ -33,6 +11,14 @@ export interface Contest {
   gameState?: string;
   currentPeriod?: string;
   contestClock?: string;
+
+  // Quarter / period scoring
+  linescores?: {
+    period: string;
+    home: string;
+    visit: string;
+  }[];
+
   bracketId?: number;
   roundNumber?: number;
   roundDescription?: string;
@@ -41,33 +27,4 @@ export interface Contest {
     __typename?: string;
     round?: Record<string, unknown>;
   };
-}
-
-export interface GraphQLResponse {
-  data: {
-    contests: Contest[];
-  };
-}
-
-export interface OldFormatTeam {
-  names?: {
-    short?: string;
-    full?: string;
-  };
-  conferences?: Array<{
-    conferenceName?: string;
-  }>;
-  description?: string;
-}
-
-export interface OldFormatGame {
-  game?: {
-    home?: OldFormatTeam;
-    away?: OldFormatTeam;
-    network?: string;
-  };
-}
-
-export interface OldFormatData {
-  games?: OldFormatGame[];
 }
