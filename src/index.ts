@@ -487,7 +487,7 @@ return {
           }
           const data = JSON.stringify(json.data.boxscore);
           cache.set(cacheKey, data);
-          return data;
+          return json.data.boxscore;
         }
         return status(502, "Error fetching data");
       })
