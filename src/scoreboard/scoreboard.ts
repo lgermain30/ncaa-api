@@ -201,7 +201,7 @@ export async function convertToOldFormat(
         string,
         string | number | boolean | ReturnType<typeof formatTeam> | typeof contest.championshipGame | typeof contest.linescores
       > = {
-        gameID: contest.contestId?.toString() || "",
+        gameID: (contest.id || contest.contestId)?.toString() || "",
         away: formatTeam(awayTeam, isAwayWinner, false),
         finalMessage: contest.finalMessage || "",
         title: contest.teams ? `${awayTeam.nameShort || ""} ${homeTeam.nameShort || ""}` : "",
@@ -215,7 +215,11 @@ export async function convertToOldFormat(
         startDate: contest.startDate || "",
         currentPeriod: contest.currentPeriod || "",
         contestClock: contest.contestClock || "0:00",
-        linescores: contest.linescores || [],
+        linescores: contest.linescores?.map((ls) => ({
+  period: ls.period,
+  home: ls.home,
+  visit: ls.visit,
+})) || [],
         bracketId: contest.bracketId || "",
         bracketRound: contest.roundNumber || "",
         // bracketRegion: "",
