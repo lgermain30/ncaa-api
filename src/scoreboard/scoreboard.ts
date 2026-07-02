@@ -215,9 +215,7 @@ export async function convertToOldFormat(
         startDate: contest.startDate || "",
         currentPeriod: contest.currentPeriod || "",
         contestClock: contest.contestClock || "0:00",
-        linescores: contest.linescores?.length
-  ? contest.linescores
-  : await fetchGameLinescores(contest.contestId?.toString() || ""),
+        linescores: contest.linescores || [],
         bracketId: contest.bracketId || "",
         bracketRound: contest.roundNumber || "",
         // bracketRegion: "",
