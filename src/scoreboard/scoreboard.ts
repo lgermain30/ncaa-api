@@ -30,14 +30,14 @@ export async function fetchGqlScoreboard(params: NewScoreboardParams) {
 async function fetchGameLinescores(gameID: string) {
   try {
     const req = await fetch(
-      `https://data.ncaa.com/casablanca/game/${gameID}/gameInfo.json`
+      `https://ncaa-api-production-1586.up.railway.app/game/${gameID}`
     );
 
     if (!req.ok) return [];
 
     const data = await req.json();
 
-    return data?.linescores || data?.game?.linescores || [];
+    return data?.contests?.[0]?.linescores || [];
   } catch {
     return [];
   }
