@@ -184,7 +184,7 @@ export async function convertToOldFormat(
 
       const game: Record<
         string,
-        string | number | boolean | ReturnType<typeof formatTeam> | typeof contest.championshipGame
+        string | number | boolean | ReturnType<typeof formatTeam> | typeof contest.championshipGame | typeof contest.linescores
       > = {
         gameID: contest.contestId?.toString() || "",
         away: formatTeam(awayTeam, isAwayWinner, false),
