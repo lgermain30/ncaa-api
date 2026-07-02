@@ -27,6 +27,21 @@ export async function fetchGqlScoreboard(params: NewScoreboardParams) {
   const response = await req.json();
   return response;
 }
+async function fetchGameLinescores(gameID: string) {
+  try {
+    const req = await fetch(
+      `https://data.ncaa.com/casablanca/game/${gameID}/gameInfo.json`
+    );
+
+    if (!req.ok) return [];
+
+    const data = await req.json();
+
+    return data?.game?.linescores || [];
+  } catch {
+    return [];
+  }
+}
 
 /** Playoff weeks for college football (first round through championship) */
 const PLAYOFF_WEEKS = [16, 17, 18, 19, 20];
@@ -200,7 +215,9 @@ export async function convertToOldFormat(
         startDate: contest.startDate || "",
         currentPeriod: contest.currentPeriod || "",
         contestClock: contest.contestClock || "0:00",
-        linescores: contest.linescores || [],
+        linescores: contest.linescores?.length
+  ? contest.linescores
+  : await fetchGameLinescores(contest.contestId?.toString() || ""),
         bracketId: contest.bracketId || "",
         bracketRound: contest.roundNumber || "",
         // bracketRegion: "",
