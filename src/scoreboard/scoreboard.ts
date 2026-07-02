@@ -37,7 +37,7 @@ async function fetchGameLinescores(gameID: string) {
 
     const data = await req.json();
 
-    return data?.game?.linescores || [];
+    return data?.linescores || data?.game?.linescores || [];
   } catch {
     return [];
   }
