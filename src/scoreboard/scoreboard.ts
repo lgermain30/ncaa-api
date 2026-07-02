@@ -215,11 +215,13 @@ export async function convertToOldFormat(
         startDate: contest.startDate || "",
         currentPeriod: contest.currentPeriod || "",
         contestClock: contest.contestClock || "0:00",
-        linescores: contest.linescores?.map((ls) => ({
-  period: ls.period,
-  home: ls.home,
-  visit: ls.visit,
-})) || [],
+        linescores: contest.linescores?.length
+  ? contest.linescores.map((ls) => ({
+      period: ls.period,
+      home: ls.home,
+      visit: ls.visit,
+    }))
+  : await fetchGameLinescores((contest.id || contest.contestId)?.toString() || ""),
         bracketId: contest.bracketId || "",
         bracketRound: contest.roundNumber || "",
         // bracketRegion: "",
