@@ -41,10 +41,6 @@ async function fetchGameDetails(gameID: string) {
     if (!req.ok) return { linescores: [], venue: "", city: "", state: "", attendance: "", network: "" };
 
     const data = await req.json();
-    console.log(
-  "GAME DETAILS:",
-  JSON.stringify(data, null, 2)
-);
 
     const game =
       data?.game ||
@@ -244,6 +240,7 @@ const game: Record<string, any> = {
         network:
   gameDetails.network ||
   matchingOldGame?.game?.network ||
+  contest.championshipGame?.broadcasterName ||
   contest.broadcasterName ||
   "",
 
@@ -274,12 +271,6 @@ home: formatTeam(homeTeam, homeTeam.isWinner, true),
         delete contest.championshipGame.round?.__typename;
         game.championshipGame = contest.championshipGame;
       }
-if (contest.id?.toString() === gameID) {
-  console.log(
-    "RAW CONTEST:",
-    JSON.stringify(contest, null, 2)
-  );
-}
       return { game };
     })
   );
