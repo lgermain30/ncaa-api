@@ -41,6 +41,10 @@ async function fetchGameDetails(gameID: string) {
     if (!req.ok) return { linescores: [], venue: "", city: "", state: "", attendance: "", network: "" };
 
     const data = await req.json();
+    console.log(
+  "GAME DETAILS:",
+  JSON.stringify(data, null, 2)
+);
 
     const game =
       data?.game ||
