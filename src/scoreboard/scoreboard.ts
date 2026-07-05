@@ -30,34 +30,47 @@ export async function fetchGqlScoreboard(params: NewScoreboardParams) {
   return await req.json();
 }
 
-async function fetchGameLinescores(gameID: string) {
-  if (!gameID) return [];
+async function fetchGameDetails(gameID: string) {
+  if (!gameID) return { linescores: [], venue: "", city: "", state: "", attendance: "", network: "" };
 
   try {
     const req = await fetch(
       `https://ncaa-api-production-1586.up.railway.app/game/${gameID}`
     );
 
-    if (!req.ok) return [];
+    if (!req.ok) return { linescores: [], venue: "", city: "", state: "", attendance: "", network: "" };
 
     const data = await req.json();
 
+    const game =
+      data?.game ||
+      data?.contests?.[0] ||
+      data?.games?.[0]?.game ||
+      data;
+
     const rawLinescores =
+      game?.linescores ||
       data?.linescores ||
-      data?.game?.linescores ||
-      data?.contests?.[0]?.linescores ||
-      data?.games?.[0]?.game?.linescores ||
       [];
 
-    if (!Array.isArray(rawLinescores)) return [];
+    const linescores = Array.isArray(rawLinescores)
+      ? rawLinescores.map((ls) => ({
+          period: ls.period?.toString() || "",
+          home: ls.home?.toString() || "",
+          visit: ls.visit?.toString() || "",
+        }))
+      : [];
 
-    return rawLinescores.map((ls) => ({
-      period: ls.period?.toString() || "",
-      home: ls.home?.toString() || "",
-      visit: ls.visit?.toString() || "",
-    }));
+    return {
+      linescores,
+      venue: game?.venue || game?.site || game?.facility || "",
+      city: game?.city || "",
+      state: game?.state || "",
+      attendance: game?.attendance?.toString() || "",
+      network: game?.network || game?.tv || game?.broadcast || "",
+    };
   } catch {
-    return [];
+    return { linescores: [], venue: "", city: "", state: "", attendance: "", network: "" };
   }
 }
 
@@ -206,15 +219,17 @@ export async function convertToOldFormat(
 
       const gameID = (contest.id || contest.contestId)?.toString() || "";
 
-      const linescores = contest.linescores?.length
-        ? contest.linescores.map((ls) => ({
-            period: ls.period?.toString() || "",
-            home: ls.home?.toString() || "",
-            visit: ls.visit?.toString() || "",
-          }))
-        : await fetchGameLinescores(gameID);
+     const gameDetails = await fetchGameDetails(gameID);
 
-      const game: Record<string, any> = {
+const linescores = contest.linescores?.length
+  ? contest.linescores.map((ls) => ({
+      period: ls.period?.toString() || "",
+      home: ls.home?.toString() || "",
+      visit: ls.visit?.toString() || "",
+    }))
+  : gameDetails.linescores;
+
+const game: Record<string, any> = {
         gameID,
         away: formatTeam(awayTeam, awayTeam.isWinner, false),
         finalMessage: contest.finalMessage || "",
@@ -222,8 +237,18 @@ export async function convertToOldFormat(
           ? `${awayTeam.nameShort || ""} ${homeTeam.nameShort || ""}`
           : "",
         url: contest.url || "",
-        network: matchingOldGame?.game?.network || contest.broadcasterName || "",
-        home: formatTeam(homeTeam, homeTeam.isWinner, true),
+        network:
+  gameDetails.network ||
+  matchingOldGame?.game?.network ||
+  contest.broadcasterName ||
+  "",
+
+venue: gameDetails.venue,
+city: gameDetails.city,
+state: gameDetails.state,
+attendance: gameDetails.attendance,
+
+home: formatTeam(homeTeam, homeTeam.isWinner, true),
         liveVideoEnabled: (contest.liveVideos || []).length > 0,
         startTime,
         startTimeEpoch: contest.startTimeEpoch?.toString() || "",
