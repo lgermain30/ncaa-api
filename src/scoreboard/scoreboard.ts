@@ -274,7 +274,12 @@ home: formatTeam(homeTeam, homeTeam.isWinner, true),
         delete contest.championshipGame.round?.__typename;
         game.championshipGame = contest.championshipGame;
       }
-
+if (contest.id?.toString() === gameID) {
+  console.log(
+    "RAW CONTEST:",
+    JSON.stringify(contest, null, 2)
+  );
+}
       return { game };
     })
   );
