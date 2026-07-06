@@ -687,7 +687,12 @@ return {
 
       // Parse URL path to extract year and week parameters
       const rest = decodeURIComponent(params["*"] ?? "");
-      const [division, year] = rest.split("/");
+      const parts = rest.split("/");
+
+const division = parts[0];
+const year = parts[1];
+const month = parts[2];
+const day = parts[3];
 
       if (sportCodes.divisions?.[division] === undefined) {
         return status(400, { "message": "Invalid division" });
@@ -746,8 +751,14 @@ return {
           if (isFootball && !isPlayoff) {
             newParams.week = parseInt(weekCode, 10);
           } else if (!isPlayoff) {
-            newParams.contestDate = urlDate;
-          }
+
+    if (month && day) {
+        newParams.contestDate = `${year}/${month.padStart(2, "0")}/${day.padStart(2, "0")}`;
+    } else {
+        newParams.contestDate = urlDate;
+    }
+
+}
 
           // Fetch playoff weeks combined or single week/date
           const newData = isPlayoff
