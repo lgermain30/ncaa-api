@@ -771,14 +771,14 @@ const day = parts[3];
             urlDate,
             effectiveYear
           );
-          const data = JSON.stringify(convertedData);
+          const data = convertedData;
 
-          // Use week-based cache key for shared caching across different URL formats
-          cache.set(weekCacheKey, data);
+// Use week-based cache key for shared caching across different URL formats
+cache.set(weekCacheKey, data);
 
-          // Also cache under the original cache key for consistency
-          cache.set(cacheKey, data);
-          return data;
+// Also cache under the original cache key for consistency
+cache.set(cacheKey, data);
+return data;
         } catch (err) {
           log(`Failed to fetch from new endpoint, falling back to old endpoint: ${err}`);
           // Fall through to old endpoint logic
