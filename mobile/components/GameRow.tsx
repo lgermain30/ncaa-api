@@ -6,23 +6,18 @@ import { Text, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import type { V1Game, V1Team } from '@/lib/types';
 
-function Side({ team, align, dim }: { team: V1Team; align: 'left' | 'right'; dim: boolean }) {
+function Side({ team, dim }: { team: V1Team; dim: boolean }) {
   const muted = useThemeColor({}, 'muted');
-  const right = align === 'right';
-  const name = (
-    <RNView style={[styles.nameBlock, right && { alignItems: 'flex-end' }]}>
-      <Text style={[styles.name, dim && { color: muted }, right && { textAlign: 'right' }]} numberOfLines={2}>
+  const name = team.shortName || team.name;
+  const displayName = name.length > 18 && team.char6 ? team.char6 : name;
+  return (
+    <RNView style={styles.side} accessibilityLabel={`${name}${team.record ? `, ${team.record}` : ''}`}>
+      <TeamLogo seoName={team.seoName} fallback={team.char6 || name} size={32} />
+      <Text style={[styles.name, dim && { color: muted }]} numberOfLines={2}>
         {team.rank ? <Text style={[styles.rank, { color: muted }]}>{team.rank} </Text> : null}
-        {team.shortName || team.name}
+        {displayName}
       </Text>
       {team.record ? <Text style={[styles.record, { color: muted }]}>{team.record}</Text> : null}
-    </RNView>
-  );
-  const logo = <TeamLogo seoName={team.seoName} fallback={team.char6 || team.shortName} size={34} />;
-  return (
-    <RNView style={[styles.side, right && { flexDirection: 'row-reverse' }]}>
-      {logo}
-      {name}
     </RNView>
   );
 }
@@ -51,7 +46,7 @@ export function GameRow({ game, last }: { game: V1Game; last?: boolean }) {
           pressed && { opacity: 0.6 },
         ]}>
         <RNView style={styles.main}>
-          <Side team={game.away} align="left" dim={final && !game.away.isWinner} />
+          <Side team={game.away} dim={final && !game.away.isWinner} />
           <RNView style={styles.center}>
             {showScore ? (
               <Text style={styles.score}>
@@ -67,7 +62,7 @@ export function GameRow({ game, last }: { game: V1Game; last?: boolean }) {
               {showScore ? game.status.display : state === 'pre' ? '' : game.status.display}
             </Text>
           </RNView>
-          <Side team={game.home} align="right" dim={final && !game.home.isWinner} />
+          <Side team={game.home} dim={final && !game.home.isWinner} />
         </RNView>
         {sub ? (
           <Text style={[styles.sub, { color: muted }]} numberOfLines={1}>
@@ -82,12 +77,11 @@ export function GameRow({ game, last }: { game: V1Game; last?: boolean }) {
 const styles = StyleSheet.create({
   row: { paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   main: { flexDirection: 'row', alignItems: 'center' },
-  side: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nameBlock: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '700' },
+  side: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2 },
+  name: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
   rank: { fontSize: 11, fontWeight: '600' },
   record: { fontSize: 11 },
-  center: { width: 96, alignItems: 'center' },
+  center: { width: 90, alignItems: 'center', alignSelf: 'center' },
   score: { fontSize: 19, fontWeight: '800', fontVariant: ['tabular-nums'] },
   time: { fontSize: 15, fontWeight: '700' },
   status: { fontSize: 11, fontWeight: '600', marginTop: 1 },

@@ -14,7 +14,7 @@ scoreboard, box score and play-by-play feeds for men's and women's D1/D2/D3 lacr
   (shots, saves, faceoffs / draw controls, clears, EMO, penalties), per-player stats and
   goalies, play-by-play, and game info (venue, attendance, TV). Fields NCAA doesn't publish
   show as "–" / "Not published"; values rebuilt from play-by-play are labelled.
-- **Standings** — men's D1 conference standings from `/official-standings`.
+- **Standings** — men's D1 conference standings from `/official-standings`; women's D1/D2/D3 and men's D2/D3 from `/standings/{sport}/{division}`.
 - **More** — links to the CLN website.
 
 ## Development
