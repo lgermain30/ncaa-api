@@ -62,7 +62,11 @@ describe("circuit breaker", () => {
 });
 
 describe("stale failover on routes", () => {
-	beforeEach(() => resetBreakers());
+	beforeEach(() => {
+		resetBreakers();
+		// index.test.ts sets this and never clears it; order varies between runs
+		delete Bun.env.NCAA_HEADER_KEY;
+	});
 
 	const gameId = "7000001";
 	const scoringSummary = { periods: [{ period: 1, plays: [] }] };
