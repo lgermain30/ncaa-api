@@ -1,6 +1,7 @@
 import { router, Stack } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -23,7 +24,143 @@ import type {
   V1TeamGame,
 } from "@/lib/types";
 
-type Tab = "schedule" | "roster";
+type Tab = "schedule" | "roster" | "stats";
+type StatKey = "goals" | "assists" | "points" | "groundBalls";
+
+const POSITIONS: Record<string, string> = {
+  A: "Attack",
+  M: "Midfield",
+  D: "Defense",
+  G: "Goalie",
+  FO: "Faceoff",
+  LSM: "Long-stick Midfield",
+  SSDM: "Short-stick Defensive Midfield",
+  DM: "Defensive Midfield",
+};
+const YEARS: Record<string, string> = {
+  Fr: "Freshman",
+  So: "Sophomore",
+  Jr: "Junior",
+  Sr: "Senior",
+  Gr: "Graduate",
+};
+
+const pct = (n: number, d: number) =>
+  d ? `${((n / d) * 100).toFixed(1)}%` : "–";
+
+function playerStatRows(p: V1RosterPlayer) {
+  const s = p.stats;
+  const goalie = p.position === "G" || s.shotsFaced > 0;
+  const rows: [string, string | number][] = [];
+  if (goalie) {
+    rows.push(["Saves", s.saves], ["Shots Faced", s.shotsFaced]);
+    rows.push(["Save Percentage", pct(s.saves, s.shotsFaced)]);
+  }
+  rows.push(
+    ["Goals", s.goals],
+    ["Assists", s.assists],
+    ["Points", s.goals + s.assists],
+    ["Shots", s.shots],
+    ["Shooting Percentage", pct(s.goals, s.shots)],
+    ["Ground Balls", s.groundBalls],
+    ["Turnovers", s.turnovers],
+    ["Caused Turnovers", s.causedTurnovers],
+  );
+  if (s.faceoffsTaken) {
+    rows.push(["Faceoffs (W-T)", `${s.faceoffsWon}-${s.faceoffsTaken}`]);
+    rows.push(["Faceoff Percentage", pct(s.faceoffsWon, s.faceoffsTaken)]);
+  }
+  return rows;
+}
+
+function PlayerSheet({
+  p,
+  team,
+  onClose,
+}: {
+  p: V1RosterPlayer | null;
+  team: V1TeamDetail;
+  onClose: () => void;
+}) {
+  const muted = useThemeColor({}, "muted");
+  const border = useThemeColor({}, "border");
+  const card = useThemeColor({}, "card");
+  const bg = useThemeColor({}, "background");
+  const rows = p ? playerStatRows(p) : [];
+  return (
+    <Modal
+      visible={!!p}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      {p ? (
+        <View style={styles.sheet}>
+          <RNView style={styles.sheetHead}>
+            <Text style={styles.sheetName} numberOfLines={1}>
+              {p.number ? `${p.number} ` : ""}
+              {p.name}
+            </Text>
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Text style={[styles.sheetClose, { color: muted }]}>✕</Text>
+            </Pressable>
+          </RNView>
+          <RNView style={styles.bio}>
+            <RNView style={styles.bioWatermark} pointerEvents="none">
+              <TeamLogo
+                seoName={team.seoName}
+                fallback={team.name}
+                size={140}
+              />
+            </RNView>
+            <RNView style={styles.bioCol}>
+              <Text style={styles.bioLine}>{team.name}</Text>
+              <Text style={styles.bioLine}>{p.hometown ?? ""}</Text>
+            </RNView>
+            <RNView style={styles.bioCol}>
+              <Text style={styles.bioLine}>
+                {p.position ? (POSITIONS[p.position] ?? p.position) : ""}
+              </Text>
+              <Text style={styles.bioLine}>
+                {p.year ? (YEARS[p.year] ?? p.year) : ""}
+              </Text>
+            </RNView>
+          </RNView>
+          <RNView style={[styles.statsHead, { backgroundColor: border }]}>
+            <Text style={styles.statsHeadText}>
+              {team.season} STATISTICS
+            </Text>
+          </RNView>
+          <ScrollView>
+            {rows.map(([label, v], i) => (
+              <RNView
+                key={label}
+                style={[
+                  styles.statRow,
+                  {
+                    backgroundColor: i % 2 ? bg : card,
+                    borderBottomColor: border,
+                  },
+                ]}
+              >
+                <Text style={styles.statLabel}>{label}</Text>
+                <Text style={styles.statVal}>{v}</Text>
+              </RNView>
+            ))}
+            <Text style={[styles.source, { color: muted }]}>
+              Season totals via Lax.com
+            </Text>
+          </ScrollView>
+        </View>
+      ) : null}
+    </Modal>
+  );
+}
 
 export interface TeamScreenProps {
   id: string;
@@ -148,29 +285,20 @@ function ScheduleRow({
 function RosterRow({
   p,
   alt,
-  isWomen,
+  onPress,
 }: {
   p: V1RosterPlayer;
   alt: boolean;
-  isWomen: boolean;
+  onPress: () => void;
 }) {
   const muted = useThemeColor({}, "muted");
   const card = useThemeColor({}, "card");
   const bg = useThemeColor({}, "background");
   const border = useThemeColor({}, "border");
-  const s = p.stats;
-  const stat = (label: string, v: string | number) => `${v} ${label}`;
-  const line: string[] = [];
-  if (p.position === "G" || s.saves > 0) line.push(stat("SV", s.saves));
-  else {
-    line.push(stat("G", s.goals), stat("A", s.assists));
-    if (s.groundBalls) line.push(stat("GB", s.groundBalls));
-    if (s.causedTurnovers) line.push(stat("CT", s.causedTurnovers));
-    if (!isWomen && s.faceoffsTaken)
-      line.push(`FO ${s.faceoffsWon}-${s.faceoffsTaken}`);
-  }
   return (
-    <RNView
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
       style={[
         styles.rRow,
         { backgroundColor: alt ? bg : card, borderBottomColor: border },
@@ -189,9 +317,140 @@ function RosterRow({
           {p.hometown ?? ""}
         </Text>
       </RNView>
-      <Text style={[styles.rStats, { color: muted }]} numberOfLines={2}>
-        {line.slice(0, 2).join("\n")}
-      </Text>
+    </Pressable>
+  );
+}
+
+const STAT_COLS: { key: StatKey; label: string }[] = [
+  { key: "goals", label: "G" },
+  { key: "assists", label: "A" },
+  { key: "points", label: "PTS" },
+  { key: "groundBalls", label: "GB" },
+];
+
+const statOf = (p: V1RosterPlayer, k: StatKey) =>
+  k === "points" ? p.stats.goals + p.stats.assists : p.stats[k];
+
+function StatsTable({
+  roster,
+  onPlayer,
+}: {
+  roster: V1RosterPlayer[];
+  onPlayer: (p: V1RosterPlayer) => void;
+}) {
+  const [sort, setSort] = useState<StatKey>("goals");
+  const card = useThemeColor({}, "card");
+  const bg = useThemeColor({}, "background");
+  const border = useThemeColor({}, "border");
+  const skaters = useMemo(
+    () =>
+      roster
+        .filter((p) => p.position !== "G")
+        .sort(
+          (a, b) =>
+            statOf(b, sort) - statOf(a, sort) ||
+            statOf(b, "points") - statOf(a, "points") ||
+            a.name.localeCompare(b.name),
+        ),
+    [roster, sort],
+  );
+  const goalies = useMemo(
+    () =>
+      roster
+        .filter((p) => p.position === "G")
+        .sort((a, b) => b.stats.saves - a.stats.saves),
+    [roster],
+  );
+  return (
+    <RNView>
+      <RNView style={[styles.tRow, styles.tHead]}>
+        <Text style={[styles.tPlayer, styles.tHeadText]}>PLAYER</Text>
+        {STAT_COLS.map((c) => (
+          <Pressable
+            key={c.key}
+            onPress={() => setSort(c.key)}
+            style={[styles.tCell, sort === c.key && styles.tCellActive]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.tHeadText}>{c.label}</Text>
+          </Pressable>
+        ))}
+      </RNView>
+      {skaters.map((p, i) => (
+        <Pressable
+          key={p.id}
+          onPress={() => onPlayer(p)}
+          style={[
+            styles.tRow,
+            { backgroundColor: i % 2 ? bg : card, borderBottomColor: border },
+          ]}
+        >
+          <Text style={styles.tPlayer} numberOfLines={1}>
+            <Text style={styles.tNum}>{p.number ?? ""} </Text>
+            {p.name}
+          </Text>
+          {STAT_COLS.map((c) => (
+            <Text
+              key={c.key}
+              style={[
+                styles.tCell,
+                styles.tVal,
+                { borderLeftColor: border },
+              ]}
+            >
+              {statOf(p, c.key)}
+            </Text>
+          ))}
+        </Pressable>
+      ))}
+      {goalies.length ? (
+        <>
+          <RNView style={[styles.tRow, styles.tHead]}>
+            <Text style={[styles.tPlayer, styles.tHeadText]}>GOALIE</Text>
+            {["SV", "SF", "SV%"].map((l) => (
+              <Text key={l} style={[styles.tCell, styles.tHeadText]}>
+                {l}
+              </Text>
+            ))}
+          </RNView>
+          {goalies.map((p, i) => (
+            <Pressable
+              key={p.id}
+              onPress={() => onPlayer(p)}
+              style={[
+                styles.tRow,
+                {
+                  backgroundColor: i % 2 ? bg : card,
+                  borderBottomColor: border,
+                },
+              ]}
+            >
+              <Text style={styles.tPlayer} numberOfLines={1}>
+                <Text style={styles.tNum}>{p.number ?? ""} </Text>
+                {p.name}
+              </Text>
+              {[
+                p.stats.saves,
+                p.stats.shotsFaced,
+                p.stats.shotsFaced
+                  ? (p.stats.saves / p.stats.shotsFaced).toFixed(3).slice(1)
+                  : "–",
+              ].map((v, j) => (
+                <Text
+                  key={j}
+                  style={[
+                    styles.tCell,
+                    styles.tVal,
+                    { borderLeftColor: border },
+                  ]}
+                >
+                  {v}
+                </Text>
+              ))}
+            </Pressable>
+          ))}
+        </>
+      ) : null}
     </RNView>
   );
 }
@@ -205,6 +464,7 @@ export function TeamScreen({
   teamPath,
 }: TeamScreenProps) {
   const [tab, setTab] = useState<Tab>("schedule");
+  const [player, setPlayer] = useState<V1RosterPlayer | null>(null);
   const muted = useThemeColor({}, "muted");
   const border = useThemeColor({}, "border");
   const card = useThemeColor({}, "card");
@@ -298,6 +558,7 @@ export function TeamScreen({
             options={[
               { key: "schedule", label: "Schedule" },
               { key: "roster", label: "Roster" },
+              { key: "stats", label: "Stats" },
             ]}
             value={tab}
             onChange={setTab}
@@ -328,19 +589,21 @@ export function TeamScreen({
               No schedule published for {team.season}.
             </Text>
           )
-        ) : roster.length ? (
+        ) : !roster.length ? (
+          <Text style={[styles.empty, { color: muted }]}>
+            No roster published for {team.season}.
+          </Text>
+        ) : tab === "roster" ? (
           roster.map((p, i) => (
             <RosterRow
               key={p.id}
               p={p}
               alt={i % 2 === 1}
-              isWomen={sport === "lacrosse-women"}
+              onPress={() => setPlayer(p)}
             />
           ))
         ) : (
-          <Text style={[styles.empty, { color: muted }]}>
-            No roster published for {team.season}.
-          </Text>
+          <StatsTable roster={roster} onPlayer={setPlayer} />
         )}
         {team ? (
           <Text style={[styles.source, { color: muted }]}>
@@ -348,6 +611,13 @@ export function TeamScreen({
           </Text>
         ) : null}
       </ScrollView>
+      {team ? (
+        <PlayerSheet
+          p={player}
+          team={team}
+          onClose={() => setPlayer(null)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -413,10 +683,81 @@ const styles = StyleSheet.create({
   rMain: { flex: 1, minWidth: 0 },
   rName: { fontSize: 15, fontWeight: "700" },
   rTown: { fontSize: 11, marginTop: 1 },
-  rStats: {
-    fontSize: 11,
-    textAlign: "right",
+
+  tRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  tHead: { backgroundColor: "#3a3a3c" },
+  tHeadText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 13,
+    textAlign: "center",
+    paddingVertical: 6,
+  },
+  tPlayer: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    fontWeight: "600",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  tNum: { fontWeight: "800" },
+  tCell: { width: 48, justifyContent: "center" },
+  tCellActive: { backgroundColor: "#3779be" },
+  tVal: {
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#14365c",
+    paddingVertical: 8,
+    borderLeftWidth: StyleSheet.hairlineWidth,
     fontVariant: ["tabular-nums"],
-    minWidth: 44,
+  },
+
+  sheet: { flex: 1 },
+  sheetHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    paddingBottom: 6,
+  },
+  sheetName: { fontSize: 22, fontWeight: "800", flex: 1, marginRight: 12 },
+  sheetClose: { fontSize: 22, fontWeight: "800" },
+  bio: {
+    flexDirection: "row",
+    paddingHorizontal: 14,
+    paddingBottom: 16,
+    minHeight: 120,
+    overflow: "hidden",
+  },
+  bioWatermark: {
+    position: "absolute",
+    right: -10,
+    top: -6,
+    opacity: 0.22,
+  },
+  bioCol: { flex: 1, gap: 10, paddingTop: 4 },
+  bioLine: { fontSize: 16 },
+  statsHead: { paddingVertical: 8, alignItems: "center" },
+  statsHeadText: { fontWeight: "800", fontSize: 14, letterSpacing: 0.5 },
+  statRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  statLabel: { fontSize: 16 },
+  statVal: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#14365c",
+    fontVariant: ["tabular-nums"],
   },
 });
