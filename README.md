@@ -152,6 +152,27 @@ Without `REDIS_URL` everything still works on a single instance: the last-known-
 3. Redeploy. `GET /health` should show `"cache": { "backend": "redis", "redisConnected": true, ... }`.
 4. Optional: **Settings → Health Check Path** = `/health`.
 
+## /v1 — normalized lacrosse API (website + mobile app)
+
+`/v1` is the stable, versioned contract shared by collegelacrossenews.com and the mobile app. A background poller keeps it warm: every lacrosse board (men/women × D1/D2/D3) for today is refreshed on an adaptive interval (`POLL_LIVE_MS` 20s while games are live, `POLL_IDLE_MS` 2m otherwise, `POLL_OFFSEASON_MS` 15m July–December), live games get box score + team stats + play-by-play on every tick, and recent finals are re-pulled once for late stat corrections. Set `POLLER_ENABLED=false` to turn it off.
+
+| Route | Returns |
+|---|---|
+| `GET /v1/games/:sport/:division[/:date]` | games on a board (`lacrosse-men`\|`lacrosse-women`, `d1`\|`d2`\|`d3`, `YYYY-MM-DD`, default today ET) |
+| `GET /v1/live` | every game currently in progress across all boards |
+| `GET /v1/game/:id` | one game: teams, score, status/clock/period, quarter-by-quarter linescore, venue, broadcast network, attendance |
+| `GET /v1/game/:id/boxscore` | team + player lines: goals, assists, shots, SOG, GB, TO, CT, faceoffs, clears, saves, goals allowed, penalties, EMO |
+| `GET /v1/game/:id/plays` | typed play-by-play (goal/shot/save/faceoff/clear/turnover/groundball/penalty/timeout/period) with scorer/assist parsed |
+| `GET /v1/status` | poller + service counters |
+
+Every response is `{ data, meta: { updatedAt, stale } }` with an `ETag` (send `If-None-Match` to get `304`), `Cache-Control: public, max-age=10` for live payloads / `60` otherwise, and the same `X-CLN-Stale` headers as the legacy routes when NCAA is unreachable and the stored copy is served.
+
+**Accuracy notes.** Fields NCAA does not supply are `null` (attendance, network, venue are often missing). `linescoreSource` is `"ncaa"` or `"pbp"`: NCAA regularly publishes an all-zero linescore for finished lacrosse games, so when the published one doesn't sum to the final score it is rebuilt from goal events in the play-by-play. Likewise the box score's `derived` object says which of `faceoffs`, `saves`, `clears` were rebuilt from PBP (NCAA has no per-player faceoff or goalie lines for lacrosse and often reports `clears: 0`). Nothing is derived when there is no play-by-play.
+
+### Postgres (durable store)
+
+Games and details are persisted in Postgres when `DATABASE_URL` is set (schema is created automatically: `games`, `game_details`); otherwise they live in memory. On Railway: **+ New → Database → PostgreSQL**, then on `ncaa-api` **Variables → Add Reference → DATABASE_URL**. `GET /health` shows `"store": { "backend": "postgres", "reachable": true }`.
+
 ## Limiting Access
 
 If you host your own instance, you may specify a custom header value to be present in all requests as a way to restrict access to the API.

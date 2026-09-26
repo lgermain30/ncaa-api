@@ -29,6 +29,9 @@ import { openapiSpec } from "./openapi";
 import { cacheStats, pingRedis, TieredCache } from "./cache";
 import { openBreakers, UpstreamError, upstreamFetch, upstreamQueueSize, upstreamStats } from "./upstream";
 import { parseStatSelect } from "./stats/stat-category-parser";
+import { pollerStats, startPoller } from "./poller";
+import { initStore, pingStore, storeStats } from "./store";
+import { v1 } from "./v1/routes";
 import {
   convertToOldFormat,
   fetchGqlScoreboard,
@@ -174,8 +177,12 @@ export const app = new Elysia()
       version: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
       upstream: { ...upstreamStats, inFlight: upstreamQueueSize(), openCircuits: openBreakers() },
       cache: { ...cacheStats, redisReachable: await pingRedis() },
+      store: { ...storeStats, reachable: await pingStore() },
+      poller: pollerStats,
     };
   })
+  // normalized, versioned API for the website + mobile app
+  .use(v1)
   // validate request / set cache key
   .resolve(({ request, path, query: { page, season }, status }) => {
     // validate custom header value
@@ -912,6 +919,14 @@ return data;
   .listen(Number(process.env.PORT) || 3000);
 
 log(`Server is running at ${app.server?.url}`);
+
+void initStore().then(() => {
+  log(`store backend: ${storeStats.backend}`);
+  if (process.env.POLLER_ENABLED !== "false" && Bun.env.NODE_ENV !== "test") {
+    startPoller();
+    log("poller started");
+  }
+});
 
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// FUNCTIONS ////////////////////////////////////

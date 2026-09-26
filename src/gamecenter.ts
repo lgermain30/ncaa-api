@@ -22,6 +22,7 @@ export interface GamecenterContest {
 	clock?: string;
 	currentPeriod?: string;
 	network?: string;
+	hasStartTime?: boolean;
 	attendance?: string | number | null;
 	linescores?: GamecenterLinescore[];
 	location?: {
