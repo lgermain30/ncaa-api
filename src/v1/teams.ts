@@ -171,9 +171,52 @@ const rankOf = (v: unknown): number | null => {
 	return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+const ACRONYMS: Record<string, string> = {
+	njit: "NJIT",
+	umbc: "UMBC",
+	umass: "UMass",
+	liu: "LIU",
+	vmi: "VMI",
+	iupui: "IUPUI",
+	suny: "SUNY",
+	rpi: "RPI",
+	mit: "MIT",
+	rit: "RIT",
+	wpi: "WPI",
+	tcnj: "TCNJ",
+	ncaa: "NCAA",
+	uc: "UC",
+	usc: "USC",
+	ucla: "UCLA",
+	unc: "UNC",
+	smu: "SMU",
+	byu: "BYU",
+	nyu: "NYU",
+	cuny: "CUNY",
+	upenn: "UPenn",
+	lsu: "LSU",
+	uconn: "UConn",
+	umd: "UMD",
+	unh: "UNH",
+	uri: "URI",
+	uva: "UVA",
+	usf: "USF",
+	fdu: "FDU",
+	pfw: "PFW",
+	depaul: "DePaul",
+	desales: "DeSales",
+	lemoyne: "Le Moyne",
+	mcdaniel: "McDaniel",
+	mckendree: "McKendree",
+	mcmurry: "McMurry",
+};
+
 /** Title-case lax.com's lowercase school names ("johns hopkins" -> "Johns Hopkins"). */
 export function titleCase(name: string): string {
 	return name
+		.split(/(\s+|-|\()/)
+		.map((w) => ACRONYMS[w.toLowerCase()] ?? w)
+		.join("")
 		.split(/(\s+|-|\()/)
 		.map((w) =>
 			/^[a-z]/.test(w)

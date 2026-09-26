@@ -1,11 +1,10 @@
 import { router } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
-  FlatList,
   Pressable,
   RefreshControl,
+  SectionList,
   StyleSheet,
-  TextInput,
   View as RNView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,18 +13,36 @@ import { Chips } from "@/components/Chips";
 import { ClnLogo } from "@/components/ClnLogo";
 import { TeamLogo } from "@/components/TeamLogo";
 import { Text, View, useThemeColor } from "@/components/Themed";
+import { brand } from "@/constants/Colors";
 import { useV1 } from "@/hooks/useV1";
 import { DIVISIONS, fetchTeams, SPORTS } from "@/lib/api";
 import type { Division, Sport, V1TeamSummary } from "@/lib/types";
 
+const INDEPENDENT = "Independent";
+
+function groupByConference(teams: V1TeamSummary[]) {
+  const map = new Map<string, V1TeamSummary[]>();
+  for (const t of teams) {
+    const key = t.conference || INDEPENDENT;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(t);
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) =>
+      a === INDEPENDENT ? 1 : b === INDEPENDENT ? -1 : a.localeCompare(b),
+    )
+    .map(([title, data]) => ({
+      title,
+      data: data.sort((x, y) => x.name.localeCompare(y.name)),
+    }));
+}
+
 export default function TeamsScreen() {
   const [sport, setSport] = useState<Sport>("lacrosse-men");
   const [division, setDivision] = useState<Division>("d1");
-  const [search, setSearch] = useState("");
   const card = useThemeColor({}, "card");
   const muted = useThemeColor({}, "muted");
   const border = useThemeColor({}, "border");
-  const text = useThemeColor({}, "text");
   const bg = useThemeColor({}, "background");
   const insets = useSafeAreaInsets();
 
@@ -37,15 +54,7 @@ export default function TeamsScreen() {
     ),
   );
 
-  const teams = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (data ?? []).filter(
-      (t) =>
-        !q ||
-        t.name.toLowerCase().includes(q) ||
-        (t.conference ?? "").toLowerCase().includes(q),
-    );
-  }, [data, search]);
+  const sections = useMemo(() => groupByConference(data ?? []), [data]);
 
   return (
     <View style={styles.screen}>
@@ -61,7 +70,9 @@ export default function TeamsScreen() {
       >
         <RNView style={styles.titleRow}>
           <ClnLogo size={26} />
-          <Text style={styles.title}>Teams</Text>
+          <Text style={styles.title}>
+            Teams - {sport === "lacrosse-men" ? "Men" : "Women"}
+          </Text>
           <RNView style={{ width: 26 }} />
         </RNView>
         <RNView style={styles.filters}>
@@ -69,22 +80,19 @@ export default function TeamsScreen() {
           <RNView style={[styles.filterDivider, { backgroundColor: border }]} />
           <Chips options={DIVISIONS} value={division} onChange={setDivision} />
         </RNView>
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search teams"
-          placeholderTextColor={muted}
-          accessibilityLabel="Search teams"
-          clearButtonMode="while-editing"
-          style={[
-            styles.search,
-            { backgroundColor: bg, borderColor: border, color: text },
-          ]}
-        />
       </RNView>
-      <FlatList
-        data={teams}
+      <SectionList
+        sections={sections}
         keyExtractor={(t) => t.id}
+        stickySectionHeadersEnabled
+        renderSectionHeader={({ section }) => (
+          <RNView style={styles.sectionHead}>
+            <Text style={styles.sectionTitle} numberOfLines={1}>
+              {section.title}
+            </Text>
+            <ClnLogo size={18} />
+          </RNView>
+        )}
         renderItem={({ item, index }) => (
           <Pressable
             onPress={() =>
@@ -109,24 +117,11 @@ export default function TeamsScreen() {
               pressed && { opacity: 0.6 },
             ]}
           >
-            <TeamLogo seoName={item.seoName} fallback={item.name} size={34} />
-            <RNView style={styles.identity}>
-              <Text style={styles.name} numberOfLines={1}>
-                {item.rank ? (
-                  <Text style={styles.rank}>{item.rank} </Text>
-                ) : null}
-                {item.name}
-              </Text>
-              {item.conference ? (
-                <Text style={[styles.conference, { color: muted }]}>
-                  {item.conference}
-                </Text>
-              ) : null}
-            </RNView>
-            <Text style={styles.record}>
-              {item.wins}-{item.losses}
+            <TeamLogo seoName={item.seoName} fallback={item.name} size={40} />
+            <Text style={styles.name} numberOfLines={1}>
+              {item.rank ? <Text style={styles.rank}>{item.rank} </Text> : null}
+              {item.name}
             </Text>
-            <Text style={[styles.chevron, { color: muted }]}>›</Text>
           </Pressable>
         )}
         refreshControl={
@@ -138,9 +133,7 @@ export default function TeamsScreen() {
               ? "Loading teams…"
               : error
                 ? `Couldn't load teams (${error})`
-                : search
-                  ? "No matching teams."
-                  : "No teams available."}
+                : "No teams available."}
           </Text>
         }
         contentContainerStyle={styles.list}
@@ -152,7 +145,7 @@ export default function TeamsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   controls: {
-    paddingBottom: 8,
+    paddingBottom: 6,
     gap: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
@@ -172,28 +165,31 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   filterDivider: { width: StyleSheet.hairlineWidth, height: 18 },
-  search: {
-    marginHorizontal: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    fontSize: 15,
-  },
   list: { paddingBottom: 28 },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: brand.navy,
+  },
+  sectionTitle: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 14,
+    flex: 1,
+    marginRight: 8,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 10,
+    gap: 12,
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  identity: { flex: 1, minWidth: 0 },
-  name: { fontSize: 15, fontWeight: "700" },
-  rank: { fontSize: 11, fontWeight: "700", color: "#3779be" },
-  conference: { fontSize: 11, marginTop: 1 },
-  record: { fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] },
-  chevron: { fontSize: 20, marginLeft: 2 },
+  name: { flex: 1, fontSize: 18, fontWeight: "700" },
+  rank: { fontSize: 12, fontWeight: "700", color: "#3779be" },
   empty: { textAlign: "center", marginTop: 40 },
 });

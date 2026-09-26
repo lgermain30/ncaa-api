@@ -43,6 +43,7 @@ function gameDate(date: string): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
+    year: "numeric",
     timeZone: "UTC",
   });
 }
@@ -73,10 +74,11 @@ function ScheduleSide({
         style={[styles.sName, right && { textAlign: "right" }]}
         numberOfLines={1}
       >
-        {t.rank ? <Text style={styles.rank}>{t.rank} </Text> : null}
+        {right && t.rank ? <Text style={styles.rank}>{t.rank} </Text> : null}
         {t.name}
+        {!right && t.rank ? <Text style={styles.rank}> {t.rank}</Text> : null}
       </Text>
-      <TeamLogo seoName={t.seoName} fallback={t.name} size={32} />
+      <TeamLogo seoName={t.seoName} fallback={t.name} size={40} />
     </Pressable>
   );
 }
@@ -128,7 +130,7 @@ function ScheduleRow({
             {awayScore} - {homeScore}
           </Text>
         ) : (
-          <Text style={[styles.sTime, { color: brand.red }]} numberOfLines={1}>
+          <Text style={[styles.sTime, { color: "#d9531e" }]} numberOfLines={1}>
             {gameDate(g.date)}
             {g.time ? ` - ${g.time}` : ""}
           </Text>
@@ -362,7 +364,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   records: { flex: 1, gap: 2 },
-  recLine: { fontSize: 13, fontWeight: "700" },
+  recLine: { fontSize: 14, fontWeight: "700" },
   recVal: { fontWeight: "500" },
   tabs: { paddingHorizontal: 10, paddingVertical: 8 },
   empty: { textAlign: "center", marginTop: 32, paddingHorizontal: 24 },
@@ -376,7 +378,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  sSide: { width: 112, alignItems: "flex-start", gap: 4 },
+  sSide: { width: 118, alignItems: "flex-start", gap: 6 },
   sSideRight: { alignItems: "flex-end" },
   sName: { fontSize: 16, fontWeight: "800", maxWidth: "100%" },
   rank: { fontSize: 11, fontWeight: "700", color: "#3779be" },
