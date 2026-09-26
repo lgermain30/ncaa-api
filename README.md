@@ -127,6 +127,31 @@ docker run --rm -p 3000:3000 henrygd/ncaa-api
 
 The app should be available at [http://localhost:3000](http://localhost:3000/history/bowling/nc).
 
+## Caching, Redis and failover
+
+Responses are cached in-process (45s for scores/games, 30m for most other routes). When `REDIS_URL` is set the same entries are also written to Redis, so multiple instances and restarts share the cache, and a **last-known-good** copy of every response is kept for 7 days (`CACHE_LAST_GOOD_TTL_SECONDS`).
+
+If ncaa.com (or another upstream) is down or timing out, a route whose fresh cache has expired returns the last-known-good copy with `200`, plus:
+
+```
+X-CLN-Stale: true
+X-CLN-Data-Age: <seconds since it was fetched>
+Warning: 110 - "Response is Stale"
+```
+
+Only when nothing was ever cached for that URL does the route return `502`. A per-host circuit breaker stops hammering an upstream after `UPSTREAM_BREAKER_THRESHOLD` (5) consecutive failures for `UPSTREAM_BREAKER_COOLDOWN_MS` (30s); while open, requests fail fast and are served from last-known-good.
+
+Without `REDIS_URL` everything still works on a single instance: the last-known-good copies live in memory until the process restarts.
+
+`GET /health` reports upstream counters, open circuits, and Redis connectivity; it returns `503` after 5 consecutive upstream failures.
+
+### Railway setup
+
+1. In the Railway project, **+ New → Database → Redis**.
+2. On the `ncaa-api` service → **Variables → + New Variable → Add Reference**, pick the Redis service's `REDIS_URL` (Railway injects the private-network URL, e.g. `redis://default:...@redis.railway.internal:6379`).
+3. Redeploy. `GET /health` should show `"cache": { "backend": "redis", "redisConnected": true, ... }`.
+4. Optional: **Settings → Health Check Path** = `/health`.
+
 ## Limiting Access
 
 If you host your own instance, you may specify a custom header value to be present in all requests as a way to restrict access to the API.
