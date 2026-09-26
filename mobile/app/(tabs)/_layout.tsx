@@ -12,6 +12,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
+        tabBarPosition: 'bottom',
+        tabBarLabelPosition: 'below-icon',
         headerShown: useClientOnlyValue(false, true),
         headerStyle: { backgroundColor: brand.navy },
         headerTintColor: '#fff',
@@ -19,11 +21,24 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen
         name="index"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="games"
         options={{
           title: 'Games',
-          headerTitle: 'College Lacrosse News',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'sportscourt', android: 'scoreboard', web: 'scoreboard' }} tintColor={color} size={26} />
+            <SymbolView name={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }} tintColor={color} size={26} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="teams"
+        options={{
+          title: 'Teams',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'flag', android: 'outlined_flag', web: 'outlined_flag' }} tintColor={color} size={26} />
           ),
         }}
       />
@@ -32,7 +47,7 @@ export default function TabLayout() {
         options={{
           title: 'Standings',
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'list.number', android: 'format_list_numbered', web: 'format_list_numbered' }} tintColor={color} size={26} />
+            <SymbolView name={{ ios: 'trophy', android: 'emoji_events', web: 'emoji_events' }} tintColor={color} size={26} />
           ),
         }}
       />
@@ -47,19 +62,14 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="news"
-        options={{
-          title: 'News',
-          tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'newspaper', android: 'newspaper', web: 'newspaper' }} tintColor={color} size={26} />
-          ),
-        }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="more"
         options={{
           title: 'More',
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'ellipsis.circle', android: 'more_horiz', web: 'more_horiz' }} tintColor={color} size={26} />
+            <SymbolView name={{ ios: 'line.3.horizontal', android: 'menu', web: 'menu' }} tintColor={color} size={26} />
           ),
         }}
       />

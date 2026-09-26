@@ -1,4 +1,5 @@
 import * as WebBrowser from 'expo-web-browser';
+import { Link } from 'expo-router';
 import { Pressable, StyleSheet, View as RNView } from 'react-native';
 
 import { Text, View, useThemeColor } from '@/components/Themed';
@@ -18,11 +19,17 @@ export default function MoreScreen() {
   return (
     <View style={styles.screen}>
       <RNView style={[styles.card, { backgroundColor: card, borderColor: border }]}>
-        {LINKS.map((l, i) => (
+        <Link href="/news" asChild>
+          <Pressable style={styles.row}>
+            <Text style={styles.label}>News</Text>
+            <Text style={{ color: muted }}>›</Text>
+          </Pressable>
+        </Link>
+        {LINKS.map((l) => (
           <Pressable
             key={l.url}
             onPress={() => WebBrowser.openBrowserAsync(l.url)}
-            style={[styles.row, i > 0 && { borderTopColor: border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+            style={[styles.row, { borderTopColor: border, borderTopWidth: StyleSheet.hairlineWidth }]}>
             <Text style={styles.label}>{l.label}</Text>
             <Text style={{ color: muted }}>›</Text>
           </Pressable>

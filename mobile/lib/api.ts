@@ -68,13 +68,53 @@ export const fetchBoxscore = (id: string, signal?: AbortSignal) =>
 export const fetchPlays = (id: string, signal?: AbortSignal) =>
   getV1<V1Plays | null>(`/v1/game/${id}/plays`, signal);
 
+interface LaxStandingsTeam {
+  name: string;
+  wins: string;
+  losses: string;
+  conf_wins: number;
+  conf_losses: number;
+}
+
+interface LaxStandingsConference {
+  conference: { name: string; id: string };
+  conf_leaderboard: LaxStandingsTeam[];
+}
+
 export async function fetchStandings(
+  sport: Sport,
+  division: Division,
   season: string,
   signal?: AbortSignal,
 ): Promise<ConferenceStandings[]> {
-  const res = await fetch(`${API_BASE}/official-standings?season=${season}`, { signal });
+  const official = sport === 'lacrosse-men' && division === 'd1';
+  const path = official
+    ? `/official-standings?season=${season}`
+    : `/standings/${sport}/${division}?season=${season}`;
+  const res = await fetch(`${API_BASE}${path}`, { signal });
   if (!res.ok) throw new ApiError(res.status, `${res.status} standings`);
-  return (await res.json()) as ConferenceStandings[];
+  const body: unknown = await res.json();
+  if (official) return body as ConferenceStandings[];
+
+  const conferences = (typeof body === 'string' ? JSON.parse(body) : body) as LaxStandingsConference[];
+  return conferences.map((c) => ({
+    conference: c.conference.name,
+    slug: c.conference.id,
+    logo: '',
+    season,
+    count: c.conf_leaderboard.length,
+    standings: c.conf_leaderboard.map((r) => ({
+      team: r.name.replace(/(^|[\s(-])([a-z])/g, (_, prefix: string, letter: string) => prefix + letter.toUpperCase()),
+      conferenceRecord: `${r.conf_wins}-${r.conf_losses}`,
+      overallRecord: `${r.wins}-${r.losses}`,
+      overallPct: '',
+      home: '',
+      away: '',
+      neutral: '',
+      goalsForAgainst: '',
+      streak: '',
+    })),
+  }));
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {

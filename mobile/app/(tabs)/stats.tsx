@@ -46,14 +46,10 @@ function Board({ title, col, rows, mode }: { title: string; col: string; rows: L
       {rows.slice(0, 10).map((r, i) => (
         <RNView key={`${r.player_id ?? r.team_id}-${i}`} style={[styles.row, i % 2 ? { backgroundColor: bg } : null]}>
           <Text style={[styles.rank, { color: muted }]}>{i + 1}</Text>
-          <Text style={styles.name} numberOfLines={1}>
-            {mode === 'players' ? r.name : titleCase(r.team_name)}
-          </Text>
-          {mode === 'players' ? (
-            <Text style={[styles.team, { color: muted }]} numberOfLines={1}>
-              {titleCase(r.team_name)}
-            </Text>
-          ) : null}
+          <RNView style={styles.identity}>
+            <Text style={styles.name}>{mode === 'players' ? r.name : titleCase(r.team_name)}</Text>
+            {mode === 'players' ? <Text style={[styles.team, { color: muted }]}>{titleCase(r.team_name)}</Text> : null}
+          </RNView>
           <Text style={styles.val}>{r[col] ?? '–'}</Text>
         </RNView>
       ))}
@@ -119,9 +115,10 @@ const styles = StyleSheet.create({
   board: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   boardHead: { paddingHorizontal: 10, paddingVertical: 6 },
   boardTitle: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 10, gap: 8 },
-  rank: { width: 20, fontSize: 13, fontVariant: ['tabular-nums'] },
-  name: { flex: 1, fontSize: 14, fontWeight: '600' },
-  team: { width: 90, fontSize: 12, textAlign: 'right' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, gap: 8 },
+  rank: { width: 24, fontSize: 13, fontVariant: ['tabular-nums'] },
+  identity: { flex: 1, minWidth: 0 },
+  name: { fontSize: 14, fontWeight: '600' },
+  team: { fontSize: 12, marginTop: 2 },
   val: { width: 52, textAlign: 'right', fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });
