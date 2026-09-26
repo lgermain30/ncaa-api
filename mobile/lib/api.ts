@@ -6,6 +6,8 @@ import type {
   V1Envelope,
   V1Game,
   V1Plays,
+  LeaderBoards,
+  NewsFeed,
 } from './types';
 
 export const API_BASE =
@@ -74,6 +76,50 @@ export async function fetchStandings(
   if (!res.ok) throw new ApiError(res.status, `${res.status} standings`);
   return (await res.json()) as ConferenceStandings[];
 }
+
+async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { signal });
+  if (!res.ok) throw new ApiError(res.status, `${res.status} ${path}`);
+  return (await res.json()) as T;
+}
+
+/** Team logo (SVG) served by the API for a team's NCAA seoName. */
+export const logoUrl = (seoName: string) => `${API_BASE}/logo/${seoName}`;
+
+/**
+ * Dates (YYYY-MM-DD) with at least one game, with counts. NCAA keys schedules by
+ * season year, which can straddle the calendar year, so both the calendar year
+ * and the previous one are merged.
+ */
+export async function fetchGameDays(
+  sport: Sport,
+  division: Division,
+  year: number,
+  signal?: AbortSignal,
+): Promise<Record<string, number>> {
+  interface Resp {
+    data?: { schedules?: { games?: { count: number; contestDate: string }[] } };
+  }
+  const days: Record<string, number> = {};
+  await Promise.all(
+    [year, year - 1].map(async (y) => {
+      const res = await fetch(`${API_BASE}/schedule-alt/${sport}/${division}/${y}`, { signal });
+      if (!res.ok) return;
+      const body = (await res.json()) as Resp;
+      for (const g of body.data?.schedules?.games ?? []) {
+        const [mm, dd, yyyy] = g.contestDate.split('/');
+        if (mm && dd && yyyy) days[`${yyyy}-${mm}-${dd}`] = g.count;
+      }
+    }),
+  );
+  return days;
+}
+
+export const fetchLeaders = (sport: Sport, division: Division, season: string, signal?: AbortSignal) =>
+  getJson<LeaderBoards>(`/lax-stats/${sport}/${division}?season=${season}`, signal);
+
+export const fetchNews = (sport: Sport, division: Division, signal?: AbortSignal) =>
+  getJson<NewsFeed>(`/news/${sport}/${division}`, signal);
 
 export function streamUrl(filter: { sport?: Sport; division?: Division; date?: string; game?: string }) {
   const q = new URLSearchParams();

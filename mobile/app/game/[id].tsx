@@ -3,14 +3,15 @@ import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View as RNView } from 'react-native';
 
 import { Segmented } from '@/components/Segmented';
+import { TeamLogo } from '@/components/TeamLogo';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { useGameStream } from '@/hooks/useGameStream';
 import { useV1 } from '@/hooks/useV1';
 import { fetchBoxscore, fetchGame, fetchPlays } from '@/lib/api';
-import type { GameEvent, V1Boxscore, V1Game, V1PlayerLine, V1Plays, V1TeamLine } from '@/lib/types';
+import type { GameEvent, V1Boxscore, V1Game, V1PlayerLine, V1Plays, V1Team, V1TeamLine } from '@/lib/types';
 
-type Tab = 'box' | 'plays' | 'info';
+type Tab = 'goals' | 'box' | 'plays' | 'info';
 
 function n(v: number | null | undefined): string {
   return v === null || v === undefined ? '–' : String(v);
@@ -28,34 +29,47 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
   );
 }
 
+function HeaderTeam({ t, final }: { t: V1Team; final: boolean }) {
+  const muted = useThemeColor({}, 'muted');
+  return (
+    <RNView style={styles.team}>
+      <TeamLogo seoName={t.seoName} fallback={t.char6 || t.shortName} size={56} />
+      <Text style={[styles.teamName, final && !t.isWinner && { color: muted }]} numberOfLines={2}>
+        {t.rank ? <Text style={[styles.record, { color: muted }]}>{t.rank} </Text> : null}
+        {t.shortName || t.name}
+      </Text>
+      <Text style={[styles.record, { color: muted }]}>{t.record ?? ''}</Text>
+    </RNView>
+  );
+}
+
 function Header({ game }: { game: V1Game }) {
   const muted = useThemeColor({}, 'muted');
   const live = game.status.state === 'live';
+  const final = game.status.state === 'final';
+  const venue = game.venue
+    ? [game.venue.name, [game.venue.city, game.venue.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ')
+    : '';
   return (
     <Card>
-      <Text style={[styles.status, { color: live ? brand.live : muted }]}>
-        {live ? '● ' : ''}
-        {game.status.display}
-      </Text>
       <RNView style={styles.scoreRow}>
-        <RNView style={styles.team}>
-          <Text style={styles.teamName} numberOfLines={2}>
-            {game.away.rank ? `${game.away.rank} ` : ''}
-            {game.away.shortName || game.away.name}
+        <HeaderTeam t={game.away} final={final} />
+        <RNView style={styles.scoreMid}>
+          <Text style={styles.bigScore}>
+            {game.status.state === 'pre' ? game.startTime || 'TBA' : `${n(game.away.score)} – ${n(game.home.score)}`}
           </Text>
-          <Text style={[styles.record, { color: muted }]}>{game.away.record ?? ''}</Text>
-        </RNView>
-        <Text style={styles.bigScore}>
-          {n(game.away.score)} – {n(game.home.score)}
-        </Text>
-        <RNView style={[styles.team, { alignItems: 'flex-end' }]}>
-          <Text style={[styles.teamName, { textAlign: 'right' }]} numberOfLines={2}>
-            {game.home.rank ? `${game.home.rank} ` : ''}
-            {game.home.shortName || game.home.name}
+          <Text style={[styles.status, { color: live ? brand.live : muted }]}>
+            {live ? '● ' : ''}
+            {game.status.display}
           </Text>
-          <Text style={[styles.record, { color: muted }]}>{game.home.record ?? ''}</Text>
         </RNView>
+        <HeaderTeam t={game.home} final={final} />
       </RNView>
+      {venue ? (
+        <Text style={[styles.venue, { color: muted }]} numberOfLines={1}>
+          {[venue, game.broadcast.network].filter(Boolean).join(' · ')}
+        </Text>
+      ) : null}
       {game.linescore.length > 0 ? <Linescore game={game} /> : null}
     </Card>
   );
@@ -213,6 +227,50 @@ function PlayerTable({ name, players, isWomen }: { name: string; players: V1Play
   );
 }
 
+/** CHN-style scoring summary: goals by period with scorer, assists and running score. */
+function Goals({ plays, game }: { plays: V1Plays; game: V1Game }) {
+  const muted = useThemeColor({}, 'muted');
+  const goals = useMemo(() => plays.plays.filter((p) => p.type === 'goal'), [plays.plays]);
+  const side = (teamId: string | null): V1Team | null =>
+    teamId === game.home.id ? game.home : teamId === game.away.id ? game.away : null;
+  return (
+    <Card title="Scoring">
+      {goals.length === 0 ? <Text style={[styles.note, { color: muted }]}>No goals yet.</Text> : null}
+      {goals.map((p, i) => {
+        const showPeriod = i === 0 || p.period !== goals[i - 1].period;
+        const t = side(p.teamId);
+        const scorer = p.scorer ?? p.text;
+        return (
+          <RNView key={p.id}>
+            {showPeriod ? (
+              <RNView style={[styles.periodBar, { backgroundColor: brand.navy }]}>
+                <Text style={styles.periodBarText}>{p.periodDisplay.toUpperCase()}</Text>
+              </RNView>
+            ) : null}
+            <RNView style={styles.goalRow}>
+              <TeamLogo seoName={t?.seoName} fallback={t?.char6 ?? '?'} size={26} />
+              <RNView style={{ flex: 1 }}>
+                <Text style={styles.goalScorer}>
+                  <Text style={{ color: muted, fontWeight: '400' }}>{p.clock} </Text>
+                  {scorer}
+                  {p.tags.length ? <Text style={{ color: muted, fontWeight: '400' }}> {p.tags.join(' ')}</Text> : null}
+                </Text>
+                <Text style={[styles.goalAssist, { color: muted }]}>
+                  <Text style={{ color: brand.red, fontWeight: '700' }}>{p.awayScore ?? '–'}</Text>
+                  {' - '}
+                  <Text style={{ color: brand.red, fontWeight: '700' }}>{p.homeScore ?? '–'}</Text>
+                  {'  '}
+                  {p.assist ? p.assist : 'Unassisted'}
+                </Text>
+              </RNView>
+            </RNView>
+          </RNView>
+        );
+      })}
+    </Card>
+  );
+}
+
 function Plays({ plays }: { plays: V1Plays }) {
   const muted = useThemeColor({}, 'muted');
   const border = useThemeColor({}, 'border');
@@ -276,7 +334,7 @@ function Info({ game }: { game: V1Game }) {
 
 export default function GameScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [tab, setTab] = useState<Tab>('box');
+  const [tab, setTab] = useState<Tab>('goals');
   const muted = useThemeColor({}, 'muted');
 
   const gameQ = useV1<V1Game>(`game/${id}`, useCallback((s: AbortSignal) => fetchGame(id, s), [id]));
@@ -330,6 +388,7 @@ export default function GameScreen() {
         <RNView style={{ marginHorizontal: 12 }}>
           <Segmented<Tab>
             options={[
+              { key: 'goals', label: 'Goals' },
               { key: 'box', label: 'Box score' },
               { key: 'plays', label: 'Plays' },
               { key: 'info', label: 'Info' },
@@ -344,6 +403,15 @@ export default function GameScreen() {
           ) : (
             <Card>
               <Text style={[styles.note, { color: muted }]}>{boxQ.loading ? 'Loading box score…' : 'Box score not available for this game.'}</Text>
+            </Card>
+          )
+        ) : null}
+        {tab === 'goals' && game ? (
+          playsQ.data ? (
+            <Goals plays={playsQ.data} game={game} />
+          ) : (
+            <Card>
+              <Text style={[styles.note, { color: muted }]}>{playsQ.loading ? 'Loading scoring…' : 'Scoring summary not available for this game.'}</Text>
             </Card>
           )
         ) : null}
@@ -367,12 +435,19 @@ const styles = StyleSheet.create({
   content: { paddingVertical: 8, paddingBottom: 32, gap: 4 },
   card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 12, marginHorizontal: 12, marginVertical: 6 },
   cardTitle: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.5 },
-  status: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 8 },
+  status: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 2 },
   scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  team: { flex: 1 },
-  teamName: { fontSize: 16, fontWeight: '700' },
+  team: { flex: 1, alignItems: 'center', gap: 4 },
+  teamName: { fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  scoreMid: { alignItems: 'center', minWidth: 110 },
+  venue: { fontSize: 12, textAlign: 'center', marginTop: 10 },
+  periodBar: { paddingHorizontal: 8, paddingVertical: 3, marginTop: 8, marginBottom: 4, borderRadius: 3 },
+  periodBarText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  goalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
+  goalScorer: { fontSize: 14, fontWeight: '700' },
+  goalAssist: { fontSize: 12, marginTop: 1 },
   record: { fontSize: 12 },
-  bigScore: { fontSize: 32, fontWeight: '800', paddingHorizontal: 12, fontVariant: ['tabular-nums'] },
+  bigScore: { fontSize: 30, fontWeight: '800', paddingHorizontal: 8, fontVariant: ['tabular-nums'], textAlign: 'center' },
   linescore: { marginTop: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
   lsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3 },
   lsTeam: { flex: 1, fontWeight: '600' },

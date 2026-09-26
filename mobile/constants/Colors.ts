@@ -1,6 +1,7 @@
-// CLN brand: navy + gold.
+// CLN brand, sampled from the logo: navy lettering, red "N"/"News".
 export const brand = {
-  navy: '#0b2545',
+  navy: '#14365c',
+  red: '#ff0a2c',
   gold: '#c9a227',
   live: '#d7263d',
   win: '#1b7f3b',
@@ -23,8 +24,8 @@ export default {
     background: '#0b1320',
     card: '#16213a',
     border: '#243352',
-    tint: brand.gold,
+    tint: '#8fb3e6',
     tabIconDefault: '#6b7280',
-    tabIconSelected: brand.gold,
+    tabIconSelected: '#8fb3e6',
   },
 };
