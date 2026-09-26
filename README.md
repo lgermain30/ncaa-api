@@ -194,6 +194,30 @@ es.addEventListener("game.score", (e) => console.log(JSON.parse(e.data)));
 
 The event bus is in-process: the poller and the API must run in the same service (they do on Railway).
 
+### Historical coverage + backfill
+
+What NCAA actually has for lacrosse, measured per board with `bun run scripts/audit-history.ts 2008 2026` (one in-season Saturday per season, then one game's gamecenter/box score/PBP):
+
+| Data | Men D1/D2/D3 | Women D1/D2/D3 |
+|---|---|---|
+| Scoreboard (scores, final state) | 2014 → present | 2014, 2016 → present (**2015 is missing from NCAA entirely**) |
+| Gamecenter header (period/clock, linescore*) | same as scoreboard | same as scoreboard |
+| Box score (player + team lines) | 2022 → present | 2022 → present |
+| Play-by-play | 2022 → present | 2022 → present |
+| Venue | sporadic, mostly 2024+ | sporadic |
+| Attendance / TV network | rarely published | rarely published |
+
+2013 has a handful of D1 games with no scores; 2008–2012 return nothing. 2020 ends mid-March (COVID). *Published linescores for finished games are usually all zeros — rebuilt from PBP where PBP exists (2022+), otherwise left as published.
+
+`POST /v1/admin/backfill` (header `x-admin-key: $ADMIN_KEY`) walks every day of a season window for every board through the same code path as the poller and persists to Postgres; `DELETE` stops it; progress is under `backfill` in `/v1/status`.
+
+```bash
+curl -X POST -H "x-admin-key: $ADMIN_KEY" -H "content-type: application/json" \
+  https://ncaa-api-production-1586.up.railway.app/v1/admin/backfill \
+  -d '{"fromSeason":2014,"toSeason":2026}'
+# optional: "from":"02-01","to":"06-01","sports":[...],"divisions":[...],"details":true,"skipStored":true
+```
+
 ### Postgres (durable store)
 
 Games and details are persisted in Postgres when `DATABASE_URL` is set (schema is created automatically: `games`, `game_details`); otherwise they live in memory. On Railway: **+ New → Database → PostgreSQL**, then on `ncaa-api` **Variables → Add Reference → DATABASE_URL**. `GET /health` shows `"store": { "backend": "postgres", "reachable": true }`.

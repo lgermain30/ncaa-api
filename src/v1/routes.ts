@@ -2,6 +2,7 @@ import { Elysia } from "elysia";
 import * as v from "valibot";
 import { pollerStats } from "../poller";
 import { UpstreamError } from "../upstream";
+import { backfillProgress, startBackfill, stopBackfill } from "./backfill";
 import {
 	eventStats,
 	eventsSince,
@@ -194,6 +195,18 @@ async function stream(
 	});
 }
 
+/** Admin routes need ADMIN_KEY set on the server and sent as x-admin-key. */
+function adminAuthorized(request: Request) {
+	const key = process.env.ADMIN_KEY;
+	return Boolean(key) && request.headers.get("x-admin-key") === key;
+}
+
+function forbidden(set: Ctx["set"]) {
+	set.status = 403;
+	set.headers["Cache-Control"] = "no-store";
+	return { error: "forbidden" };
+}
+
 function notFound(set: Ctx["set"], what: string) {
 	set.status = 404;
 	set.headers["Content-Type"] = "application/json";
@@ -244,8 +257,42 @@ export const v1 = new Elysia({ prefix: "/v1" })
 			poller: pollerStats,
 			service: serviceStats,
 			stream: { ...eventStats, lastEventId: lastEventId() },
+			backfill: backfillProgress,
 			todayEt: todayEt(),
 		};
+	})
+	.post(
+		"/admin/backfill",
+		({ request, body, set }) => {
+			if (!adminAuthorized(request)) return forbidden(set);
+			set.headers["Cache-Control"] = "no-store";
+			if (backfillProgress.running) {
+				set.status = 409;
+				return {
+					error: "backfill already running",
+					backfill: backfillProgress,
+				};
+			}
+			set.status = 202;
+			return { backfill: startBackfill(body) };
+		},
+		{
+			body: v.object({
+				fromSeason: v.pipe(v.number(), v.integer(), v.minValue(2000)),
+				toSeason: v.pipe(v.number(), v.integer(), v.minValue(2000)),
+				from: v.optional(v.pipe(v.string(), v.regex(/^\d{2}-\d{2}$/))),
+				to: v.optional(v.pipe(v.string(), v.regex(/^\d{2}-\d{2}$/))),
+				sports: v.optional(v.array(sportParam)),
+				divisions: v.optional(v.array(divisionParam)),
+				details: v.optional(v.boolean()),
+				skipStored: v.optional(v.boolean()),
+			}),
+		},
+	)
+	.delete("/admin/backfill", ({ request, set }) => {
+		if (!adminAuthorized(request)) return forbidden(set);
+		set.headers["Cache-Control"] = "no-store";
+		return { backfill: stopBackfill() };
 	})
 	.get(
 		"/stream",
