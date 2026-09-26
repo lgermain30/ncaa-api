@@ -6,23 +6,23 @@ import { Text, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import type { V1Game, V1Team } from '@/lib/types';
 
-function Side({ team, dim }: { team: V1Team; dim: boolean }) {
+function Side({ team, dim, home }: { team: V1Team; dim: boolean; home: boolean }) {
   const muted = useThemeColor({}, 'muted');
   const name = team.shortName || team.name;
-  const displayName = name.length > 18 && team.char6 ? team.char6 : name;
   return (
-    <RNView style={styles.side} accessibilityLabel={`${name}${team.record ? `, ${team.record}` : ''}`}>
-      <TeamLogo seoName={team.seoName} fallback={team.char6 || name} size={32} />
-      <Text style={[styles.name, dim && { color: muted }]} numberOfLines={2}>
-        {team.rank ? <Text style={[styles.rank, { color: muted }]}>{team.rank} </Text> : null}
-        {displayName}
-      </Text>
-      {team.record ? <Text style={[styles.record, { color: muted }]}>{team.record}</Text> : null}
+    <RNView style={[styles.side, home && styles.home]} accessibilityLabel={`${name}${team.record ? `, ${team.record}` : ''}`}>
+      <RNView style={[styles.teamLine, home && styles.homeLine]}>
+        {home && team.rank ? <Text style={styles.rank}>{team.rank}</Text> : null}
+        <Text style={[styles.name, home && styles.homeName, dim && { color: muted }]} numberOfLines={2}>
+          {name}
+        </Text>
+        {!home && team.rank ? <Text style={styles.rank}>{team.rank}</Text> : null}
+      </RNView>
+      <TeamLogo seoName={team.seoName} fallback={team.char6 || name} size={38} />
     </RNView>
   );
 }
 
-/** CHN-style one-line matchup: away | status/score | home, venue underneath. */
 export function GameRow({ game, last }: { game: V1Game; last?: boolean }) {
   const border = useThemeColor({}, 'border');
   const muted = useThemeColor({}, 'muted');
@@ -37,7 +37,7 @@ export function GameRow({ game, last }: { game: V1Game; last?: boolean }) {
   const sub = [venue, game.broadcast.network].filter(Boolean).join(' · ');
 
   return (
-    <Link href={{ pathname: '/game/[id]', params: { id: game.id } }} asChild>
+    <Link href={{ pathname: '/games/[id]', params: { id: game.id } }} asChild>
       <Pressable
         style={({ pressed }) => [
           styles.row,
@@ -46,7 +46,7 @@ export function GameRow({ game, last }: { game: V1Game; last?: boolean }) {
           pressed && { opacity: 0.6 },
         ]}>
         <RNView style={styles.main}>
-          <Side team={game.away} dim={final && !game.away.isWinner} />
+          <Side team={game.away} dim={final && !game.away.isWinner} home={false} />
           <RNView style={styles.center}>
             {showScore ? (
               <Text style={styles.score}>
@@ -62,10 +62,10 @@ export function GameRow({ game, last }: { game: V1Game; last?: boolean }) {
               {showScore ? game.status.display : state === 'pre' ? '' : game.status.display}
             </Text>
           </RNView>
-          <Side team={game.home} dim={final && !game.home.isWinner} />
+          <Side team={game.home} dim={final && !game.home.isWinner} home />
         </RNView>
         {sub ? (
-          <Text style={[styles.sub, { color: muted }]} numberOfLines={1}>
+          <Text style={[styles.sub, { color: muted }]} numberOfLines={2}>
             {sub}
           </Text>
         ) : null}
@@ -75,15 +75,18 @@ export function GameRow({ game, last }: { game: V1Game; last?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  main: { flexDirection: 'row', alignItems: 'center' },
-  side: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2 },
-  name: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  rank: { fontSize: 11, fontWeight: '600' },
-  record: { fontSize: 11 },
-  center: { width: 90, alignItems: 'center', alignSelf: 'center' },
+  row: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  main: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 68 },
+  side: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: 8 },
+  home: { alignItems: 'flex-end' },
+  teamLine: { flexDirection: 'row', alignItems: 'baseline', gap: 4, minHeight: 38 },
+  homeLine: { justifyContent: 'flex-end' },
+  name: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
+  homeName: { textAlign: 'right' },
+  rank: { fontSize: 12, fontWeight: '700', color: '#3779be' },
+  center: { width: 82, alignItems: 'center', alignSelf: 'center' },
   score: { fontSize: 19, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  time: { fontSize: 15, fontWeight: '700' },
+  time: { fontSize: 16, fontWeight: '700' },
   status: { fontSize: 11, fontWeight: '600', marginTop: 1 },
-  sub: { fontSize: 11, textAlign: 'center', marginTop: 4 },
+  sub: { fontSize: 12, textAlign: 'center', marginTop: 4 },
 });

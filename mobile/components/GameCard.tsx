@@ -34,7 +34,7 @@ export function GameCard({ game }: { game: V1Game }) {
   const subline = [game.venue?.name, game.broadcast.network].filter(Boolean).join(' · ');
 
   return (
-    <Link href={{ pathname: '/game/[id]', params: { id: game.id } }} asChild>
+    <Link href={{ pathname: '/games/[id]', params: { id: game.id } }} asChild>
       <Pressable style={({ pressed }) => [styles.card, { backgroundColor: card, borderColor: border }, pressed && { opacity: 0.7 }]}>
         <RNView style={styles.header}>
           <Text style={[styles.status, { color: statusColor }]}>

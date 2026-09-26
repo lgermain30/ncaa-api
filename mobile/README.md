@@ -7,13 +7,15 @@ scoreboard, box score and play-by-play feeds for men's and women's D1/D2/D3 lacr
 
 ## Screens
 
-- **Scores** — men's/women's + D1/D2/D3 selector, day navigation, game cards. Today's board
+- **Games** — men's/women's + D1/D2/D3 selector, day navigation, game rows. Today's board
   subscribes to `/v1/stream` (SSE) for instant score/clock/state changes and falls back to
   60s ETag polling when the stream is unavailable.
-- **Game** (`app/game/[id].tsx`) — score header with period-by-period linescore, team stats
-  (shots, saves, faceoffs / draw controls, clears, EMO, penalties), per-player stats and
-  goalies, play-by-play, and game info (venue, attendance, TV). Fields NCAA doesn't publish
-  show as "–" / "Not published"; values rebuilt from play-by-play are labelled.
+- **Game** (`app/(tabs)/games/[id].tsx`) — opens on two team rosters when NCAA publishes player
+  data. Box Score is in the header, and the bottom navigation remains visible. The score
+  header has a period-by-period linescore; Box Score includes team stats (shots, saves,
+  faceoffs / draw controls, clears, EMO, penalties), player stats, play-by-play, and game info
+  (venue, attendance, TV). Fields NCAA doesn't publish show as "–" / "Not published";
+  values rebuilt from play-by-play are labelled.
 - **Standings** — men's D1 conference standings from `/official-standings`; women's D1/D2/D3 and men's D2/D3 from `/standings/{sport}/{division}`.
 - **More** — links to the CLN website.
 

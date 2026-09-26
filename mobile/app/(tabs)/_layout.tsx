@@ -12,6 +12,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
+        tabBarPosition: 'bottom',
+        tabBarLabelPosition: 'below-icon',
         headerShown: useClientOnlyValue(false, true),
         headerStyle: { backgroundColor: brand.navy },
         headerTintColor: '#fff',
@@ -19,11 +21,15 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen
         name="index"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="games"
         options={{
           title: 'Games',
-          headerTitle: 'College Lacrosse News',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'sportscourt', android: 'scoreboard', web: 'scoreboard' }} tintColor={color} size={26} />
+            <SymbolView name={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }} tintColor={color} size={26} />
           ),
         }}
       />
