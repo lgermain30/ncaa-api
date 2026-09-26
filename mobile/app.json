@@ -39,6 +39,19 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "cln-lacrosse",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8fc075c7-96af-4c05-b4f9-f112c6e45dc2"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8fc075c7-96af-4c05-b4f9-f112c6e45dc2"
     }
   }
 }

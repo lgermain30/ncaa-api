@@ -1,4 +1,4 @@
-import { SymbolView } from 'expo-symbols';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 import Colors from '@/constants/Colors';
@@ -21,7 +21,7 @@ export default function TabLayout() {
           title: 'Scores',
           headerTitle: 'CLN Scores',
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'sportscourt', android: 'scoreboard', web: 'scoreboard' }} tintColor={color} size={26} />
+            <MaterialIcons name="scoreboard" color={color} size={26} />
           ),
         }}
       />
@@ -30,7 +30,7 @@ export default function TabLayout() {
         options={{
           title: 'Standings',
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'list.number', android: 'format_list_numbered', web: 'format_list_numbered' }} tintColor={color} size={26} />
+            <MaterialIcons name="format-list-numbered" color={color} size={26} />
           ),
         }}
       />
@@ -39,7 +39,7 @@ export default function TabLayout() {
         options={{
           title: 'More',
           tabBarIcon: ({ color }) => (
-            <SymbolView name={{ ios: 'ellipsis.circle', android: 'more_horiz', web: 'more_horiz' }} tintColor={color} size={26} />
+            <MaterialIcons name="more-horiz" color={color} size={26} />
           ),
         }}
       />

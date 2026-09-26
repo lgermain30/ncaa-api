@@ -1,6 +1,6 @@
 # CLN Lacrosse (mobile)
 
-College Lacrosse News app for iOS and Android, built with Expo (SDK 57) and Expo Router.
+College Lacrosse News app for iOS and Android, built with Expo (SDK 54) and Expo Router.
 
 All data comes from the CLN data API on Railway (`/v1`), which normalizes official NCAA
 scoreboard, box score and play-by-play feeds for men's and women's D1/D2/D3 lacrosse.
