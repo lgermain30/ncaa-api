@@ -29,6 +29,8 @@ export interface Contest {
 	broadcasterName?: string;
 	liveVideos?: unknown[];
 	startTimeEpoch?: string | number;
+	hasStartTime?: boolean;
+	statusCodeDisplay?: string;
 	gameState?: string;
 	currentPeriod?: string;
 	contestClock?: string;
