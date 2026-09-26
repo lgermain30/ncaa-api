@@ -10,6 +10,7 @@ import {
 	upsertGame,
 } from "../store";
 import { UpstreamError } from "../upstream";
+import { publishDetails, publishGame } from "./events";
 import {
 	fetchGamecenterContest,
 	fetchLacrosseBoxscore,
@@ -162,6 +163,7 @@ export async function refreshBoard(
 				}
 			}
 			await upsertGame(game);
+			publishGame(previous, game);
 			if (game.status.state === "final" && !linescoreAddsUp(game)) {
 				const repaired = await repairFromDetails(id);
 				if (repaired) game = repaired;
@@ -262,6 +264,7 @@ export async function getGameById(id: string): Promise<Served<V1Game> | null> {
 			previous: stored?.game ?? null,
 		});
 		await upsertGame(game);
+		publishGame(stored?.game ?? null, game);
 		return { data: game, updatedAt: game.updatedAt, stale: false };
 	} catch (err) {
 		if (!(err instanceof UpstreamError) || !stored) throw err;
@@ -291,6 +294,8 @@ export async function refreshDetails(
 			upsertDetail(gameId, "plays", plays),
 			repairLinescore(gameId, plays),
 		]);
+		const stored = await getGame(gameId);
+		if (stored) publishDetails(stored.game, ["boxscore", "plays"]);
 		return { boxscore, plays };
 	} finally {
 		sem.release();
@@ -327,6 +332,7 @@ async function repairLinescore(gameId: string, plays: V1Plays) {
 	if (!linescoreAddsUp(candidate)) return;
 	serviceStats.linescoreRepairs++;
 	await upsertGame(candidate);
+	publishGame(stored.game, candidate);
 }
 
 async function detail<T>(

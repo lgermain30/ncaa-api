@@ -163,11 +163,36 @@ Without `REDIS_URL` everything still works on a single instance: the last-known-
 | `GET /v1/game/:id` | one game: teams, score, status/clock/period, quarter-by-quarter linescore, venue, broadcast network, attendance |
 | `GET /v1/game/:id/boxscore` | team + player lines: goals, assists, shots, SOG, GB, TO, CT, faceoffs, clears, saves, goals allowed, penalties, EMO |
 | `GET /v1/game/:id/plays` | typed play-by-play (goal/shot/save/faceoff/clear/turnover/groundball/penalty/timeout/period) with scorer/assist parsed |
-| `GET /v1/status` | poller + service counters |
+| `GET /v1/stream` | Server-Sent Events push of game changes (see below) |
+| `GET /v1/status` | poller + service + stream counters |
 
 Every response is `{ data, meta: { updatedAt, stale } }` with an `ETag` (send `If-None-Match` to get `304`), `Cache-Control: public, max-age=10` for live payloads / `60` otherwise, and the same `X-CLN-Stale` headers as the legacy routes when NCAA is unreachable and the stored copy is served.
 
 **Accuracy notes.** Fields NCAA does not supply are `null` (attendance, network, venue are often missing). `linescoreSource` is `"ncaa"` or `"pbp"`: NCAA regularly publishes an all-zero linescore for finished lacrosse games, so when the published one doesn't sum to the final score it is rebuilt from goal events in the play-by-play. Likewise the box score's `derived` object says which of `faceoffs`, `saves`, `clears` were rebuilt from PBP (NCAA has no per-player faceoff or goalie lines for lacrosse and often reports `clears: 0`). Nothing is derived when there is no play-by-play.
+
+### /v1/stream — real-time push (SSE)
+
+`GET /v1/stream` is a `text/event-stream` that pushes a small event every time the poller sees a game change, so the website and app don't have to poll. Optional filters: `?sport=`, `?division=`, `?date=YYYY-MM-DD`, `?game=<id>` (any combination).
+
+The first frame is `event: hello` with the current live games matching the filter and the latest event id. Then, as the poller persists changes:
+
+| Event | When |
+|---|---|
+| `game.new` | a game is seen for the first time |
+| `game.state` | `pre → live → final` (also postponed/canceled); carries `previousState` |
+| `game.score` | a team's score went up; carries `scored: { side, by }` |
+| `game.clock` | period or clock changed with no other change |
+| `game.linescore` | quarter-by-quarter scoring changed; carries the new `linescore` |
+| `game.details` | box score / play-by-play were refreshed for the game (re-fetch `/v1/game/:id/boxscore` or `/plays`) |
+
+Every event carries `gameId`, `sport`, `division`, `date`, the current `status` and both teams' `id`/`name`/`score`. Frames have increasing `id`s; on reconnect the browser `EventSource` (or your client) sends `Last-Event-ID` and missed events are replayed from a ring buffer of the last `STREAM_BUFFER` (500) events. A comment heartbeat is sent every `STREAM_HEARTBEAT_MS` (15s) so proxies keep the connection open.
+
+```js
+const es = new EventSource("https://ncaa-api-production-1586.up.railway.app/v1/stream?sport=lacrosse-men&division=d1");
+es.addEventListener("game.score", (e) => console.log(JSON.parse(e.data)));
+```
+
+The event bus is in-process: the poller and the API must run in the same service (they do on Railway).
 
 ### Postgres (durable store)
 
