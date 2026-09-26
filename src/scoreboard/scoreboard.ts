@@ -1,4 +1,6 @@
 import { createHash } from "crypto";
+import { fetchGameDetails } from "../gamecenter";
+import { upstreamFetch } from "../upstream";
 import type {
   Contest,
   GraphQLResponse,
@@ -22,56 +24,12 @@ const instance_id = createHash("md5").digest("hex");
 export async function fetchGqlScoreboard(params: NewScoreboardParams) {
   const url = `https://sdataprod.ncaa.com/?extensions={"persistedQuery":{"version":1,"sha256Hash":"7287cda610a9326931931080cb3a604828febe6fe3c9016a7e4a36db99efdb7c"}}&variables=${JSON.stringify(params)}`;
 
-  const req = await fetch(url);
+  const req = await upstreamFetch(url);
   if (!req.ok) {
-    throw new Error("Failed to fetch NCAA scoreboard data");
+    throw new Error(`Failed to fetch NCAA scoreboard data (HTTP ${req.status})`);
   }
 
   return await req.json();
-}
-
-async function fetchGameDetails(gameID: string) {
-  if (!gameID) return { linescores: [], venue: "", city: "", state: "", attendance: "", network: "" };
-
-  try {
-    const req = await fetch(
-      `https://ncaa-api-production-1586.up.railway.app/game/${gameID}`
-    );
-
-    if (!req.ok) return { linescores: [], venue: "", city: "", state: "", attendance: "", network: "" };
-
-    const data = await req.json();
-
-    const game =
-      data?.game ||
-      data?.contests?.[0] ||
-      data?.games?.[0]?.game ||
-      data;
-
-    const rawLinescores =
-      game?.linescores ||
-      data?.linescores ||
-      [];
-
-    const linescores = Array.isArray(rawLinescores)
-      ? rawLinescores.map((ls) => ({
-          period: ls.period?.toString() || "",
-          home: ls.home?.toString() || "",
-          visit: ls.visit?.toString() || "",
-        }))
-      : [];
-
-    return {
-      linescores,
-      venue: game?.venue || game?.site || game?.facility || "",
-      city: game?.city || "",
-      state: game?.state || "",
-      attendance: game?.attendance?.toString() || "",
-      network: game?.network || game?.tv || game?.broadcast || "",
-    };
-  } catch {
-    return { linescores: [], venue: "", city: "", state: "", attendance: "", network: "" };
-  }
 }
 
 const PLAYOFF_WEEKS = [16, 17, 18, 19, 20];
@@ -123,7 +81,7 @@ export async function convertToOldFormat(
   ) {
     try {
       const oldUrl = `https://data.ncaa.com/casablanca/scoreboard/${sport}/${division}/${date}/scoreboard.json`;
-      const oldResponse = await fetch(oldUrl);
+      const oldResponse = await upstreamFetch(oldUrl, { retries: 0 });
 
       if (oldResponse.ok) {
         oldFormatData = await oldResponse.json();
@@ -162,8 +120,8 @@ export async function convertToOldFormat(
       };
 
       const matchingOldGame = findMatchingGame(
-        homeTeam.nameShort,
-        awayTeam.nameShort
+        homeTeam.nameShort ?? "",
+        awayTeam.nameShort ?? ""
       );
 
       const formatTeam = (team: Team, isWinner: boolean, isHome: boolean) => {
@@ -219,7 +177,7 @@ export async function convertToOldFormat(
 
       const gameID = (contest.id || contest.contestId)?.toString() || "";
 
-     const gameDetails = await fetchGameDetails(gameID);
+      const gameDetails = await fetchGameDetails(gameID);
 
 const linescores = contest.linescores?.length
   ? contest.linescores.map((ls) => ({
