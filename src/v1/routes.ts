@@ -3,6 +3,16 @@ import * as v from "valibot";
 import { pollerStats } from "../poller";
 import { UpstreamError } from "../upstream";
 import {
+	eventStats,
+	eventsSince,
+	type GameEvent,
+	lastEventId,
+	matches,
+	matchesGame,
+	type StreamFilter,
+	subscribe,
+} from "./events";
+import {
 	getBoard,
 	getBoxscore,
 	getGameById,
@@ -104,6 +114,86 @@ function respond<T>(
 	return body;
 }
 
+const HEARTBEAT_MS = Number(process.env.STREAM_HEARTBEAT_MS) || 15_000;
+
+function sseFrame(event: GameEvent): string {
+	return `id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+}
+
+/**
+ * Server-Sent Events feed of game changes. Optional filters narrow it to one
+ * board or game; Last-Event-ID (header or ?lastEventId=) replays anything the
+ * client missed while reconnecting. Sends a `hello` frame with the current
+ * live games first, then a comment heartbeat every HEARTBEAT_MS so proxies
+ * keep the connection open.
+ */
+async function stream(
+	request: Request,
+	filter: StreamFilter,
+): Promise<Response> {
+	const encoder = new TextEncoder();
+	const lastIdRaw =
+		request.headers.get("last-event-id") ??
+		new URL(request.url).searchParams.get("lastEventId");
+	const lastId =
+		lastIdRaw && /^\d+$/.test(lastIdRaw) ? Number(lastIdRaw) : null;
+	const live = await getLive();
+
+	let unsubscribe: (() => void) | null = null;
+	let heartbeat: ReturnType<typeof setInterval> | null = null;
+	const cleanup = () => {
+		unsubscribe?.();
+		unsubscribe = null;
+		if (heartbeat) clearInterval(heartbeat);
+		heartbeat = null;
+	};
+
+	const body = new ReadableStream<Uint8Array>({
+		start(controller) {
+			const send = (text: string) => {
+				try {
+					controller.enqueue(encoder.encode(text));
+				} catch {
+					cleanup();
+				}
+			};
+			send("retry: 3000\n\n");
+			send(
+				`event: hello\ndata: ${JSON.stringify({
+					filter,
+					lastEventId: lastEventId(),
+					live: live.data.filter((g) => matchesGame(g, filter)),
+					heartbeatMs: HEARTBEAT_MS,
+				})}\n\n`,
+			);
+			if (lastId !== null) {
+				for (const e of eventsSince(lastId, filter)) send(sseFrame(e));
+			}
+			unsubscribe = subscribe((e) => {
+				if (matches(e, filter)) send(sseFrame(e));
+			});
+			heartbeat = setInterval(
+				() => send(`: ping ${Date.now()}\n\n`),
+				HEARTBEAT_MS,
+			);
+		},
+		cancel() {
+			cleanup();
+		},
+	});
+	request.signal.addEventListener("abort", cleanup);
+
+	return new Response(body, {
+		status: 200,
+		headers: {
+			"Content-Type": "text/event-stream; charset=utf-8",
+			"Cache-Control": "no-cache, no-store, no-transform",
+			Connection: "keep-alive",
+			"X-Accel-Buffering": "no",
+		},
+	});
+}
+
 function notFound(set: Ctx["set"], what: string) {
 	set.status = 404;
 	set.headers["Content-Type"] = "application/json";
@@ -143,14 +233,38 @@ export const v1 = new Elysia({ prefix: "/v1" })
 				"GET /v1/game/:id                          game header: teams, status, linescore, venue, broadcast, attendance",
 				"GET /v1/game/:id/boxscore                 team + player lines (goals, assists, shots, GB, TO, CT, faceoffs, saves)",
 				"GET /v1/game/:id/plays                    play-by-play, typed",
+				"GET /v1/stream                            SSE: game.new/state/score/clock/linescore/details events; ?sport=&division=&date=&game= filters",
 				"GET /v1/status                            poller / store health",
 			],
 		};
 	})
 	.get("/status", ({ set }) => {
 		set.headers["Cache-Control"] = "no-store";
-		return { poller: pollerStats, service: serviceStats, todayEt: todayEt() };
+		return {
+			poller: pollerStats,
+			service: serviceStats,
+			stream: { ...eventStats, lastEventId: lastEventId() },
+			todayEt: todayEt(),
+		};
 	})
+	.get(
+		"/stream",
+		({ request, query }) =>
+			stream(request, {
+				sport: query.sport,
+				division: query.division,
+				date: query.date,
+				gameId: query.game,
+			}),
+		{
+			query: v.object({
+				sport: v.optional(sportParam),
+				division: v.optional(divisionParam),
+				date: v.optional(dateParam),
+				game: v.optional(idParam),
+			}),
+		},
+	)
 	.get(
 		"/games/:sport/:division",
 		async (ctx) =>
