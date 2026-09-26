@@ -11,7 +11,7 @@ export default function GamesLayout() {
       headerTintColor: Colors[colorScheme].tint,
       headerTitleStyle: { fontWeight: '700' },
     }}>
-      <Stack.Screen name="index" options={{ title: 'College Lacrosse News' }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ headerBackTitle: 'Games' }} />
     </Stack>
   );
