@@ -1,4 +1,5 @@
 import { TieredCache } from "../cache";
+import { listBoardTeams, type StoredTeamIdentity } from "../store";
 import { upstreamJson } from "../upstream";
 import type { Served } from "./service";
 
@@ -20,6 +21,8 @@ export interface V1TeamSummary {
 	/** lax.com url_name, the id used by /v1/teams/.../:id */
 	id: string;
 	name: string;
+	/** NCAA seoName when we could match it (drives /logo), else null */
+	seoName: string | null;
 	conference: string | null;
 	rank: number | null;
 	wins: number;
@@ -30,7 +33,12 @@ export interface V1TeamGame {
 	date: string;
 	/** "01:00 PM" local as published, null when unknown */
 	time: string | null;
-	opponent: { id: string | null; name: string; rank: number | null };
+	opponent: {
+		id: string | null;
+		name: string;
+		seoName: string | null;
+		rank: number | null;
+	};
 	/** true = we hosted, false = away; neutral sites are reported as home by the source */
 	home: boolean;
 	final: boolean;
@@ -63,6 +71,7 @@ export interface V1RosterPlayer {
 export interface V1TeamDetail {
 	id: string;
 	name: string;
+	seoName: string | null;
 	sport: Sport;
 	division: Division;
 	season: string;
@@ -317,43 +326,25 @@ async function cached<T>(
 	}
 }
 
-export function getTeams(
-	sport: Sport,
-	division: Division,
-): Promise<Served<V1TeamSummary[]>> {
-	const div = laxDivision(sport, division);
-	return cached(`teams:${div}`, async () => {
-		const raw = await laxJson<LaxTeam[]>({ action: "getTeams", division: div });
-		return raw
-			.filter((t) => t?.url_name)
-			.map((t) => ({
-				id: t.url_name,
-				name: titleCase(t.label || t.name || t.url_name),
-				conference: t.conference?.[0]?.label ?? null,
-				rank: rankOf(t.rank),
-				wins: num(t.wins),
-				losses: num(t.losses),
-			}))
-			.sort((a, b) => a.name.localeCompare(b.name));
-	});
+interface IndexedTeam {
+	id: string;
+	idKeys: string[];
+	nameKeys: string[];
 }
 
-/** Resolve a lax url_name, NCAA seoName or display name to a team id. */
-export async function lookupTeam(
-	sport: Sport,
-	division: Division,
-	idOrName: string,
-): Promise<string | null> {
-	const { data: teams } = await getTeams(sport, division);
-	const exact = teams.find((t) => t.id === idOrName);
-	if (exact) return exact.id;
-	const alias = ALIASES[idOrName.toLowerCase()];
-	const candidates = alias ? [alias, idOrName].flat() : [idOrName];
-	const indexed = teams.map((t) => ({
+function indexTeams(teams: { id: string; name: string }[]): IndexedTeam[] {
+	return teams.map((t) => ({
 		id: t.id,
 		idKeys: matchKeys(t.id),
 		nameKeys: matchKeys(t.name),
 	}));
+}
+
+function resolve(indexed: IndexedTeam[], idOrName: string): string | null {
+	const exact = indexed.find((t) => t.id === idOrName);
+	if (exact) return exact.id;
+	const alias = ALIASES[idOrName.toLowerCase()];
+	const candidates = alias ? [alias, idOrName].flat() : [idOrName];
 	for (const candidate of candidates) {
 		const byId = indexed.find(
 			(t) =>
@@ -370,6 +361,69 @@ export async function lookupTeam(
 		}
 	}
 	return null;
+}
+
+/**
+ * lax.com id -> NCAA seoName for a board, from the teams we have seen in stored
+ * games this season. Lets the app show NCAA logos for lax.com-sourced teams.
+ */
+async function seoNamesFor(
+	sport: Sport,
+	division: Division,
+	indexed: IndexedTeam[],
+	season: string,
+): Promise<Map<string, string>> {
+	const out = new Map<string, string>();
+	let ncaa: StoredTeamIdentity[] = [];
+	for (const s of [season, String(Number(season) - 1)]) {
+		ncaa = await listBoardTeams(sport, division, s);
+		if (ncaa.length) break;
+	}
+	for (const t of ncaa) {
+		const id = resolve(indexed, t.seoName) ?? resolve(indexed, t.shortName);
+		if (id && !out.has(id)) out.set(id, t.seoName);
+	}
+	return out;
+}
+
+export function getTeams(
+	sport: Sport,
+	division: Division,
+): Promise<Served<V1TeamSummary[]>> {
+	const div = laxDivision(sport, division);
+	return cached(`teams:${div}`, async () => {
+		const raw = await laxJson<LaxTeam[]>({ action: "getTeams", division: div });
+		const teams = raw
+			.filter((t) => t?.url_name)
+			.map((t) => ({
+				id: t.url_name,
+				name: titleCase(t.label || t.name || t.url_name),
+				seoName: null as string | null,
+				conference: t.conference?.[0]?.label ?? null,
+				rank: rankOf(t.rank),
+				wins: num(t.wins),
+				losses: num(t.losses),
+			}))
+			.sort((a, b) => a.name.localeCompare(b.name));
+		const seo = await seoNamesFor(
+			sport,
+			division,
+			indexTeams(teams),
+			defaultTeamSeason(),
+		);
+		for (const t of teams) t.seoName = seo.get(t.id) ?? null;
+		return teams;
+	});
+}
+
+/** Resolve a lax url_name, NCAA seoName or display name to a team id. */
+export async function lookupTeam(
+	sport: Sport,
+	division: Division,
+	idOrName: string,
+): Promise<string | null> {
+	const { data: teams } = await getTeams(sport, division);
+	return resolve(indexTeams(teams), idOrName);
 }
 
 export function getTeam(
@@ -389,9 +443,14 @@ export function getTeam(
 			const t = raw?.team?.[0];
 			if (!t) return null;
 			const conf = raw?.conference?.teams?.find((c) => c.url === id);
+			const { data: teams } = await getTeams(sport, division);
+			const seoOf = (laxId: string | undefined) =>
+				(laxId && teams.find((x) => x.id === laxId)?.seoName) ?? null;
+			const seoName = teams.find((x) => x.id === id)?.seoName ?? null;
 			return {
 				id,
 				name: titleCase(t.name),
+				seoName,
 				sport,
 				division,
 				season,
@@ -412,6 +471,7 @@ export function getTeam(
 						opponent: {
 							id: g.opponent_url_name || null,
 							name: titleCase(g.opponent_name || "TBA"),
+							seoName: seoOf(g.opponent_url_name),
 							rank: rankOf(g.opponent_rank),
 						},
 						home: g.where !== "@",

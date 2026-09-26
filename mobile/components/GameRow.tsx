@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Pressable, StyleSheet, View as RNView } from 'react-native';
 
 import { TeamLogo } from '@/components/TeamLogo';
@@ -6,17 +6,32 @@ import { Text, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import type { V1Game, V1Team } from '@/lib/types';
 
-const LOGO = 30;
+const LOGO = 34;
 
-function TeamName({ team, home }: { team: V1Team; home: boolean }) {
+/** Team name + rank on top, logo beneath, hugging the outer edge (CHN layout). Tap → team page. */
+function Side({ team, game, home }: { team: V1Team; game: V1Game; home: boolean }) {
   const name = team.shortName || team.name;
+  const open = () =>
+    router.push({
+      pathname: '/games/team/[id]',
+      params: { id: team.seoName || name, sport: game.sport, division: game.division, seoName: team.seoName ?? '', name },
+    });
   return (
-    <RNView style={[styles.nameWrap, home && styles.nameWrapHome]} accessibilityLabel={`${name}${team.record ? `, ${team.record}` : ''}`}>
-      {team.rank ? <Text style={styles.rank}>{team.rank}</Text> : null}
-      <Text style={[styles.name, home && styles.nameHome]} numberOfLines={1}>
-        {name}
-      </Text>
-    </RNView>
+    <Pressable
+      onPress={open}
+      hitSlop={4}
+      accessibilityRole="link"
+      accessibilityLabel={`${name}${team.record ? `, ${team.record}` : ''}`}
+      style={({ pressed }) => [styles.side, home && styles.sideHome, pressed && { opacity: 0.5 }]}>
+      <RNView style={[styles.nameLine, home && styles.nameLineHome]}>
+        {home && team.rank ? <Text style={styles.rank}>{team.rank} </Text> : null}
+        <Text style={[styles.name, home && styles.nameHome]} numberOfLines={1}>
+          {name}
+        </Text>
+        {!home && team.rank ? <Text style={styles.rank}> {team.rank}</Text> : null}
+      </RNView>
+      <TeamLogo seoName={team.seoName} fallback={team.char6 || name} size={LOGO} />
+    </Pressable>
   );
 }
 
@@ -33,7 +48,7 @@ export function GameRow({ game, last, alt }: { game: V1Game; last?: boolean; alt
     ? [game.venue.name, [game.venue.city, game.venue.state].filter(Boolean).join(', ')].filter(Boolean).join(' - ')
     : '';
   const sub = [venue, game.broadcast.network].filter(Boolean).join(' · ');
-  const statusColor = live ? brand.live : final ? brand.red : muted;
+  const centerColor = live ? brand.live : state === 'pre' || final ? brand.red : muted;
 
   return (
     <Link href={{ pathname: '/games/[id]', params: { id: game.id } }} asChild>
@@ -44,44 +59,50 @@ export function GameRow({ game, last, alt }: { game: V1Game; last?: boolean; alt
           last && { borderBottomWidth: 0 },
           pressed && { opacity: 0.6 },
         ]}>
-        <RNView style={styles.names}>
-          <TeamName team={game.away} home={false} />
-          <TeamName team={game.home} home />
+        <Side team={game.away} game={game} home={false} />
+        <RNView style={styles.center}>
+          {showScore ? (
+            <RNView style={styles.scoreLine}>
+              <Text style={[styles.score, { color: centerColor }, final && !game.away.isWinner && { color: muted }]}>
+                {game.away.score ?? 0}
+              </Text>
+              <Text style={[styles.status, { color: centerColor }]} numberOfLines={1}>
+                {live ? game.status.display : 'FINAL'}
+              </Text>
+              <Text style={[styles.score, { color: centerColor }, final && !game.home.isWinner && { color: muted }]}>
+                {game.home.score ?? 0}
+              </Text>
+            </RNView>
+          ) : (
+            <Text style={[styles.time, { color: centerColor }]} numberOfLines={1}>
+              {state === 'pre' ? game.startTime || 'TBA' : game.status.display}
+            </Text>
+          )}
+          {sub ? (
+            <Text style={[styles.sub, { color: muted }]} numberOfLines={2}>
+              {sub}
+            </Text>
+          ) : null}
         </RNView>
-        <RNView style={styles.scoreLine}>
-          <TeamLogo seoName={game.away.seoName} fallback={game.away.char6 || game.away.name} size={LOGO} />
-          <Text style={[styles.score, final && !game.away.isWinner && { color: muted }]}>
-            {showScore ? game.away.score ?? 0 : ''}
-          </Text>
-          <Text style={[styles.status, { color: statusColor }]} numberOfLines={1}>
-            {live ? '● ' : ''}
-            {showScore ? game.status.display : state === 'pre' ? game.startTime || 'TBA' : game.status.display}
-          </Text>
-          <Text style={[styles.score, final && !game.home.isWinner && { color: muted }]}>
-            {showScore ? game.home.score ?? 0 : ''}
-          </Text>
-          <TeamLogo seoName={game.home.seoName} fallback={game.home.char6 || game.home.name} size={LOGO} />
-        </RNView>
-        {sub ? (
-          <Text style={[styles.sub, { color: muted }]} numberOfLines={1}>
-            {sub}
-          </Text>
-        ) : null}
+        <Side team={game.home} game={game} home />
       </Pressable>
     </Link>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: 8, paddingTop: 6, paddingBottom: 7, borderBottomWidth: StyleSheet.hairlineWidth },
-  names: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-  nameWrap: { flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: 4, minWidth: 0 },
-  nameWrapHome: { justifyContent: 'flex-end' },
-  name: { fontSize: 17, fontWeight: '700', flexShrink: 1 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 8, paddingTop: 4, paddingBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth },
+  side: { width: 112, alignItems: 'flex-start', gap: 4 },
+  sideHome: { alignItems: 'flex-end' },
+  nameLine: { flexDirection: 'row', alignItems: 'baseline', maxWidth: '100%' },
+  nameLineHome: { justifyContent: 'flex-end' },
+  name: { fontSize: 16, fontWeight: '800', flexShrink: 1 },
   nameHome: { textAlign: 'right' },
-  rank: { fontSize: 12, fontWeight: '700', color: '#3779be' },
-  scoreLine: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  score: { flex: 1, fontSize: 24, fontWeight: '800', textAlign: 'center', fontVariant: ['tabular-nums'] },
-  status: { width: 110, fontSize: 15, fontWeight: '700', textAlign: 'center', textTransform: 'uppercase' },
-  sub: { fontSize: 12, textAlign: 'center', marginTop: 3 },
+  rank: { fontSize: 11, fontWeight: '700', color: '#3779be' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 12, paddingHorizontal: 4 },
+  time: { fontSize: 17, fontWeight: '800' },
+  scoreLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  score: { fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  status: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
+  sub: { fontSize: 10, textAlign: 'center', marginTop: 3 },
 });

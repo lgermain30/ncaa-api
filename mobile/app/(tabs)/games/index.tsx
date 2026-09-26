@@ -3,6 +3,7 @@ import { Pressable, RefreshControl, SectionList, StyleSheet, View as RNView } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarSheet } from '@/components/CalendarSheet';
+import { ClnLogo } from '@/components/ClnLogo';
 import { Chips } from '@/components/Chips';
 import { GameRow } from '@/components/GameRow';
 import { Text, View, useThemeColor } from '@/components/Themed';
@@ -154,7 +155,8 @@ export default function ScoresScreen() {
     <View style={styles.screen}>
       <RNView style={[styles.controls, { paddingTop: insets.top + 6, backgroundColor: card, borderBottomColor: border }]}>
         <RNView style={styles.dateRow}>
-          <Pressable onPress={() => setCalendarOpen(true)} hitSlop={10} accessibilityLabel="Pick a date">
+          <Pressable onPress={() => setCalendarOpen(true)} hitSlop={10} accessibilityLabel="Pick a date" style={styles.calendarBtn}>
+            <ClnLogo size={26} />
             <Text style={[styles.calendarText, { color: tint }]}>Calendar</Text>
           </Pressable>
           <Text style={styles.dateText} numberOfLines={1}>
@@ -183,6 +185,7 @@ export default function ScoresScreen() {
         renderSectionHeader={({ section }) => (
           <RNView style={styles.sectionHead}>
             <Text style={styles.sectionTitle} numberOfLines={1}>{section.title}</Text>
+            <ClnLogo size={22} />
           </RNView>
         )}
         renderItem={({ item, index, section }) => (
@@ -234,6 +237,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   controls: { paddingBottom: 6, gap: 6, borderBottomWidth: StyleSheet.hairlineWidth },
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, gap: 4, minHeight: 36 },
+  calendarBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   calendarText: { fontSize: 19, fontWeight: '500' },
   arrows: { flexDirection: 'row', gap: 14 },
   arrow: { fontSize: 18, paddingHorizontal: 2 },
@@ -241,7 +245,7 @@ const styles = StyleSheet.create({
   filters: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, gap: 10 },
   filterDivider: { width: StyleSheet.hairlineWidth, height: 18 },
   list: { paddingBottom: 24 },
-  sectionHead: { paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#1c1c1e' },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 3, backgroundColor: brand.navy },
   sectionTitle: { color: '#fff', fontWeight: '800', fontSize: 17 },
   emptyWrap: { alignItems: 'center', marginTop: 40, paddingHorizontal: 24, gap: 14 },
   empty: { textAlign: 'center' },

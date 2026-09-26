@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
@@ -29,49 +29,67 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
   );
 }
 
-function HeaderTeam({ t, final }: { t: V1Team; final: boolean }) {
+function openTeam(game: V1Game, t: V1Team) {
+  const name = t.shortName || t.name;
+  router.push({
+    pathname: '/games/team/[id]',
+    params: { id: t.seoName || name, sport: game.sport, division: game.division, seoName: t.seoName ?? '', name },
+  });
+}
+
+function HeaderTeam({ t, game, final }: { t: V1Team; game: V1Game; final: boolean }) {
   const muted = useThemeColor({}, 'muted');
+  const pre = game.status.state === 'pre';
   return (
-    <RNView style={styles.team}>
-      <TeamLogo seoName={t.seoName} fallback={t.char6 || t.shortName} size={56} />
+    <Pressable onPress={() => openTeam(game, t)} style={({ pressed }) => [styles.team, pressed && { opacity: 0.5 }]} accessibilityRole="link" accessibilityLabel={`${t.name} team page`}>
       <Text style={[styles.teamName, final && !t.isWinner && { color: muted }]} numberOfLines={2}>
         {t.rank ? <Text style={[styles.record, { color: muted }]}>{t.rank} </Text> : null}
         {t.shortName || t.name}
       </Text>
-      <Text style={[styles.record, { color: muted }]}>{t.record ?? ''}</Text>
-    </RNView>
+      {pre ? (
+        <Text style={[styles.record, { color: muted }]}>{t.record ?? ''}</Text>
+      ) : (
+        <Text style={[styles.bigScore, final && !t.isWinner && { color: muted }]}>{n(t.score)}</Text>
+      )}
+    </Pressable>
   );
 }
 
+/** CHN-style score header: names + scores, red status line (clock/period, FINAL or start time), venue. */
 function Header({ game }: { game: V1Game }) {
   const muted = useThemeColor({}, 'muted');
+  const card = useThemeColor({}, 'card');
+  const border = useThemeColor({}, 'border');
   const live = game.status.state === 'live';
   const final = game.status.state === 'final';
+  const pre = game.status.state === 'pre';
   const venue = game.venue
-    ? [game.venue.name, [game.venue.city, game.venue.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ')
+    ? [game.venue.name, [game.venue.city, game.venue.state].filter(Boolean).join(', ')].filter(Boolean).join(' - ')
     : '';
+  const statusLine = pre
+    ? game.startTime || 'TBA'
+    : live
+      ? [game.status.clock, game.status.period].filter(Boolean).join(' ') || game.status.display
+      : game.status.display;
   return (
-    <Card>
+    <RNView style={[styles.header, { backgroundColor: card, borderBottomColor: border }]}>
       <RNView style={styles.scoreRow}>
-        <HeaderTeam t={game.away} final={final} />
+        <HeaderTeam t={game.away} game={game} final={final} />
         <RNView style={styles.scoreMid}>
-          <Text style={styles.bigScore}>
-            {game.status.state === 'pre' ? game.startTime || 'TBA' : `${n(game.away.score)} – ${n(game.home.score)}`}
-          </Text>
-          <Text style={[styles.status, { color: live ? brand.live : muted }]}>
+          <Text style={[styles.status, { color: live ? brand.live : brand.red }]} numberOfLines={1}>
             {live ? '● ' : ''}
-            {game.status.display}
+            {statusLine}
           </Text>
         </RNView>
-        <HeaderTeam t={game.home} final={final} />
+        <HeaderTeam t={game.home} game={game} final={final} />
       </RNView>
-      {venue ? (
+      {venue || game.broadcast.network ? (
         <Text style={[styles.venue, { color: muted }]} numberOfLines={1}>
           {[venue, game.broadcast.network].filter(Boolean).join(' · ')}
         </Text>
       ) : null}
       {game.linescore.length > 0 ? <Linescore game={game} /> : null}
-    </Card>
+    </RNView>
   );
 }
 
@@ -424,9 +442,21 @@ export default function GameScreen() {
           </Pressable>
         ) : undefined,
         headerRight: !inBoxScore ? () => (
-          <Pressable onPress={() => setTab('box')} accessibilityRole="button" accessibilityLabel="Box Score">
-            <Text style={[styles.headerAction, { color: tint }]}>Box Score</Text>
-          </Pressable>
+          <RNView style={styles.headerRight}>
+            {game ? (
+              <>
+                <Pressable onPress={() => openTeam(game, game.away)} accessibilityLabel={`${game.away.name} team page`}>
+                  <TeamLogo seoName={game.away.seoName} fallback={game.away.char6 || game.away.shortName} size={28} />
+                </Pressable>
+                <Pressable onPress={() => openTeam(game, game.home)} accessibilityLabel={`${game.home.name} team page`}>
+                  <TeamLogo seoName={game.home.seoName} fallback={game.home.char6 || game.home.shortName} size={28} />
+                </Pressable>
+              </>
+            ) : null}
+            <Pressable onPress={() => setTab('box')} accessibilityRole="button" accessibilityLabel="Box Score">
+              <Text style={[styles.headerAction, { color: tint }]}>Box Score</Text>
+            </Pressable>
+          </RNView>
         ) : undefined,
       }} />
       <ScrollView key={tab} contentContainerStyle={styles.content}>
@@ -492,22 +522,24 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerAction: { fontSize: 16, fontWeight: '600' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  header: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 4 },
   content: { paddingVertical: 8, paddingBottom: 32, gap: 4 },
   card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 12, marginHorizontal: 12, marginVertical: 6 },
   cardTitle: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.5 },
-  status: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 2 },
-  scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  team: { flex: 1, alignItems: 'center', gap: 4 },
-  teamName: { fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  scoreMid: { alignItems: 'center', minWidth: 110 },
-  venue: { fontSize: 12, textAlign: 'center', marginTop: 10 },
+  status: { fontSize: 17, fontWeight: '800', textAlign: 'center' },
+  scoreRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  team: { flex: 1, alignItems: 'center', gap: 2 },
+  teamName: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  scoreMid: { alignItems: 'center', minWidth: 120, paddingBottom: 6 },
+  venue: { fontSize: 11, textAlign: 'center', marginTop: 2 },
   periodBar: { paddingHorizontal: 8, paddingVertical: 3, marginTop: 8, marginBottom: 4, borderRadius: 3 },
   periodBarText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
   goalScorer: { fontSize: 14, fontWeight: '700' },
   goalAssist: { fontSize: 12, marginTop: 1 },
   record: { fontSize: 12 },
-  bigScore: { fontSize: 30, fontWeight: '800', paddingHorizontal: 8, fontVariant: ['tabular-nums'], textAlign: 'center' },
+  bigScore: { fontSize: 30, fontWeight: '800', fontVariant: ['tabular-nums'], textAlign: 'center', color: brand.red },
   linescore: { marginTop: 12, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
   lsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3 },
   lsTeam: { flex: 1, fontWeight: '600' },
