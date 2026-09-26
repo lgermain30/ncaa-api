@@ -153,8 +153,11 @@ async function backfillDay(
 	}
 }
 
+let runToken = 0;
+
 export function startBackfill(input: BackfillOptions): BackfillProgress {
 	if (backfillProgress.running) return backfillProgress;
+	const token = ++runToken;
 	const opts: Required<BackfillOptions> = {
 		from: "02-01",
 		to: "06-01",
@@ -184,10 +187,15 @@ export function startBackfill(input: BackfillOptions): BackfillProgress {
 
 	(async () => {
 		console.log("[backfill] start", JSON.stringify(opts));
-		for (let season = opts.fromSeason; season <= opts.toSeason; season++) {
+		seasons: for (
+			let season = opts.fromSeason;
+			season <= opts.toSeason;
+			season++
+		) {
 			for (const date of daysBetween(season, opts.from, opts.to)) {
-				if (backfillProgress.abort) break;
+				if (backfillProgress.abort || token !== runToken) break seasons;
 				await backfillDay(opts, season, date);
+				if (token !== runToken) return;
 				backfillProgress.daysDone++;
 			}
 		}
