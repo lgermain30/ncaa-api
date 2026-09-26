@@ -6,6 +6,8 @@ import type {
   V1Envelope,
   V1Game,
   V1Plays,
+  V1TeamDetail,
+  V1TeamSummary,
   LeaderBoards,
   NewsFeed,
 } from './types';
@@ -67,6 +69,16 @@ export const fetchBoxscore = (id: string, signal?: AbortSignal) =>
 
 export const fetchPlays = (id: string, signal?: AbortSignal) =>
   getV1<V1Plays | null>(`/v1/game/${id}/plays`, signal);
+
+export const fetchTeams = (sport: Sport, division: Division, signal?: AbortSignal) =>
+  getV1<V1TeamSummary[]>(`/v1/teams/${sport}/${division}`, signal);
+
+/** `id` may be a lax.com url_name, an NCAA seoName or a display name. */
+export const fetchTeam = (sport: Sport, division: Division, id: string, season?: string, signal?: AbortSignal) =>
+  getV1<V1TeamDetail>(
+    `/v1/teams/${sport}/${division}/${encodeURIComponent(id)}${season ? `?season=${season}` : ''}`,
+    signal,
+  );
 
 interface LaxStandingsTeam {
   name: string;

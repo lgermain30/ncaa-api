@@ -245,3 +245,64 @@ export interface NewsFeed {
   title: string;
   items: NewsItem[];
 }
+
+/* /v1/teams — directory, schedule/results and roster (lax.com via Railway) */
+export interface V1TeamSummary {
+  id: string;
+  name: string;
+  seoName: string | null;
+  conference: string | null;
+  rank: number | null;
+  wins: number;
+  losses: number;
+}
+
+export interface V1TeamGame {
+  date: string;
+  time: string | null;
+  opponent: { id: string | null; name: string; seoName: string | null; rank: number | null };
+  home: boolean;
+  final: boolean;
+  score: { us: number; them: number } | null;
+  result: 'W' | 'L' | 'T' | null;
+  playoff: string | null;
+}
+
+export interface V1RosterPlayer {
+  id: string;
+  number: string | null;
+  name: string;
+  position: string | null;
+  year: string | null;
+  hometown: string | null;
+  stats: {
+    goals: number;
+    assists: number;
+    shots: number;
+    groundBalls: number;
+    turnovers: number;
+    causedTurnovers: number;
+    faceoffsWon: number;
+    faceoffsTaken: number;
+    saves: number;
+    shotsFaced: number;
+  };
+}
+
+export interface V1TeamDetail {
+  id: string;
+  name: string;
+  seoName: string | null;
+  sport: Sport;
+  division: Division;
+  season: string;
+  coach: string | null;
+  conference: string | null;
+  rank: number | null;
+  overall: { wins: number; losses: number };
+  conferenceRecord: { wins: number; losses: number } | null;
+  website: string | null;
+  seasons: string[];
+  schedule: V1TeamGame[];
+  roster: V1RosterPlayer[];
+}

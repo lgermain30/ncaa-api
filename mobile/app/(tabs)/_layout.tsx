@@ -37,6 +37,7 @@ export default function TabLayout() {
         name="teams"
         options={{
           title: 'Teams',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'flag', android: 'outlined_flag', web: 'outlined_flag' }} tintColor={color} size={26} />
           ),

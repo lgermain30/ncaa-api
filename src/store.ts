@@ -204,6 +204,50 @@ export async function listLiveGames(): Promise<StoredGame[]> {
 	return [...memGames.values()].filter((g) => g.game.status.state === "live");
 }
 
+export interface StoredTeamIdentity {
+	seoName: string;
+	name: string;
+	shortName: string;
+}
+
+/** Distinct NCAA team identities seen on a board in a season (for logo/name lookups). */
+export async function listBoardTeams(
+	sport: string,
+	division: string,
+	season: string,
+): Promise<StoredTeamIdentity[]> {
+	await initStore();
+	const from = `${season}-01-01`;
+	const to = `${season}-12-31`;
+	if (sql) {
+		try {
+			const rows = await sql<StoredTeamIdentity[]>`
+				SELECT DISTINCT ON (t->>'seoName')
+					t->>'seoName' AS "seoName", t->>'name' AS name, t->>'shortName' AS "shortName"
+				FROM games, LATERAL (VALUES (data->'home'), (data->'away')) AS s(t)
+				WHERE sport = ${sport} AND division = ${division}
+					AND game_date BETWEEN ${from} AND ${to}
+					AND t->>'seoName' IS NOT NULL AND t->>'seoName' <> ''`;
+			return rows;
+		} catch (err) {
+			recordError(err);
+		}
+	}
+	const seen = new Map<string, StoredTeamIdentity>();
+	for (const { game } of memGames.values()) {
+		if (game.sport !== sport || game.division !== division) continue;
+		if (game.date < from || game.date > to) continue;
+		for (const t of [game.home, game.away])
+			if (t.seoName && !seen.has(t.seoName))
+				seen.set(t.seoName, {
+					seoName: t.seoName,
+					name: t.name,
+					shortName: t.shortName,
+				});
+	}
+	return [...seen.values()];
+}
+
 export async function upsertDetail(
 	gameId: string,
 	kind: DetailKind,

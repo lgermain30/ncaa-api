@@ -1,10 +1,11 @@
-import { MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, SectionList, StyleSheet, View as RNView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarSheet } from '@/components/CalendarSheet';
+import { ClnLogo } from '@/components/ClnLogo';
+import { Chips } from '@/components/Chips';
 import { GameRow } from '@/components/GameRow';
-import { Segmented } from '@/components/Segmented';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { useGameDays } from '@/hooks/useGameDays';
@@ -81,9 +82,6 @@ function applyPatch(g: V1Game, ev: GameEvent | undefined): V1Game {
 
 function prettyDate(date: string): string {
   const today = todayEt();
-  if (date === today) return 'Today';
-  if (date === addDays(today, -1)) return 'Yesterday';
-  if (date === addDays(today, 1)) return 'Tomorrow';
   return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
     weekday: 'short',
     month: 'short',
@@ -101,8 +99,9 @@ export default function ScoresScreen() {
   const isToday = date === todayEt();
   const muted = useThemeColor({}, 'muted');
   const tint = useThemeColor({}, 'tint');
-  const bg = useThemeColor({}, 'background');
   const border = useThemeColor({}, 'border');
+  const card = useThemeColor({}, 'card');
+  const insets = useSafeAreaInsets();
 
   const key = `${sport}/${division}/${date}`;
   const board = useV1<V1Game[]>(
@@ -154,14 +153,14 @@ export default function ScoresScreen() {
 
   return (
     <View style={styles.screen}>
-      <RNView style={styles.controls}>
+      <RNView style={[styles.controls, { paddingTop: insets.top + 6, backgroundColor: card, borderBottomColor: border }]}>
         <RNView style={styles.dateRow}>
-          <Pressable onPress={() => setCalendarOpen(true)} style={styles.dateBtn} accessibilityLabel="Pick a date">
-            <MaterialIcons name="calendar-month" size={22} color={tint} />
+          <Pressable onPress={() => setCalendarOpen(true)} hitSlop={10} accessibilityLabel="Pick a date" style={styles.calendarBtn}>
+            <ClnLogo size={26} />
             <Text style={[styles.calendarText, { color: tint }]}>Calendar</Text>
           </Pressable>
           <Text style={styles.dateText} numberOfLines={1}>
-            {sport === 'lacrosse-men' ? 'M' : 'W'}{division === 'd1' ? '' : division === 'd2' ? ' DII' : ' DIII'}: {prettyDate(date)}
+            {sport === 'lacrosse-men' ? 'M' : 'W'}: {prettyDate(date)}
           </Text>
           <RNView style={styles.arrows}>
             <Pressable onPress={() => setDate((d) => addDays(d, -1))} hitSlop={12} accessibilityLabel="Previous day">
@@ -173,8 +172,9 @@ export default function ScoresScreen() {
           </RNView>
         </RNView>
         <RNView style={styles.filters}>
-          <Segmented options={SPORTS} value={sport} onChange={setSport} />
-          <Segmented options={DIVISIONS} value={division} onChange={setDivision} />
+          <Chips options={SPORTS} value={sport} onChange={setSport} />
+          <RNView style={[styles.filterDivider, { backgroundColor: border }]} />
+          <Chips options={DIVISIONS} value={division} onChange={setDivision} />
         </RNView>
       </RNView>
 
@@ -184,11 +184,13 @@ export default function ScoresScreen() {
         stickySectionHeadersEnabled
         renderSectionHeader={({ section }) => (
           <RNView style={styles.sectionHead}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <Text style={styles.sectionTitle} numberOfLines={1}>{section.title}</Text>
+            <ClnLogo size={22} />
           </RNView>
         )}
-        renderItem={({ item, index, section }) => <GameRow game={item} last={index === section.data.length - 1} />}
-        SectionSeparatorComponent={() => <RNView style={{ height: 6, backgroundColor: bg }} />}
+        renderItem={({ item, index, section }) => (
+          <GameRow game={item} alt={index % 2 === 1} last={index === section.data.length - 1} />
+        )}
         refreshControl={<RefreshControl refreshing={false} onRefresh={board.refresh} />}
         contentContainerStyle={[styles.list, { borderColor: border }]}
         ListEmptyComponent={
@@ -233,17 +235,18 @@ export default function ScoresScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  controls: { paddingTop: 12, paddingBottom: 6, gap: 8 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, gap: 4 },
-  dateBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8 },
-  calendarText: { fontSize: 13, fontWeight: '700' },
+  controls: { paddingBottom: 6, gap: 6, borderBottomWidth: StyleSheet.hairlineWidth },
+  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, gap: 4, minHeight: 36 },
+  calendarBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  calendarText: { fontSize: 19, fontWeight: '500' },
   arrows: { flexDirection: 'row', gap: 14 },
-  arrow: { fontSize: 19, paddingHorizontal: 4 },
+  arrow: { fontSize: 18, paddingHorizontal: 2 },
   dateText: { fontSize: 19, fontWeight: '800', textAlign: 'center', flexShrink: 1 },
-  filters: { paddingHorizontal: 12, gap: 6 },
+  filters: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, gap: 10 },
+  filterDivider: { width: StyleSheet.hairlineWidth, height: 18 },
   list: { paddingBottom: 24 },
-  sectionHead: { paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#898989' },
-  sectionTitle: { color: '#fff', fontWeight: '800', fontSize: 16, letterSpacing: 0.3 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 3, backgroundColor: brand.navy },
+  sectionTitle: { color: '#fff', fontWeight: '800', fontSize: 17 },
   emptyWrap: { alignItems: 'center', marginTop: 40, paddingHorizontal: 24, gap: 14 },
   empty: { textAlign: 'center' },
   jump: { borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
