@@ -1,5 +1,15 @@
 import * as cheerio from "cheerio";
-import conferenceSources from "./conferenceSources.json";
+import conferenceSourcesJson from "./conferenceSources.json";
+
+interface ConferenceSource {
+  conference: string;
+  name?: string;
+  logo?: string;
+  platform: string;
+  standingsUrl: string;
+  seasonUrls?: Record<string, string>;
+}
+const conferenceSources = conferenceSourcesJson as ConferenceSource[];
 import { cors } from '@elysiajs/cors';
 import { getSemaphore } from "@henrygd/semaphore";
 import { Elysia, NotFoundError, t } from "elysia";
@@ -15,7 +25,9 @@ import {
   playByPlayHashes,
   teamStatsHashes,
 } from "./codes";
+import { fetchGamecenter } from "./gamecenter";
 import { openapiSpec } from "./openapi";
+import { UpstreamError, upstreamFetch, upstreamQueueSize, upstreamStats } from "./upstream";
 import { parseStatSelect } from "./stats/stat-category-parser";
 import {
   convertToOldFormat,
@@ -54,6 +66,25 @@ const validRoutes = new Map([
   ["brackets", cache_45s]
 ]);
 
+/**
+ * Default lacrosse season for lax.com-backed routes: seasons are named for the
+ * calendar year they are played in (spring), so the current year is correct
+ * from January through the fall, when the completed season is still the
+ * latest with data.
+ */
+function defaultSeason() {
+  return String(new Date().getFullYear());
+}
+
+/**
+ * Browser origins allowed to call the API. Comma-separated CORS_ORIGINS env
+ * (e.g. production + staging sites); native apps are unaffected by CORS.
+ */
+const allowedOrigins = (process.env.CORS_ORIGINS ?? "https://collegelacrossenews.com")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 /** log message to console with timestamp */
 function log(str: string) {
   console.log(`[${new Date().toISOString().substring(0, 19).replace("T", " ")}] ${str}`);
@@ -63,11 +94,19 @@ function log(str: string) {
 //////////////////////////////// ELYSIA //////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 export const app = new Elysia()
-    .use(cors({
-        origin: 'https://collegelacrossenews.com'
-    }))
+  .use(cors({ origin: allowedOrigins }))
+  .onError(({ code, error, path, set }) => {
+    if (code === "NOT_FOUND" || code === "VALIDATION") {
+      return;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    log(JSON.stringify({ level: "error", code, path, message }));
+    if (error instanceof UpstreamError) {
+      set.status = 502;
+      return { message: "Upstream data source unavailable", upstreamStatus: error.status ?? null };
+    }
+  })
   .guard({
     detail: { hide: true },
     query: v.object({
@@ -81,7 +120,7 @@ export const app = new Elysia()
   .get("/logo/:school", async ({ params: { school }, query: { dark }, set, status }) => {
     const bgParam = dark !== undefined && dark !== "false" ? "bgd" : "bgl";
     const url = `https://www.ncaa.com/sites/default/files/images/logos/schools/${bgParam}/${school.replace(".svg", "")}.svg`;
-    const res = await fetch(url);
+    const res = await upstreamFetch(url);
 
     if (!res.ok) {
       return status(404, "Logo not found");
@@ -102,6 +141,18 @@ export const app = new Elysia()
       }),
     }
   )
+  // liveness / readiness for Railway health checks and monitoring
+  .get("/health", ({ set }) => {
+    set.headers["Cache-Control"] = "no-store";
+    const degraded = upstreamStats.consecutiveFailures >= 5;
+    set.status = degraded ? 503 : 200;
+    return {
+      status: degraded ? "degraded" : "ok",
+      uptimeSeconds: Math.round(process.uptime()),
+      version: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
+      upstream: { ...upstreamStats, inFlight: upstreamQueueSize() },
+    };
+  })
   // validate request / set cache key
   .resolve(({ request, path, query: { page, season }, status }) => {
     // validate custom header value
@@ -136,7 +187,7 @@ export const app = new Elysia()
     .get("/lax-stats/:sport/:division", async ({ params, query, cache, cacheKey, status }) => {
   try {
     const season =
-      typeof query.season === "string" ? query.season : "2026";
+      typeof query.season === "string" ? query.season : defaultSeason();
 
     const data = await getLaxStats(
       params.sport,
@@ -153,7 +204,7 @@ export const app = new Elysia()
 .get("/player/:id", async ({ params, query, cache, cacheKey, status }) => {
   try {
     const season =
-      typeof query.season === "string" ? query.season : "2026";
+      typeof query.season === "string" ? query.season : defaultSeason();
 
     const data = await getLaxPlayer(
       params.id,
@@ -169,7 +220,7 @@ export const app = new Elysia()
   .get("/player/:id/history", async ({ params, cache, cacheKey, status }) => {
   try {
 
-    const res = await fetch(
+    const res = await upstreamFetch(
   `https://stats.ncaa.org/players/${params.id}`,
   {
     headers: {
@@ -218,68 +269,45 @@ const html = await res.text();
     return status(502, String(e));
   }
 })
-  .get("/official-standings", async ({ query, status }) => {
-   const season =
-  typeof query.season === "string" ? query.season : "2026"; 
-  try {
-    const results = [];
-
-    for (const conference of conferenceSources) {
-      const standingsUrl =
-  conference.seasonUrls?.[season] || conference.standingsUrl;
-
-const res = await fetch(standingsUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0",
-          "Accept": "text/html"
-        }
-      });
-
-      if (!res.ok) continue;
-
-      const html = await res.text();
-     
-      let standings = [];
-
-      if (conference.platform === "boost") standings = parseBoostStandings(html);
-      else if (conference.platform === "prestosports") standings = parsePrestoStandings(html);
-      else if (conference.platform === "prestosports_asun") standings = parsePrestoStandingsAsun(html);
-       else if (conference.platform === "sidearm_acc") standings = parseSidearmStandingsACC(html); 
-      else if (conference.platform === "sidearm_caa") standings = parseSidearmStandingsCAA(html);
-      else if (conference.platform === "sidearm_ivy") standings = parseSidearmStandingsIvy(html);
-      else if (conference.platform === "sidearm_maac") standings = parseSidearmStandingsMAAC(html);
-      else if (conference.platform === "sidearm_nec") {
-  standings = parseSidearmStandingsNEC(html); 
-}
-else if (conference.platform === "sidearm_a10") {
-  standings = parseSidearmStandingsA10(html);
-}
-else if (conference.platform === "sidearm_patriot") {
-  standings = parseSidearmStandingsPatriot(html);
-}
-else if (conference.platform === "sidearm") {
-  standings = parseSidearmStandings(html);
-}
-     results.push({
-  conference: conference.name || conference.conference,
-  slug: conference.conference,
-  logo: conference.logo || "",
-  platform: conference.platform,
-       standingsUrl,
-season,
-  count: standings.length,
-  standings
-});
+  .get("/official-standings", async ({ query, status, cache, cacheKey }) => {
+    const season = typeof query.season === "string" ? query.season : defaultSeason();
+    try {
+      const results = await Promise.all(
+        conferenceSources.map(async (conference) => {
+          const standingsUrl = conference.seasonUrls?.[season] || conference.standingsUrl;
+          let standings: unknown[];
+          try {
+            const res = await upstreamFetch(standingsUrl, { headers: { Accept: "text/html" } });
+            if (!res.ok) {
+              return null;
+            }
+            standings = parseConferenceStandings(conference.platform, await res.text());
+          } catch (err) {
+            log(`official-standings: ${conference.conference} failed: ${err}`);
+            return null;
+          }
+          return {
+            conference: conference.name || conference.conference,
+            slug: conference.conference,
+            logo: conference.logo || "",
+            platform: conference.platform,
+            standingsUrl,
+            season,
+            count: standings.length,
+            standings,
+          };
+        })
+      );
+      const available = results.filter((r) => r !== null);
+      cache.set(cacheKey, available);
+      return available;
+    } catch (e) {
+      return status(502, String(e));
     }
-
-    return results;
-  } catch (e) {
-    return status(502, String(e));
-  }
-})
+  })
   .get("/official-standings/:conference", async ({ params, query, status }) => {
       const season =
-    typeof query.season === "string" ? query.season : "2026";
+    typeof query.season === "string" ? query.season : defaultSeason();
 
   const conference = conferenceSources.find(
     (c: any) => c.conference === params.conference
@@ -294,12 +322,7 @@ season,
   const standingsUrl =
   conference.seasonUrls?.[season] || conference.standingsUrl;
 
-const res = await fetch(standingsUrl, {
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      "Accept": "text/html"
-    }
-  });
+  const res = await upstreamFetch(standingsUrl, { headers: { Accept: "text/html" } });
 
   if (!res.ok) {
     return status(502, {
@@ -310,33 +333,8 @@ const res = await fetch(standingsUrl, {
 
   const html = await res.text();
 
- let standings = [];
+  const standings = parseConferenceStandings(conference.platform, html);
 
-if (conference.platform === "boost") {
-  standings = parseBoostStandings(html);
-} else if (conference.platform === "prestosports") {
-  standings = parsePrestoStandings(html);
-} else if (conference.platform === "prestosports_asun") {
-  standings = parsePrestoStandingsAsun(html);
-} else if (conference.platform === "sidearm_acc") {
-  standings = parseSidearmStandingsACC(html);
-} else if (conference.platform === "sidearm_caa") {
-  standings = parseSidearmStandingsCAA(html);
-} else if (conference.platform === "sidearm_ivy") {
-  standings = parseSidearmStandingsIvy(html);
-} else if (conference.platform === "sidearm_maac") {
-  standings = parseSidearmStandingsMAAC(html);
-} else if (conference.platform === "sidearm_nec") {
-  standings = parseSidearmStandingsNEC(html);
-} else if (conference.platform === "sidearm_patriot") {
-  standings = parseSidearmStandingsPatriot(html);
-} else if (conference.platform === "sidearm_a10") {
-  standings = parseSidearmStandingsA10(html);
-} else if (conference.platform === "sidearm") {
-  standings = parseSidearmStandings(html);
-}
-
-console.log("ROW COUNT:", standings.length);
 
 return {
   conference: conference.conference,
@@ -352,7 +350,7 @@ return {
 })
  
   .get("/schools-index", async ({ cache, cacheKey, status }) => {
-    const req = await fetch("https://www.ncaa.com/json/schools");
+    const req = await upstreamFetch("https://www.ncaa.com/json/schools");
     try {
       const json = (await req.json()).map((school: Record<string, string>) => ({
         slug: school.slug,
@@ -373,7 +371,7 @@ return {
     }
 
     const url = `https://www.ncaa.com/news/${params.sport}/${params.division}/rss.xml`;
-    const res = await fetch(url);
+    const res = await upstreamFetch(url);
 
     if (!res.ok) {
       return status(404, "RSS feed not found");
@@ -450,13 +448,11 @@ return {
       })
       // game route to retrieve game details
       .get("/:id", async ({ cache, cacheKey, status, params: { id } }) => {
-        const req = await fetch(
-          `https://sdataprod.ncaa.com/?meta=GetGamecenterGameById_web&extensions={%22persistedQuery%22:{%22version%22:1,%22sha256Hash%22:%2293a02c7193c89d85bcdda8c1784925d9b64657f73ef584382e2297af555acd4b%22}}&variables={%22id%22:%22${id}%22,%22week%22:null,%22staticTestEnv%22:null}`
-        );
-        if (!req.ok) {
+        const gamecenter = await fetchGamecenter(String(id));
+        if (!gamecenter) {
           return status(404, "Resource not found");
         }
-        const data = JSON.stringify((await req.json())?.data);
+        const data = JSON.stringify(gamecenter);
         cache.set(cacheKey, data);
         return data;
       })
@@ -466,7 +462,7 @@ return {
           if (!hash || hashes.length > 2) {
             continue;
           }
-          const req = await fetch(
+          const req = await upstreamFetch(
             `https://sdataprod.ncaa.com/?extensions={"persistedQuery":{"version":1,"sha256Hash":"${hash}"}}&variables={"contestId":"${id}","staticTestEnv":null}`
           );
           if (!req.ok) {
@@ -497,7 +493,7 @@ return {
           if (!hash || hashes.length > 2) {
             continue;
           }
-          const req = await fetch(
+          const req = await upstreamFetch(
             `https://sdataprod.ncaa.com/?extensions={"persistedQuery":{"version":1,"sha256Hash":"${hash}"}}&variables={"contestId":"${id}","staticTestEnv":null}`
           );
           if (!req.ok) {
@@ -525,7 +521,7 @@ return {
       })
       .get("/:id/scoring-summary", async ({ cache, cacheKey, status, params: { id } }) => {
         const hash = "7f86673d4875cd18102b7fa598e2bc5da3f49d05a1c15b1add0e2367ee890198";
-        const req = await fetch(
+        const req = await upstreamFetch(
           `https://sdataprod.ncaa.com/?extensions={"persistedQuery":{"version":1,"sha256Hash":"${hash}"}}&variables={"contestId":"${id}","staticTestEnv":null}`
         );
         if (req.ok) {
@@ -544,7 +540,7 @@ return {
           if (!hash || hashes.length > 2) {
             continue;
           }
-          const req = await fetch(
+          const req = await upstreamFetch(
             `https://sdataprod.ncaa.com/?extensions={"persistedQuery":{"version":1,"sha256Hash":"${hash}"}}&variables={"contestId":"${id}","staticTestEnv":null}`
           );
           if (!req.ok) {
@@ -596,7 +592,7 @@ return {
       JSON.stringify(variables)
     )}&extensions=${encodeURIComponent(JSON.stringify(extensions))}`;
 
-    const req = await fetch(url);
+    const req = await upstreamFetch(url);
 
     if (!req.ok) {
       return status(404, "Resource not found");
@@ -626,7 +622,7 @@ return {
   .get("/schedule/:sport/:division/:year/:month?", async ({ cache, cacheKey, params, status }) => {
     const urlPathSegments = [params.sport, params.division, params.year, params.month]
     const urlPath = urlPathSegments.filter(Boolean).join("/");
-    const req = await fetch(
+    const req = await upstreamFetch(
       `https://data.ncaa.com/casablanca/schedule/${urlPath}/schedule-all-conf.json`
     );
 
@@ -655,7 +651,7 @@ return {
       return status(400, "Invalid division");
     }
     const url = `https://sdataprod.ncaa.com/?extensions={"persistedQuery":{"version":1,"sha256Hash":"a25ad021179ce1d97fb951a49954dc98da150089f9766e7e85890e439516ffbf"}}&queryName=NCAA_schedules_today_web&variables={"sportCode":"${sportCode}","division":${divisionCode},"seasonYear":${params.year}}`;
-    const req = await fetch(url);
+    const req = await upstreamFetch(url);
 
     if (!req.ok) {
       return status(404, "Resource not found");
@@ -800,7 +796,7 @@ return data;
           return cache.get(url);
         }
         // fetch data
-        const res = await fetch(url);
+        const res = await upstreamFetch(url);
         if (!res.ok) {
           return status(404, { "message": "Resource not found" });
         }
@@ -828,7 +824,7 @@ return data;
       return cache.get(cacheKey);
     }
     const url = `https://www.ncaa.com/stats/${params.sport}/${params.division}`;
-    const res = await fetch(url);
+    const res = await upstreamFetch(url);
     if (!res.ok) {
       return status(404, "Stats not found for this sport/division");
     }
@@ -890,7 +886,7 @@ return data;
           }),
         }
       ))
-  .listen(3000);
+  .listen(Number(process.env.PORT) || 3000);
 
 log(`Server is running at ${app.server?.url}`);
 
@@ -930,7 +926,7 @@ async function getTodayUrl(sport: string, division: string): Promise<string> {
     log(`Failed to fetch schedule from new endpoint, falling back to old endpoint: ${err}`);
     // Fall through to old endpoint logic
   }
-  const req = await fetch(
+  const req = await upstreamFetch(
     `https://data.ncaa.com/casablanca/schedule/${sport}/${division}/today.json`
   );
   if (!req.ok) {
@@ -957,7 +953,7 @@ async function getData(opts: { path: string; page?: string; season?: string }) {
   return await getLacrosseStandings(opts.path, opts.season);
 }
   log(`Fetching ${url}`);
-  const res = await fetch(url);
+  const res = await upstreamFetch(url);
 
   if (!res.ok) {
     throw new NotFoundError(JSON.stringify({ message: "Resource not found" }));
@@ -1127,12 +1123,12 @@ const sportSlug = parts[1] || "lacrosse-men";
       };
 
   const division = divisionMap[divisionSlug] || "1";
-  const year = season || "2026";
+  const year = season || defaultSeason();
 
   const url =
     `https://www.laxshop.com/shopify_stats.php?division=${division}&year=${year}&action=getConferencesTeams`;
 
-  const res = await fetch(url, {
+  const res = await upstreamFetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0",
       "Referer": `https://www.lax.com/pages/conferences?year=${year}&division=${division}&conference=all`,
@@ -1167,12 +1163,12 @@ async function getLaxStats(
         };
 
   const division = divisionMap[divisionSlug] || "1";
-  const year = season || "2026";
+  const year = season || defaultSeason();
 
   const url =
     `https://www.laxshop.com/shopify_stats.php?year=${year}&division=${division}&action=getStats`;
 
-  const res = await fetch(url, {
+  const res = await upstreamFetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0",
       "Referer": `https://www.lax.com/pages/stats?year=${year}&division=${division}`,
@@ -1193,7 +1189,7 @@ async function getLaxPlayer(
   playerId: string,
   season?: string
 ) {
-  const year = season || "2026";
+  const year = season || defaultSeason();
 
   const divisions = [
     { sport: "lacrosse-men", division: "d1" },
@@ -1239,7 +1235,7 @@ const player = players.find(
 let masterData = {};
 
 try {
-  const playerRes = await fetch(
+  const playerRes = await upstreamFetch(
     `https://www.lax.com/php/shopify_stats.php?player_id=${playerId}&year=${year}&action=getPlayer`
   );
 
@@ -1273,7 +1269,7 @@ return JSON.stringify({
 async function getNcaaPlayerBio(ncaaId: string) {
   const url = `https://www.ncaa.com/player/${ncaaId}`;
 
-  const res = await fetch(url, {
+  const res = await upstreamFetch(url, {
   headers: {
     "User-Agent": "Mozilla/5.0",
     "Referer": "https://stats.ncaa.org/",
@@ -1308,6 +1304,36 @@ async function getNcaaPlayerBio(ncaaId: string) {
   });
 
   return JSON.stringify(bio);
+}
+
+/** Dispatch a conference standings page to the parser for its site platform. */
+function parseConferenceStandings(platform: string, html: string): unknown[] {
+  switch (platform) {
+    case "boost":
+      return parseBoostStandings(html);
+    case "prestosports":
+      return parsePrestoStandings(html);
+    case "prestosports_asun":
+      return parsePrestoStandingsAsun(html);
+    case "sidearm_acc":
+      return parseSidearmStandingsACC(html);
+    case "sidearm_caa":
+      return parseSidearmStandingsCAA(html);
+    case "sidearm_ivy":
+      return parseSidearmStandingsIvy(html);
+    case "sidearm_maac":
+      return parseSidearmStandingsMAAC(html);
+    case "sidearm_nec":
+      return parseSidearmStandingsNEC(html);
+    case "sidearm_a10":
+      return parseSidearmStandingsA10(html);
+    case "sidearm_patriot":
+      return parseSidearmStandingsPatriot(html);
+    case "sidearm":
+      return parseSidearmStandings(html);
+    default:
+      return [];
+  }
 }
 
 function parseSidearmStandingsOld(html: string) {

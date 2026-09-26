@@ -1,3 +1,4 @@
+import { upstreamFetch } from "./upstream";
 // find hashes in the game page source code
 export const playByPlayHashes = {
   PlayByPlayBasketball: "6b1232714a3598954c5bacabc0f81570e16d6ee017c9a6b93b601a3d40dafb98",
@@ -242,7 +243,7 @@ const errNotSupported = (sport: string, division: string) =>
  * This is more reliable than the today.json endpoint for football.
  */
 async function getDateFromScoreboardPage(sport: string, division: string): Promise<string | null> {
-  const response = await fetch(`https://www.ncaa.com/scoreboard/${sport}/${division}`);
+  const response = await upstreamFetch(`https://www.ncaa.com/scoreboard/${sport}/${division}`);
   if (!response.ok) {
     return null;
   }
@@ -299,7 +300,7 @@ export async function getScheduleBySportAndDivision(sport: string, division: Div
   const url = `https://sdataprod.ncaa.com/?extensions={"persistedQuery":{"version":1,"sha256Hash":"a25ad021179ce1d97fb951a49954dc98da150089f9766e7e85890e439516ffbf"}}&queryName=NCAA_schedules_today_web&variables={"sportCode":"${sportData.code
     }","division":${divisionCode},"seasonYear":${getSeasonYear(new Date())}}`;
 
-  const req = await fetch(url);
+  const req = await upstreamFetch(url);
   if (!req.ok) {
     throw new Error(`Failed to fetch schedule: ${req.statusText}`);
   }
