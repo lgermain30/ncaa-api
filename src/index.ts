@@ -13,7 +13,6 @@ const conferenceSources = conferenceSourcesJson as ConferenceSource[];
 import { cors } from '@elysiajs/cors';
 import { getSemaphore } from "@henrygd/semaphore";
 import { Elysia, NotFoundError, t } from "elysia";
-import ExpiryMap from "expiry-map";
 import { parseHTML } from "linkedom";
 import {
   boxscoreHashes,
@@ -27,7 +26,8 @@ import {
 } from "./codes";
 import { fetchGamecenter } from "./gamecenter";
 import { openapiSpec } from "./openapi";
-import { UpstreamError, upstreamFetch, upstreamQueueSize, upstreamStats } from "./upstream";
+import { cacheStats, pingRedis, TieredCache } from "./cache";
+import { openBreakers, UpstreamError, upstreamFetch, upstreamQueueSize, upstreamStats } from "./upstream";
 import { parseStatSelect } from "./stats/stat-category-parser";
 import {
   convertToOldFormat,
@@ -39,13 +39,13 @@ import * as v from 'valibot';
 import { validDivisions, validGameIds, validScoreboardSports, validSports, validYears } from "./schema";
 
 // 30 minute cache for most routes
-const cache_30m = new ExpiryMap(30 * 60 * 1000);
+const cache_30m = new TieredCache("30m", 30 * 60 * 1000);
 
 // 45 second cache for scores / brackets
-const cache_45s = new ExpiryMap(1 * 45 * 1000);
+export const cache_45s = new TieredCache("45s", 45 * 1000);
 
 // 24 hour cache for stat metadata (stat paths rarely change)
-const cache_24h = new ExpiryMap(24 * 60 * 60 * 1000);
+const cache_24h = new TieredCache("24h", 24 * 60 * 60 * 1000);
 
 // valid routes for the app with their respective caches
 const validRoutes = new Map([
@@ -76,6 +76,17 @@ function defaultSeason() {
   return String(new Date().getFullYear());
 }
 
+function cacheKeyFor(path: string, query: Record<string, string | undefined>) {
+  const normalized = path.endsWith("/all-conf") ? path.replace("/all-conf", "") : path;
+  return `${normalized}?page=${query.page || ""}&season=${query.season || ""}`;
+}
+
+/** last-known-good copy of a route's response, for failover when upstream is down */
+function staleFor(path: string, query: Record<string, string | undefined>) {
+  const cache = validRoutes.get(path.split("/")[1]);
+  return cache ? cache.getStale(cacheKeyFor(path, query)) : Promise.resolve(null);
+}
+
 /**
  * Browser origins allowed to call the API. Comma-separated CORS_ORIGINS env
  * (e.g. production + staging sites); native apps are unaffected by CORS.
@@ -96,13 +107,24 @@ function log(str: string) {
 
 export const app = new Elysia()
   .use(cors({ origin: allowedOrigins }))
-  .onError(({ code, error, path, set }) => {
+  .onError(async ({ code, error, path, query, set }) => {
     if (code === "NOT_FOUND" || code === "VALIDATION") {
       return;
     }
     const message = error instanceof Error ? error.message : String(error);
     log(JSON.stringify({ level: "error", code, path, message }));
     if (error instanceof UpstreamError) {
+      const stale = await staleFor(path, query);
+      if (stale) {
+        cacheStats.staleServed++;
+        set.status = 200;
+        set.headers["Content-Type"] = "application/json";
+        set.headers["Cache-Control"] = "public, max-age=30";
+        set.headers["X-CLN-Stale"] = "true";
+        set.headers["X-CLN-Data-Age"] = String(stale.ageSeconds);
+        set.headers.Warning = '110 - "Response is Stale"';
+        return typeof stale.value === "string" ? stale.value : JSON.stringify(stale.value);
+      }
       set.status = 502;
       return { message: "Upstream data source unavailable", upstreamStatus: error.status ?? null };
     }
@@ -142,7 +164,7 @@ export const app = new Elysia()
     }
   )
   // liveness / readiness for Railway health checks and monitoring
-  .get("/health", ({ set }) => {
+  .get("/health", async ({ set }) => {
     set.headers["Cache-Control"] = "no-store";
     const degraded = upstreamStats.consecutiveFailures >= 5;
     set.status = degraded ? 503 : 200;
@@ -150,7 +172,8 @@ export const app = new Elysia()
       status: degraded ? "degraded" : "ok",
       uptimeSeconds: Math.round(process.uptime()),
       version: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
-      upstream: { ...upstreamStats, inFlight: upstreamQueueSize() },
+      upstream: { ...upstreamStats, inFlight: upstreamQueueSize(), openCircuits: openBreakers() },
+      cache: { ...cacheStats, redisReachable: await pingRedis() },
     };
   })
   // validate request / set cache key
@@ -167,20 +190,20 @@ export const app = new Elysia()
     if (!validRoutes.has(basePath)) {
       return status(400, "Invalid resource");
     }
-    // strip /all-conf from path for caching purposes since it's the default
-    if (path.endsWith("/all-conf")) {
-      path = path.replace("/all-conf", "");
-    }
     return {
       cache: validRoutes.get(basePath) ?? cache_45s,
-      cacheKey: `${path}?page=${page || ""}&season=${season || ""}`,
+      cacheKey: cacheKeyFor(path, { page: page === undefined ? undefined : String(page), season }),
     };
   })
-  .onBeforeHandle(({ set, cache, cacheKey }) => {
+  .onBeforeHandle(async ({ set, cache, cacheKey }) => {
     set.headers["Content-Type"] = "application/json";
     set.headers["Cache-Control"] = `public, max-age=${cache === cache_45s ? 60 : 1800}`;
     if (cache.has(cacheKey)) {
       return cache.get(cacheKey);
+    }
+    const shared = await cache.getShared(cacheKey);
+    if (shared !== undefined) {
+      return shared;
     }
   })
   // schools-index route to return list of all schools
@@ -913,8 +936,9 @@ log(`Server is running at ${app.server?.url}`);
 async function getTodayUrl(sport: string, division: string): Promise<string> {
   // check cache
   const cacheKey = `today-${sport}-${division}`;
-  if (cache_30m.has(cacheKey)) {
-    return cache_30m.get(cacheKey);
+  const cachedUrl = cache_30m.get(cacheKey);
+  if (typeof cachedUrl === "string") {
+    return cachedUrl;
   }
 
   log(`Fetching today.json for ${sport} ${division}`);
