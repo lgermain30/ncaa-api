@@ -216,3 +216,32 @@ export interface ConferenceStandings {
   count: number;
   standings: StandingsRow[];
 }
+
+/** One row from /lax-stats leaders; numeric columns arrive as strings. */
+export interface LeaderRow {
+  name?: string;
+  team_name: string;
+  url: string;
+  logo_url: string;
+  team_id: string;
+  player_id?: string;
+  avg?: string;
+  [column: string]: string | undefined;
+}
+
+export type LeaderBoards = Record<string, LeaderRow[]>;
+
+export interface NewsItem {
+  title: string;
+  link: string;
+  description: string;
+  image: string | null;
+  pubDate: string;
+  creator?: string;
+  category?: string;
+}
+
+export interface NewsFeed {
+  title: string;
+  items: NewsItem[];
+}

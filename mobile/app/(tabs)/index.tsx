@@ -1,10 +1,13 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, View as RNView } from 'react-native';
+import { Pressable, RefreshControl, SectionList, StyleSheet, View as RNView } from 'react-native';
 
-import { GameCard } from '@/components/GameCard';
+import { CalendarSheet } from '@/components/CalendarSheet';
+import { GameRow } from '@/components/GameRow';
 import { Segmented } from '@/components/Segmented';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
+import { useGameDays } from '@/hooks/useGameDays';
 import { useGameStream } from '@/hooks/useGameStream';
 import { useV1 } from '@/hooks/useV1';
 import { addDays, DIVISIONS, fetchGames, SPORTS, todayEt } from '@/lib/api';
@@ -25,6 +28,37 @@ function sortGames(games: V1Game[]): V1Game[] {
       (a.startEpoch ?? 0) - (b.startEpoch ?? 0) ||
       a.home.name.localeCompare(b.home.name),
   );
+}
+
+const CONF_NAMES: Record<string, string> = {
+  acc: 'ACC',
+  'big-east': 'Big East',
+  'big-ten': 'Big Ten',
+  'ivy-league': 'Ivy League',
+  caa: 'CAA',
+  nec: 'NEC',
+  maac: 'MAAC',
+  'patriot-league': 'Patriot League',
+  asun: 'ASUN',
+  'atlantic-10': 'Atlantic 10',
+  'america-east': 'America East',
+};
+
+function confName(slug: string): string {
+  return CONF_NAMES[slug] ?? slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/** Conference games under their conference; everything else under Non-conference. */
+function groupByConference(games: V1Game[]): { title: string; data: V1Game[] }[] {
+  const groups = new Map<string, V1Game[]>();
+  for (const g of games) {
+    const conf = g.home.conference && g.home.conference === g.away.conference ? confName(g.home.conference) : null;
+    const key = g.bracket?.roundDescription ? `NCAA Tournament · ${g.bracket.roundDescription}` : (conf ?? 'Non-conference');
+    groups.set(key, [...(groups.get(key) ?? []), g]);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => (a === 'Non-conference' ? 1 : b === 'Non-conference' ? -1 : a.localeCompare(b)))
+    .map(([title, data]) => ({ title, data }));
 }
 
 /** Live stream events received since the last full board load, keyed by game id. */
@@ -54,6 +88,7 @@ function prettyDate(date: string): string {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+    year: date.slice(0, 4) === today.slice(0, 4) ? undefined : 'numeric',
     timeZone: 'UTC',
   });
 }
@@ -62,9 +97,12 @@ export default function ScoresScreen() {
   const [sport, setSport] = useState<Sport>('lacrosse-men');
   const [division, setDivision] = useState<Division>('d1');
   const [date, setDate] = useState(todayEt());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const isToday = date === todayEt();
   const muted = useThemeColor({}, 'muted');
   const tint = useThemeColor({}, 'tint');
+  const bg = useThemeColor({}, 'background');
+  const border = useThemeColor({}, 'border');
 
   const key = `${sport}/${division}/${date}`;
   const board = useV1<V1Game[]>(
@@ -73,12 +111,22 @@ export default function ScoresScreen() {
     isToday ? 60_000 : null,
   );
 
+  // Game-day calendar: the selected date's year plus any year browsed in the picker.
+  const [extraYears, setExtraYears] = useState<number[]>([]);
+  const years = useMemo(() => {
+    const y = +date.slice(0, 4);
+    return [...new Set([y, ...extraYears])].sort();
+  }, [date, extraYears]);
+  const allGameDays = useGameDays(sport, division, years);
+  const addYear = useCallback((y: number) => setExtraYears((prev) => (prev.includes(y) ? prev : [...prev, y])), []);
+
   const [patches, setPatches] = useState<Patches>({ key, byGame: {} });
   const games = useMemo(() => {
     if (!board.data) return [];
     const byGame = patches.key === key ? patches.byGame : {};
     return sortGames(board.data.map((g) => applyPatch(g, byGame[g.id])));
   }, [board.data, patches, key]);
+  const sections = useMemo(() => groupByConference(games), [games]);
   const refresh = board.refresh;
 
   const stream = useGameStream(
@@ -98,6 +146,12 @@ export default function ScoresScreen() {
 
   const liveCount = useMemo(() => games.filter((g) => g.status.state === 'live').length, [games]);
 
+  // Nearest game day at or before today, for the empty-state shortcut.
+  const latestGameDay = useMemo(() => {
+    const today = todayEt();
+    return Object.keys(allGameDays).filter((d) => d <= today).sort().pop() ?? null;
+  }, [allGameDays]);
+
   return (
     <View style={styles.screen}>
       <RNView style={styles.controls}>
@@ -107,9 +161,15 @@ export default function ScoresScreen() {
           <Pressable onPress={() => setDate((d) => addDays(d, -1))} hitSlop={12} accessibilityLabel="Previous day">
             <Text style={[styles.arrow, { color: tint }]}>‹</Text>
           </Pressable>
-          <Pressable onPress={() => setDate(todayEt())} disabled={isToday}>
-            <Text style={styles.dateText}>{prettyDate(date)}</Text>
-            <Text style={[styles.dateSub, { color: muted }]}>{date}</Text>
+          <Pressable onPress={() => setCalendarOpen(true)} style={styles.dateBtn} accessibilityLabel="Pick a date">
+            <MaterialIcons name="calendar-month" size={22} color={tint} />
+            <RNView>
+              <Text style={styles.dateText}>{prettyDate(date)}</Text>
+              <Text style={[styles.dateSub, { color: muted }]}>
+                {date}
+                {allGameDays[date] ? ` · ${allGameDays[date]} games` : ''}
+              </Text>
+            </RNView>
           </Pressable>
           <Pressable onPress={() => setDate((d) => addDays(d, 1))} hitSlop={12} accessibilityLabel="Next day">
             <Text style={[styles.arrow, { color: tint }]}>›</Text>
@@ -117,16 +177,30 @@ export default function ScoresScreen() {
         </RNView>
       </RNView>
 
-      <FlatList
-        data={games}
+      <SectionList
+        sections={sections}
         keyExtractor={(g) => g.id}
-        renderItem={({ item }) => <GameCard game={item} />}
+        stickySectionHeadersEnabled
+        renderSectionHeader={({ section }) => (
+          <RNView style={[styles.sectionHead, { backgroundColor: brand.navy }]}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+          </RNView>
+        )}
+        renderItem={({ item, index, section }) => <GameRow game={item} last={index === section.data.length - 1} />}
+        SectionSeparatorComponent={() => <RNView style={{ height: 6, backgroundColor: bg }} />}
         refreshControl={<RefreshControl refreshing={false} onRefresh={board.refresh} />}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { borderColor: border }]}
         ListEmptyComponent={
-          <Text style={[styles.empty, { color: muted }]}>
-            {board.loading ? 'Loading…' : board.error ? `Couldn't load scores (${board.error})` : 'No games on this date.'}
-          </Text>
+          <RNView style={styles.emptyWrap}>
+            <Text style={[styles.empty, { color: muted }]}>
+              {board.loading ? 'Loading…' : board.error ? `Couldn't load scores (${board.error})` : 'No games on this date.'}
+            </Text>
+            {!board.loading && !board.error && latestGameDay && latestGameDay !== date ? (
+              <Pressable onPress={() => setDate(latestGameDay)} style={[styles.jump, { borderColor: tint }]}>
+                <Text style={[styles.jumpText, { color: tint }]}>Go to latest games · {prettyDate(latestGameDay)}</Text>
+              </Pressable>
+            ) : null}
+          </RNView>
         }
         ListFooterComponent={
           <Text style={[styles.footer, { color: isToday && stream.connected ? brand.live : muted }]}>
@@ -140,18 +214,36 @@ export default function ScoresScreen() {
           </Text>
         }
       />
+
+      <CalendarSheet
+        visible={calendarOpen}
+        date={date}
+        gameDays={allGameDays}
+        onSelect={(d) => {
+          setDate(d);
+          setCalendarOpen(false);
+        }}
+        onMonthChange={addYear}
+        onClose={() => setCalendarOpen(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  controls: { padding: 12, gap: 8 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
+  controls: { padding: 12, paddingBottom: 6, gap: 8 },
+  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 },
+  dateBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 12 },
   arrow: { fontSize: 32, lineHeight: 34, paddingHorizontal: 12 },
   dateText: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
   dateSub: { fontSize: 12, textAlign: 'center' },
   list: { paddingBottom: 24 },
-  empty: { textAlign: 'center', marginTop: 40, paddingHorizontal: 24 },
+  sectionHead: { paddingHorizontal: 12, paddingVertical: 6 },
+  sectionTitle: { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 0.3 },
+  emptyWrap: { alignItems: 'center', marginTop: 40, paddingHorizontal: 24, gap: 14 },
+  empty: { textAlign: 'center' },
+  jump: { borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
+  jumpText: { fontWeight: '600' },
   footer: { textAlign: 'center', marginTop: 12, fontSize: 12 },
 });
