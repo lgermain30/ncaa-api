@@ -132,6 +132,9 @@ export interface V1Boxscore {
 		faceoffs: "pbp" | "none";
 		saves: "pbp" | "none";
 		clears: "pbp" | "none";
+		/** "none" when NCAA published no ground balls / turnovers for anyone (women's feeds) */
+		groundBalls: "box" | "none";
+		turnovers: "box" | "none";
 	};
 	updatedAt: string;
 }

@@ -763,6 +763,23 @@ export function normalizeBoxscore(
 		};
 	});
 
+	// A lone goalie owns the team's save line when NCAA left the player row at 0.
+	for (const t of teamStats) {
+		const keepers = players.filter((p) => p.isGoalie && p.teamId === t.teamId);
+		if (keepers.length !== 1 || !t.saves) continue;
+		const gk = keepers[0];
+		if (gk.saves) continue;
+		gk.saves = t.saves;
+		gk.goalsAllowed =
+			t.goalsAllowed ??
+			teamStats.find((o) => o.teamId !== t.teamId)?.goals ??
+			gk.goalsAllowed;
+	}
+
+	const anyPublished = (
+		f: (x: { groundBalls: number; turnovers: number }) => number,
+	) => players.some((p) => f(p) > 0) || teamStats.some((t) => f(t) > 0);
+
 	return {
 		gameId,
 		status: detailStatus(base),
@@ -773,6 +790,8 @@ export function normalizeBoxscore(
 			faceoffs: splits.hasFaceoffs ? "pbp" : "none",
 			saves: splits.hasSaves ? "pbp" : "none",
 			clears: clearsDerived ? "pbp" : "none",
+			groundBalls: anyPublished((x) => x.groundBalls) ? "box" : "none",
+			turnovers: anyPublished((x) => x.turnovers) ? "box" : "none",
 		},
 		updatedAt: now.toISOString(),
 	};

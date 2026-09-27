@@ -97,7 +97,11 @@ function bump(season: number, key: string, by = 1) {
 /** Details count as present only when the box score carries team stats. */
 async function hasDetails(gameId: string) {
 	const box = await getDetail<V1Boxscore>(gameId, "boxscore");
-	return Boolean(box && box.data.teamStats.length > 0);
+	return Boolean(
+		box &&
+			box.data.teamStats.length > 0 &&
+			box.data.derived.groundBalls !== undefined,
+	);
 }
 
 async function alreadyStored(sport: string, division: string, date: string) {

@@ -125,7 +125,14 @@ export interface V1Boxscore {
   teams: V1BoxTeam[];
   teamStats: V1TeamLine[];
   players: V1PlayerLine[];
-  derived: { faceoffs: 'pbp' | 'none'; saves: 'pbp' | 'none'; clears: 'pbp' | 'none' };
+  derived: {
+    faceoffs: 'pbp' | 'none';
+    saves: 'pbp' | 'none';
+    clears: 'pbp' | 'none';
+    /** 'none' when NCAA published no ground balls / turnovers for anyone */
+    groundBalls: 'box' | 'none';
+    turnovers: 'box' | 'none';
+  };
   updatedAt: string;
 }
 

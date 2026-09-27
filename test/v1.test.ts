@@ -271,7 +271,11 @@ describe("v1 normalize: plays + linescore repair", () => {
 describe("v1 normalize: boxscore", () => {
 	it("derives player faceoffs, saves and team clears from PBP and labels them", () => {
 		const b = normalizeBoxscore("6538796", box, null, pbp);
-		expect(b.derived).toEqual({ faceoffs: "pbp", saves: "pbp", clears: "pbp" });
+		expect(b.derived).toMatchObject({
+			faceoffs: "pbp",
+			saves: "pbp",
+			clears: "pbp",
+		});
 		const hanson = b.players.find((p) => p.name === "Micah Hanson");
 		expect(hanson?.faceoffsWon).toBe(1);
 		expect(hanson?.faceoffsTaken).toBe(1);
@@ -289,9 +293,54 @@ describe("v1 normalize: boxscore", () => {
 		expect(canisius?.saves).toBe(1);
 	});
 
+	it("gives a lone goalie the team save line and flags unpublished GB/TO", () => {
+		const women = {
+			...box,
+			teamBoxscore: [
+				{
+					teamId: "43953",
+					teamStats: { goals: 2, goalie: { saves: 7, goalsAllowed: 1 } },
+					playerStats: [
+						{ firstName: "Quinn", lastName: "Huber", goals: 2, groundBalls: 0 },
+						{
+							firstName: "Sam",
+							lastName: "Kosloski",
+							position: "gk",
+							goalie: { saves: 0 },
+						},
+					],
+				},
+				{
+					teamId: "1388929",
+					teamStats: { goals: 1, goalie: { saves: 4 } },
+					playerStats: [
+						{ firstName: "Jack", lastName: "Smith", goals: 1 },
+						{
+							firstName: "Noah",
+							lastName: "Perea",
+							position: "gk",
+							goalie: { saves: 0 },
+						},
+					],
+				},
+			],
+		};
+		const b = normalizeBoxscore("6538796", women, null, null);
+		expect(b.derived.groundBalls).toBe("none");
+		expect(b.derived.turnovers).toBe("none");
+		const kosloski = b.players.find((p) => p.name === "Sam Kosloski");
+		expect(kosloski?.saves).toBe(7);
+		expect(kosloski?.goalsAllowed).toBe(1);
+		const perea = b.players.find((p) => p.name === "Noah Perea");
+		expect(perea?.saves).toBe(4);
+		expect(perea?.goalsAllowed).toBe(2);
+		const men = normalizeBoxscore("6538796", box, null, pbp);
+		expect(men.derived.groundBalls).toBe("none");
+	});
+
 	it("reports nothing derived when there is no PBP", () => {
 		const b = normalizeBoxscore("6538796", box, null, null);
-		expect(b.derived).toEqual({
+		expect(b.derived).toMatchObject({
 			faceoffs: "none",
 			saves: "none",
 			clears: "none",
