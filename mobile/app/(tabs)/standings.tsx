@@ -4,6 +4,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } fro
 import { Segmented } from '@/components/Segmented';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
+import { conferenceName } from '@/lib/conferences';
 import { useV1 } from '@/hooks/useV1';
 import { DIVISIONS, fetchStandings, seasonFor, SPORTS, todayEt } from '@/lib/api';
 import type { ConferenceStandings, Division, Sport, StandingsRow, V1Envelope } from '@/lib/types';
@@ -78,7 +79,7 @@ export default function StandingsScreen() {
               key={c.slug}
               onPress={() => setSelected(c.slug)}
               style={[styles.chip, active ? { backgroundColor: card, borderColor: border } : null]}>
-              <Text style={[styles.chipText, { color: active ? text : muted }]}>{c.conference}</Text>
+              <Text style={[styles.chipText, { color: active ? text : muted }]}>{conferenceName(c.conference)}</Text>
             </Pressable>
           );
         })}
@@ -132,7 +133,7 @@ export default function StandingsScreen() {
         {!loading && !error && !conf ? <Text style={[styles.note, { color: muted }]}>No standings available for {season}.</Text> : null}
         {conf ? (
           <Text style={[styles.note, { color: muted }]}>
-            {sport === 'lacrosse-men' && division === 'd1' ? 'Official conference standings' : 'Conference standings'} · {season} · record under team = conference
+            Conference standings · {season} · record under team = conference
           </Text>
         ) : null}
       </ScrollView>
