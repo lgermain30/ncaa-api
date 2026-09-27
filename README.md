@@ -209,6 +209,8 @@ What NCAA actually has for lacrosse, measured per board with `bun run scripts/au
 
 2013 has a handful of D1 games with no scores; 2008–2012 return nothing. 2020 ends mid-March (COVID). *Published linescores for finished games are usually all zeros — rebuilt from PBP where PBP exists (2022+), otherwise left as published.
 
+`PUT /v1/admin/news` (header `x-news-key: $NEWS_PUSH_KEY` or `x-admin-key`) receives `{ posts: [...], remove: [ids] }` from the cln-teams WordPress plugin; `GET /v1/news` serves those posts (newest first) and only falls back to reading wp-json directly when nothing has been pushed, since the site's bot filter blocks server-side reads.
+
 `POST /v1/admin/backfill` (header `x-admin-key: $ADMIN_KEY`) walks every day of a season window for every board through the same code path as the poller and persists to Postgres; `DELETE` stops it; progress is under `backfill` in `/v1/status`.
 
 ```bash
