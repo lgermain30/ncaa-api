@@ -22,6 +22,7 @@ RUN bun build \
 FROM gcr.io/distroless/base:nonroot
 
 COPY --from=builder /app/server .
+COPY public public
 
 CMD ["./server"]
 

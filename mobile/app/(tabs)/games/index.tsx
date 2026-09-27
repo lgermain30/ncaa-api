@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CalendarSheet } from "@/components/CalendarSheet";
 import { ClnLogo } from "@/components/ClnLogo";
+import { ConferenceBand } from "@/components/ConferenceBand";
 import { Chips } from "@/components/Chips";
 import { GameRow } from "@/components/GameRow";
 import { Text, View, useThemeColor } from "@/components/Themed";
@@ -18,6 +19,7 @@ import { useGameDays } from "@/hooks/useGameDays";
 import { useGameStream } from "@/hooks/useGameStream";
 import { useV1 } from "@/hooks/useV1";
 import { addDays, DIVISIONS, fetchGames, SPORTS, todayEt } from "@/lib/api";
+import { conferenceName } from "@/lib/conferences";
 import type { Division, GameEvent, Sport, V1Game } from "@/lib/types";
 
 const STATE_ORDER: Record<V1Game["status"]["state"], number> = {
@@ -37,43 +39,23 @@ function sortGames(games: V1Game[]): V1Game[] {
   );
 }
 
-const CONF_NAMES: Record<string, string> = {
-  acc: "ACC",
-  "big-east": "Big East",
-  "big-ten": "Big Ten",
-  "ivy-league": "Ivy League",
-  caa: "CAA",
-  nec: "NEC",
-  maac: "MAAC",
-  "patriot-league": "Patriot League",
-  asun: "ASUN",
-  "atlantic-10": "Atlantic 10",
-  "america-east": "America East",
-};
-
-function confName(slug: string): string {
-  return (
-    CONF_NAMES[slug] ??
-    slug
-      .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ")
-  );
-}
-
 /** Conference games under their conference; everything else under Non-conference. */
 function groupByConference(
   games: V1Game[],
-): { title: string; data: V1Game[] }[] {
+): { title: string; conference: string | null; data: V1Game[] }[] {
   const groups = new Map<string, V1Game[]>();
+  const slugs = new Map<string, string>();
   for (const g of games) {
-    const conf =
+    const slug =
       g.home.conference && g.home.conference === g.away.conference
-        ? confName(g.home.conference)
+        ? g.home.conference
         : null;
     const key = g.bracket?.roundDescription
       ? `NCAA Tournament · ${g.bracket.roundDescription}`
-      : (conf ?? "Non-conference");
+      : slug
+        ? conferenceName(slug)
+        : "Non-conference";
+    if (slug && !g.bracket?.roundDescription) slugs.set(key, slug);
     groups.set(key, [...(groups.get(key) ?? []), g]);
   }
   return [...groups.entries()]
@@ -84,7 +66,11 @@ function groupByConference(
           ? -1
           : a.localeCompare(b),
     )
-    .map(([title, data]) => ({ title, data }));
+    .map(([title, data]) => ({
+      title,
+      conference: slugs.get(title) ?? null,
+      data,
+    }));
 }
 
 /** Live stream events received since the last full board load, keyed by game id. */
@@ -248,12 +234,7 @@ export default function ScoresScreen() {
         keyExtractor={(g) => g.id}
         stickySectionHeadersEnabled
         renderSectionHeader={({ section }) => (
-          <RNView style={styles.sectionHead}>
-            <Text style={styles.sectionTitle} numberOfLines={1}>
-              {section.title}
-            </Text>
-            <ClnLogo size={18} />
-          </RNView>
+          <ConferenceBand title={section.title} conference={section.conference} />
         )}
         renderItem={({ item, index, section }) => (
           <GameRow
@@ -357,21 +338,6 @@ const styles = StyleSheet.create({
   },
   filterDivider: { width: StyleSheet.hairlineWidth, height: 18 },
   list: { paddingBottom: 24 },
-  sectionHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: brand.navy,
-  },
-  sectionTitle: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-    flex: 1,
-    marginRight: 8,
-  },
   emptyWrap: {
     alignItems: "center",
     marginTop: 40,
