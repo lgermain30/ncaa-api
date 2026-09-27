@@ -197,7 +197,7 @@ function Linescore({ game }: { game: V1Game }) {
       ? game[side].score
       : periods.reduce((s, p) => s + (p[side] ?? 0), 0);
   return (
-    <Card title="Scoring by period">
+    <Card title="Scoring by quarter">
       <RNView>
         <RNView style={styles.lsRow}>
           <Text style={[styles.lsTeam, { color: muted }]} />
@@ -227,7 +227,7 @@ function Linescore({ game }: { game: V1Game }) {
         ))}
         {game.linescoreSource === "pbp" ? (
           <Text style={[styles.note, { color: muted }]}>
-            Period scoring rebuilt from play-by-play
+            Quarter scoring rebuilt from play-by-play
           </Text>
         ) : null}
       </RNView>
@@ -506,9 +506,14 @@ function Goals({ plays, game }: { plays: V1Plays; game: V1Game }) {
         const tags = p.tags.filter(
           (t) => t !== "unassisted" && t !== "first-goal",
         );
-        const periodLabel = /^\d+$/.test(String(p.period))
-          ? `PERIOD ${p.period}`
-          : p.periodDisplay.toUpperCase();
+        const periodLabel =
+          p.period >= 1 && p.period <= 4
+            ? `QUARTER ${p.period}`
+            : p.period === 5
+              ? "OVERTIME"
+              : p.period > 5
+                ? `OVERTIME ${p.period - 4}`
+                : p.periodDisplay.toUpperCase();
         return (
           <RNView key={p.id}>
             {showPeriod ? (
