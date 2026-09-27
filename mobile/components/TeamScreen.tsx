@@ -15,7 +15,7 @@ import { TeamLogo } from "@/components/TeamLogo";
 import { Text, View, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
 import { useV1 } from "@/hooks/useV1";
-import { fetchTeam } from "@/lib/api";
+import { fetchGames, fetchTeam } from "@/lib/api";
 import type {
   Division,
   Sport,
@@ -219,11 +219,13 @@ function ScheduleRow({
   team,
   alt,
   onOpponent,
+  onGame,
 }: {
   g: V1TeamGame;
   team: V1TeamDetail;
   alt: boolean;
   onOpponent: (g: V1TeamGame) => void;
+  onGame: (g: V1TeamGame) => void;
 }) {
   const muted = useThemeColor({}, "muted");
   const card = useThemeColor({}, "card");
@@ -254,7 +256,11 @@ function ScheduleRow({
       ]}
     >
       <ScheduleSide t={away} onPress={away === them ? open : undefined} />
-      <RNView style={styles.sCenter}>
+      <Pressable
+        style={styles.sCenter}
+        onPress={() => onGame(g)}
+        accessibilityRole="button"
+      >
         {g.final && g.score ? (
           <Text style={[styles.sScore, { color: resultColor }]}>
             {g.result ? `${g.result} ` : ""}
@@ -270,7 +276,7 @@ function ScheduleRow({
           {g.final ? gameDate(g.date) : g.home ? "Home" : "Away"}
           {g.playoff ? ` · ${g.playoff}` : ""}
         </Text>
-      </RNView>
+      </Pressable>
       <ScheduleSide t={home} right onPress={home === them ? open : undefined} />
     </RNView>
   );
@@ -453,8 +459,11 @@ const GOALIE_COLS: Col[] = [
   },
 ];
 
+const nameKey = (s: string) =>
+  s.toLowerCase().replace(/\b(university|college|of|the)\b/g, "").replace(/[^a-z0-9]/g, "");
+
 const ROW_H = 34;
-const NAME_W = 150;
+const NAME_W = 200;
 
 // Player column stays fixed on the left; stat columns scroll horizontally as
 // one block so every row stays aligned with its header.
@@ -642,6 +651,26 @@ export function TeamScreen({
     });
   };
 
+  const openGame = async (g: V1TeamGame) => {
+    if (!team) return;
+    try {
+      const { data } = await fetchGames(sport, division, g.date);
+      const sides = [team.seoName, g.opponent.seoName];
+      const names = [team.name, g.opponent.name].map(nameKey);
+      const match = data.find((game) => {
+        const seo = [game.home.seoName, game.away.seoName];
+        const nm = [game.home.name, game.away.name, game.home.shortName, game.away.shortName].map(nameKey);
+        return (
+          sides.every((s) => s && seo.includes(s)) ||
+          names.every((n) => nm.includes(n))
+        );
+      });
+      if (match) router.push({ pathname: "/games/[id]", params: { id: match.id } });
+    } catch {
+      // no NCAA game to open for this date
+    }
+  };
+
   const title = team?.name ?? name ?? "Team";
   const logo = team?.seoName ?? seoName ?? null;
 
@@ -717,6 +746,7 @@ export function TeamScreen({
                 team={team}
                 alt={i % 2 === 1}
                 onOpponent={openOpponent}
+                onGame={openGame}
               />
             ))
           ) : (
