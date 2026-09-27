@@ -11,11 +11,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Chips } from "@/components/Chips";
 import { ClnLogo } from "@/components/ClnLogo";
+import { ConferenceBand } from "@/components/ConferenceBand";
 import { TeamLogo } from "@/components/TeamLogo";
 import { Text, View, useThemeColor } from "@/components/Themed";
-import { brand } from "@/constants/Colors";
 import { useV1 } from "@/hooks/useV1";
 import { DIVISIONS, fetchTeams, SPORTS } from "@/lib/api";
+import { conferenceName } from "@/lib/conferences";
 import type { Division, Sport, V1TeamSummary } from "@/lib/types";
 
 const INDEPENDENT = "Independent";
@@ -23,7 +24,7 @@ const INDEPENDENT = "Independent";
 function groupByConference(teams: V1TeamSummary[]) {
   const map = new Map<string, V1TeamSummary[]>();
   for (const t of teams) {
-    const key = t.conference || INDEPENDENT;
+    const key = t.conference ? conferenceName(t.conference) : INDEPENDENT;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(t);
   }
@@ -86,12 +87,7 @@ export default function TeamsScreen() {
         keyExtractor={(t) => t.id}
         stickySectionHeadersEnabled
         renderSectionHeader={({ section }) => (
-          <RNView style={styles.sectionHead}>
-            <Text style={styles.sectionTitle} numberOfLines={1}>
-              {section.title}
-            </Text>
-            <ClnLogo size={18} />
-          </RNView>
+          <ConferenceBand title={section.title} />
         )}
         renderItem={({ item, index }) => (
           <Pressable
@@ -166,21 +162,6 @@ const styles = StyleSheet.create({
   },
   filterDivider: { width: StyleSheet.hairlineWidth, height: 18 },
   list: { paddingBottom: 28 },
-  sectionHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: brand.navy,
-  },
-  sectionTitle: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 14,
-    flex: 1,
-    marginRight: 8,
-  },
   row: {
     flexDirection: "row",
     alignItems: "center",

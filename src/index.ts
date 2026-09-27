@@ -141,6 +141,14 @@ export const app = new Elysia()
   })
   // redirect index to github page
   .get("/", ({ redirect }) => redirect("/openapi"))
+  // self-hosted conference logos (public/conference-logos/<slug>.<svg|png|jpg>)
+  .get("/conference-logos/:file", async ({ params: { file }, set, status }) => {
+    if (!/^[a-z0-9-]+\.(svg|png|jpg)$/.test(file)) return status(404, "Logo not found");
+    const f = Bun.file(`public/conference-logos/${file}`);
+    if (!(await f.exists())) return status(404, "Logo not found");
+    set.headers["Cache-Control"] = "public, max-age=604800";
+    return f;
+  })
   // fetch and return logo svg
   .get("/logo/:school", async ({ params: { school }, query: { dark }, set, status }) => {
     const bgParam = dark !== undefined && dark !== "false" ? "bgd" : "bgl";
