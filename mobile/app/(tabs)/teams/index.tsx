@@ -14,7 +14,6 @@ import { ClnLogo } from "@/components/ClnLogo";
 import { ConferenceBand } from "@/components/ConferenceBand";
 import { TeamLogo } from "@/components/TeamLogo";
 import { Text, View, useThemeColor } from "@/components/Themed";
-import { brand } from "@/constants/Colors";
 import { useV1 } from "@/hooks/useV1";
 import { DIVISIONS, fetchTeams, SPORTS } from "@/lib/api";
 import { conferenceName } from "@/lib/conferences";
