@@ -231,19 +231,16 @@ export interface LeaderRow {
 
 export type LeaderBoards = Record<string, LeaderRow[]>;
 
-export interface NewsItem {
+/* /v1/news — collegelacrossenews.com posts via Railway */
+export interface V1NewsItem {
+  id: number;
   title: string;
   link: string;
-  description: string;
+  excerpt: string;
   image: string | null;
-  pubDate: string;
-  creator?: string;
-  category?: string;
-}
-
-export interface NewsFeed {
-  title: string;
-  items: NewsItem[];
+  publishedAt: string;
+  author: string | null;
+  category: string | null;
 }
 
 /* /v1/teams — directory, schedule/results and roster (lax.com via Railway) */

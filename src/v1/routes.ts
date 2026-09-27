@@ -13,6 +13,7 @@ import {
 	type StreamFilter,
 	subscribe,
 } from "./events";
+import { getNews } from "./news";
 import {
 	getBoard,
 	getBoxscore,
@@ -248,6 +249,7 @@ export const v1 = new Elysia({ prefix: "/v1" })
 				"GET /v1/game/:id/boxscore                 team + player lines (goals, assists, shots, GB, TO, CT, faceoffs, saves)",
 				"GET /v1/game/:id/plays                    play-by-play, typed",
 				"GET /v1/stream                            SSE: game.new/state/score/clock/linescore/details events; ?sport=&division=&date=&game= filters",
+				"GET /v1/news                              latest collegelacrossenews.com headlines",
 				"GET /v1/status                            poller / store health",
 			],
 		};
@@ -362,6 +364,7 @@ export const v1 = new Elysia({ prefix: "/v1" })
 		},
 		{ params: v.object({ id: idParam }) },
 	)
+	.get("/news", async (ctx) => respond(ctx, await getNews()))
 	.get(
 		"/teams/:sport/:division",
 		async (ctx) =>
