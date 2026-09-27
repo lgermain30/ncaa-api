@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   arrow: { fontSize: 18, paddingHorizontal: 2 },
   dateText: {
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "600",
     textAlign: "center",
     flexShrink: 1,
   },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: "#fff",
-    fontWeight: "800",
+    fontWeight: "600",
     fontSize: 14,
     flex: 1,
     marginRight: 8,

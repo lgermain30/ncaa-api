@@ -112,11 +112,7 @@ export function GameRow({
         {showScore ? (
           <RNView style={styles.scoreLine}>
             <Text
-              style={[
-                styles.score,
-                { color: centerColor },
-                final && !game.away.isWinner && { color: muted },
-              ]}
+              style={[styles.score, live && { color: centerColor }]}
             >
               {game.away.score ?? 0}
             </Text>
@@ -127,11 +123,7 @@ export function GameRow({
               {live ? game.status.display : "FINAL"}
             </Text>
             <Text
-              style={[
-                styles.score,
-                { color: centerColor },
-                final && !game.home.isWinner && { color: muted },
-              ]}
+              style={[styles.score, live && { color: centerColor }]}
             >
               {game.home.score ?? 0}
             </Text>
@@ -165,9 +157,9 @@ const styles = StyleSheet.create({
   sideHome: { alignItems: "flex-end" },
   nameLine: { flexDirection: "row", alignItems: "baseline", maxWidth: "100%" },
   nameLineHome: { justifyContent: "flex-end" },
-  name: { fontSize: 15, fontWeight: "800", flexShrink: 1 },
+  name: { fontSize: 15, fontWeight: "600", flexShrink: 1 },
   nameHome: { textAlign: "right" },
-  rank: { fontSize: 11, fontWeight: "700", color: "#3779be" },
+  rank: { fontSize: 11, fontWeight: "600", color: "#3779be" },
   center: {
     width: 150,
     alignItems: "center",
@@ -175,9 +167,9 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 4,
   },
-  time: { fontSize: 17, fontWeight: "800" },
-  scoreLine: { flexDirection: "row", alignItems: "center", gap: 8 },
-  score: { fontSize: 22, fontWeight: "800", fontVariant: ["tabular-nums"] },
-  status: { fontSize: 13, fontWeight: "800", textTransform: "uppercase" },
+  time: { fontSize: 15, fontWeight: "600" },
+  scoreLine: { flexDirection: "row", alignItems: "center", gap: 14 },
+  score: { fontSize: 20, fontWeight: "500", fontVariant: ["tabular-nums"] },
+  status: { fontSize: 13, fontWeight: "600", textTransform: "uppercase" },
   sub: { fontSize: 10, textAlign: "center", marginTop: 3 },
 });
