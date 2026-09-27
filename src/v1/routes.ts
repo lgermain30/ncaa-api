@@ -13,7 +13,7 @@ import {
 	type StreamFilter,
 	subscribe,
 } from "./events";
-import { getNews } from "./news";
+import { getNews, ingestNews } from "./news";
 import {
 	getBoard,
 	getBoxscore,
@@ -203,6 +203,15 @@ function adminAuthorized(request: Request) {
 	return Boolean(key) && request.headers.get("x-admin-key") === key;
 }
 
+/** News pushes accept the WordPress-only NEWS_PUSH_KEY (x-news-key) or the admin key. */
+function newsPushAuthorized(request: Request) {
+	const key = process.env.NEWS_PUSH_KEY;
+	return (
+		adminAuthorized(request) ||
+		(Boolean(key) && request.headers.get("x-news-key") === key)
+	);
+}
+
 function forbidden(set: Ctx["set"]) {
 	set.status = 403;
 	set.headers["Cache-Control"] = "no-store";
@@ -289,6 +298,20 @@ export const v1 = new Elysia({ prefix: "/v1" })
 				divisions: v.optional(v.array(divisionParam)),
 				details: v.optional(v.boolean()),
 				skipStored: v.optional(v.boolean()),
+			}),
+		},
+	)
+	.put(
+		"/admin/news",
+		async ({ request, body, set }) => {
+			if (!newsPushAuthorized(request)) return forbidden(set);
+			set.headers["Cache-Control"] = "no-store";
+			return await ingestNews(body);
+		},
+		{
+			body: v.object({
+				posts: v.optional(v.array(v.unknown())),
+				remove: v.optional(v.array(v.unknown())),
 			}),
 		},
 	)

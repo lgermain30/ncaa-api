@@ -7,6 +7,7 @@ import type { V1Game } from "./v1/types";
  *
  *   games         one row per contest: normalized V1Game + sport/division/date
  *   game_details  (game_id, kind) -> jsonb   kind = boxscore | plays
+ *   news_posts    CLN WordPress posts pushed by the cln-teams plugin
  */
 
 export type DetailKind = "boxscore" | "plays";
@@ -31,6 +32,13 @@ export const storeStats = {
 
 const memGames = new Map<string, { game: V1Game; updatedAt: string }>();
 const memDetails = new Map<string, StoredDetail>();
+const memNews = new Map<number, StoredNewsPost>();
+
+export interface StoredNewsPost {
+	id: number;
+	publishedAt: string;
+	data: unknown;
+}
 
 let sql: SQL | null = null;
 let ready: Promise<void> | null = null;
@@ -59,6 +67,13 @@ const SCHEMA = [
 		updated_at timestamptz NOT NULL DEFAULT now(),
 		PRIMARY KEY (game_id, kind)
 	)`,
+	`CREATE TABLE IF NOT EXISTS news_posts (
+		id integer PRIMARY KEY,
+		published_at timestamptz NOT NULL,
+		data jsonb NOT NULL,
+		updated_at timestamptz NOT NULL DEFAULT now()
+	)`,
+	`CREATE INDEX IF NOT EXISTS news_posts_published_idx ON news_posts (published_at DESC)`,
 ];
 
 /** Connects and applies the schema once; safe to call repeatedly. */
@@ -94,6 +109,7 @@ export function initStore(): Promise<void> {
 export function resetStore() {
 	memGames.clear();
 	memDetails.clear();
+	memNews.clear();
 	sql = null;
 	ready = null;
 	storeStats.backend = "memory";
@@ -295,6 +311,65 @@ export async function getDetail<T = unknown>(
 	return (
 		(memDetails.get(`${gameId}:${kind}`) as StoredDetail<T> | undefined) ?? null
 	);
+}
+
+export async function upsertNewsPosts(posts: StoredNewsPost[]): Promise<void> {
+	await initStore();
+	storeStats.writes++;
+	if (!sql) {
+		for (const p of posts) memNews.set(p.id, p);
+		return;
+	}
+	try {
+		for (const p of posts) {
+			await sql`
+				INSERT INTO news_posts (id, published_at, data, updated_at)
+				VALUES (${p.id}, ${p.publishedAt}, ${JSON.stringify(p.data)}::text::jsonb, now())
+				ON CONFLICT (id) DO UPDATE SET
+					published_at = EXCLUDED.published_at,
+					data = EXCLUDED.data,
+					updated_at = now()`;
+		}
+	} catch (err) {
+		recordError(err);
+	}
+}
+
+export async function deleteNewsPosts(ids: number[]): Promise<void> {
+	await initStore();
+	if (ids.length === 0) return;
+	if (!sql) {
+		for (const id of ids) memNews.delete(id);
+		return;
+	}
+	try {
+		await sql`DELETE FROM news_posts WHERE id = ANY(${ids}::int[])`;
+	} catch (err) {
+		recordError(err);
+	}
+}
+
+export async function listNewsPosts(limit: number): Promise<StoredNewsPost[]> {
+	await initStore();
+	if (sql) {
+		try {
+			const rows = await sql<
+				{ id: number; published_at: string | Date; data: unknown }[]
+			>`
+				SELECT id, published_at, data FROM news_posts
+				ORDER BY published_at DESC LIMIT ${limit}`;
+			return rows.map((r) => ({
+				id: r.id,
+				publishedAt: new Date(r.published_at).toISOString(),
+				data: parseJson(r.data),
+			}));
+		} catch (err) {
+			recordError(err);
+		}
+	}
+	return [...memNews.values()]
+		.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+		.slice(0, limit);
 }
 
 export async function pingStore(): Promise<boolean> {

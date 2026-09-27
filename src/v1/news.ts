@@ -1,4 +1,5 @@
 import { TieredCache } from "../cache";
+import { deleteNewsPosts, listNewsPosts, upsertNewsPosts } from "../store";
 import { UpstreamError, upstreamFetch } from "../upstream";
 import type { Served } from "./service";
 
@@ -125,8 +126,70 @@ async function loadPosts(): Promise<V1NewsItem[]> {
 	return posts.filter((p) => p?.link).map(normalizePost);
 }
 
+/**
+ * Posts pushed by the cln-teams WordPress plugin (PUT /v1/admin/news). The
+ * site's bot filter blocks server-side reads of wp-json, so the push is the
+ * primary source; the direct fetch below is only a fallback for an empty store.
+ */
+export interface NewsPush {
+	posts?: unknown[];
+	remove?: unknown[];
+}
+
+function str(v: unknown): string | null {
+	return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+export function normalizePushed(raw: unknown): V1NewsItem | null {
+	if (!raw || typeof raw !== "object") return null;
+	const p = raw as Record<string, unknown>;
+	const id = Number(p.id);
+	const link = str(p.link);
+	const title = str(p.title);
+	const published = str(p.publishedAt);
+	if (!Number.isInteger(id) || id <= 0 || !link || !title || !published)
+		return null;
+	const date = new Date(published);
+	if (Number.isNaN(date.getTime())) return null;
+	return {
+		id,
+		title: plainText(title),
+		link,
+		excerpt: plainText(str(p.excerpt) ?? "").replace(/\s*\[…\]$/, "…"),
+		image: str(p.image),
+		publishedAt: date.toISOString(),
+		author: str(p.author),
+		category: str(p.category),
+	};
+}
+
+export async function ingestNews(
+	body: NewsPush,
+): Promise<{ upserted: number; removed: number }> {
+	const items = (body.posts ?? [])
+		.map(normalizePushed)
+		.filter((p): p is V1NewsItem => p !== null);
+	await upsertNewsPosts(
+		items.map((p) => ({ id: p.id, publishedAt: p.publishedAt, data: p })),
+	);
+	const remove = (body.remove ?? [])
+		.map(Number)
+		.filter((n) => Number.isInteger(n) && n > 0);
+	await deleteNewsPosts(remove);
+	cache.evict("posts");
+	return { upserted: items.length, removed: remove.length };
+}
+
 export async function getNews(): Promise<Served<V1NewsItem[]>> {
 	const key = "posts";
+	const pushed = await listNewsPosts(PER_PAGE);
+	if (pushed.length > 0) {
+		return {
+			data: pushed.map((p) => p.data as V1NewsItem),
+			updatedAt: new Date().toISOString(),
+			stale: false,
+		};
+	}
 	const fresh = (cache.get(key) ?? (await cache.getShared(key))) as
 		| V1NewsItem[]
 		| undefined;
