@@ -439,6 +439,8 @@ const hiddenCols = (box: V1Boxscore): string[] => [
 ];
 
 const fo = (w: number | null, t: number | null) => (t ? `${w ?? 0}-${t}` : "–");
+const foPct = (w: number | null, t: number | null) =>
+  t ? `${Math.round(((w ?? 0) / t) * 100)}%` : "–";
 
 const fieldCols = (isWomen: boolean): BoxCol[] => [
   { label: "G", value: (p) => n(p.goals) },
@@ -452,6 +454,7 @@ const fieldCols = (isWomen: boolean): BoxCol[] => [
   isWomen
     ? { label: "DC", value: (p) => n(p.drawControls) }
     : { label: "FO", value: (p) => fo(p.faceoffsWon, p.faceoffsTaken), wide: true },
+  ...(isWomen ? [] : [{ label: "FO%", value: (p) => foPct(p.faceoffsWon, p.faceoffsTaken), wide: true } satisfies BoxCol]),
   {
     label: "PEN",
     value: (p) => (p.penalties ? `${p.penalties.count}-${p.penalties.minutes}` : "–"),
