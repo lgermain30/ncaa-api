@@ -95,6 +95,36 @@ interface LaxStandingsConference {
   conf_leaderboard: LaxStandingsTeam[];
 }
 
+function teamKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(university|college|the|of|at)\b/g, '')
+    .replace(/^u(?=[a-z])/, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/** Streak (and official conference record) per team, from conference-published standings. Best effort. */
+async function fetchOfficialExtras(
+  season: string,
+  signal?: AbortSignal,
+): Promise<Map<string, { streak: string; conferenceRecord: string }>> {
+  const out = new Map<string, { streak: string; conferenceRecord: string }>();
+  try {
+    const res = await fetch(`${API_BASE}/official-standings?season=${season}`, { signal });
+    if (!res.ok) return out;
+    const confs = (await res.json()) as ConferenceStandings[];
+    for (const c of confs) {
+      const rows = c.standings ?? [];
+      const sane = rows.every((r) => /^\d+-\d+$/.test(r.conferenceRecord) && /^[WL]\d+$/.test(r.streak ?? ''));
+      if (!sane) continue;
+      for (const r of rows) out.set(teamKey(r.team), { streak: r.streak, conferenceRecord: r.conferenceRecord });
+    }
+  } catch {
+    // official sources are scraped and flaky; lax.com data stands on its own
+  }
+  return out;
+}
+
 export async function fetchStandings(
   sport: Sport,
   division: Division,
@@ -102,13 +132,12 @@ export async function fetchStandings(
   signal?: AbortSignal,
 ): Promise<ConferenceStandings[]> {
   const official = sport === 'lacrosse-men' && division === 'd1';
-  const path = official
-    ? `/official-standings?season=${season}`
-    : `/standings/${sport}/${division}?season=${season}`;
-  const res = await fetch(`${API_BASE}${path}`, { signal });
+  const [res, extras] = await Promise.all([
+    fetch(`${API_BASE}/standings/${sport}/${division}?season=${season}`, { signal }),
+    official ? fetchOfficialExtras(season, signal) : Promise.resolve(new Map<string, { streak: string; conferenceRecord: string }>()),
+  ]);
   if (!res.ok) throw new ApiError(res.status, `${res.status} standings`);
   const body: unknown = await res.json();
-  if (official) return body as ConferenceStandings[];
 
   const conferences = (typeof body === 'string' ? JSON.parse(body) : body) as LaxStandingsConference[];
   return conferences.map((c) => ({
@@ -117,17 +146,21 @@ export async function fetchStandings(
     logo: '',
     season,
     count: c.conf_leaderboard.length,
-    standings: c.conf_leaderboard.map((r) => ({
-      team: r.name.replace(/(^|[\s(-])([a-z])/g, (_, prefix: string, letter: string) => prefix + letter.toUpperCase()),
-      conferenceRecord: `${r.conf_wins}-${r.conf_losses}`,
-      overallRecord: `${r.wins}-${r.losses}`,
-      overallPct: '',
-      home: '',
-      away: '',
-      neutral: '',
-      goalsForAgainst: r.goals_for != null && r.goals_against != null ? `${r.goals_for}-${r.goals_against}` : '',
-      streak: '',
-    })),
+    standings: c.conf_leaderboard.map((r) => {
+      const name = r.name.replace(/(^|[\s(-])([a-z])/g, (_, prefix: string, letter: string) => prefix + letter.toUpperCase());
+      const extra = extras.get(teamKey(name));
+      return {
+        team: name,
+        conferenceRecord: extra?.conferenceRecord ?? `${r.conf_wins}-${r.conf_losses}`,
+        overallRecord: `${r.wins}-${r.losses}`,
+        overallPct: '',
+        home: '',
+        away: '',
+        neutral: '',
+        goalsForAgainst: r.goals_for != null && r.goals_against != null ? `${r.goals_for}-${r.goals_against}` : '',
+        streak: extra?.streak ?? '',
+      };
+    }),
   }));
 }
 
