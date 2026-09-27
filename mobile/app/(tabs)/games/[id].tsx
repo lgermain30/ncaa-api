@@ -13,7 +13,7 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
 import { useGameStream } from "@/hooks/useGameStream";
 import { useV1 } from "@/hooks/useV1";
-import { fetchBoxscore, fetchGame, fetchPlays } from "@/lib/api";
+import { fetchBoxscore, fetchGame, fetchPlays, fetchTeam } from "@/lib/api";
 import type {
   GameEvent,
   V1Boxscore,
@@ -21,6 +21,7 @@ import type {
   V1PlayerLine,
   V1Plays,
   V1Team,
+  V1TeamDetail,
   V1TeamLine,
 } from "@/lib/types";
 
@@ -328,8 +329,48 @@ function Boxscore({ box, game }: { box: V1Boxscore; game: V1Game }) {
   );
 }
 
+/** Last name from "First Last" or "Last, First". */
+const lastName = (s: string) =>
+  (s.includes(",") ? s.split(",")[0] : s).trim().split(/\s+/).pop()?.toLowerCase() ??
+  "";
+
+/**
+ * NCAA box scores only publish a position for goalies; lax.com team rosters
+ * have positions for everyone. Look them up by jersey number, then last name.
+ */
+function useRosterPositions(team: V1Team, game: V1Game) {
+  const season = game.date.slice(0, 4);
+  const key = team.seoName || team.shortName;
+  const q = useV1<V1TeamDetail>(
+    `team/${game.sport}/${game.division}/${key}/${season}`,
+    useCallback(
+      (s: AbortSignal) => fetchTeam(game.sport, game.division, key, season, s),
+      [game.sport, game.division, key, season],
+    ),
+  );
+  return useMemo(() => {
+    const byNumber = new Map<string, string>();
+    const byLast = new Map<string, string>();
+    for (const p of q.data?.roster ?? []) {
+      if (!p.position) continue;
+      if (p.number) byNumber.set(p.number, p.position);
+      const ln = lastName(p.name);
+      byLast.set(ln, byLast.has(ln) ? "" : p.position);
+    }
+    return (p: V1PlayerLine) =>
+      p.position ||
+      (p.number !== null ? byNumber.get(String(p.number)) : undefined) ||
+      byLast.get(lastName(p.name)) ||
+      (p.isGoalie ? "G" : "");
+  }, [q.data]);
+}
+
 function Rosters({ box, game }: { box: V1Boxscore; game: V1Game }) {
   const muted = useThemeColor({}, "muted");
+  const positions = [
+    useRosterPositions(game.away, game),
+    useRosterPositions(game.home, game),
+  ];
   const stripe = useThemeColor(
     { light: "#f2f2f4", dark: "#1c1c1e" },
     "background",
@@ -366,9 +407,7 @@ function Rosters({ box, game }: { box: V1Boxscore; game: V1Game }) {
               <RNView key={col} style={styles.rosterCell}>
                 <Text style={styles.rosterNumber}>{player?.number ?? ""}</Text>
                 <Text style={[styles.rosterPosition, { color: muted }]}>
-                  {player
-                    ? player.position || (player.isGoalie ? "G" : "")
-                    : ""}
+                  {player ? positions[col](player) : ""}
                 </Text>
                 <Text style={styles.rosterName} numberOfLines={1}>
                   {player ? titleCase(player.name) : ""}
@@ -916,22 +955,21 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   statLabel: { flex: 1, textAlign: "center", fontSize: 13 },
-  rosterRow: { flexDirection: "row", paddingVertical: 4, paddingHorizontal: 6 },
+  rosterRow: { flexDirection: "row", paddingVertical: 2, paddingHorizontal: 6 },
   rosterCell: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
   },
   rosterNumber: {
-    width: 22,
-    fontSize: 14,
-    fontWeight: "600",
+    width: 20,
+    fontSize: 12,
     fontVariant: ["tabular-nums"],
   },
-  rosterPosition: { width: 20, fontSize: 13 },
-  rosterName: { flex: 1, fontSize: 14, fontWeight: "600" },
+  rosterPosition: { width: 26, fontSize: 12 },
+  rosterName: { flex: 1, fontSize: 12 },
   pRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
   pName: { flex: 1, fontSize: 13 },
   pCell: {
