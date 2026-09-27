@@ -294,11 +294,19 @@ function Boxscore({ box, game }: { box: V1Boxscore; game: V1Game }) {
             },
           ]}
         >
-          <Text style={[styles.statVal, { color: muted }]}>
+          <Text
+            style={[styles.statVal, styles.statTeam, { color: muted }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
             {game.away.char6 || away?.shortName}
           </Text>
           <Text style={[styles.statLabel, { color: muted }]} />
-          <Text style={[styles.statVal, { color: muted }]}>
+          <Text
+            style={[styles.statVal, styles.statTeam, { color: muted }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
             {game.home.char6 || home?.shortName}
           </Text>
         </RNView>
@@ -945,7 +953,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   lsRow: { flexDirection: "row", alignItems: "center", paddingVertical: 3 },
-  lsTeam: { flex: 1, fontWeight: "600" },
+  lsTeam: { flex: 1, fontWeight: "600", fontSize: 13 },
   lsCell: { width: 34, textAlign: "center", fontVariant: ["tabular-nums"] },
   lsTotal: { fontWeight: "700" },
   statVal: {
@@ -954,6 +962,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
+  statTeam: { fontSize: 11 },
   statLabel: { flex: 1, textAlign: "center", fontSize: 13 },
   rosterRow: { flexDirection: "row", paddingVertical: 2, paddingHorizontal: 6 },
   rosterCell: {
