@@ -29,7 +29,7 @@ const DEFS: Def[] = [
   { slug: 'big-ten', file: 'big-ten.svg', name: 'Big Ten', color: '#0088ce', aliases: ['big 10', 'b1g'] },
   { slug: 'caa', file: 'caa.svg', name: 'CAA', color: '#002b5c', aliases: ['colonial athletic', 'colonial'] },
   { slug: 'ivy-league', file: 'ivy-league.svg', name: 'Ivy League', color: '#00563f', aliases: ['ivy'] },
-  { slug: 'maac', file: '', name: 'MAAC', color: '#00305b', aliases: ['metro atlantic', 'metro atlantic athletic'] },
+  { slug: 'maac', file: 'maac.png', name: 'MAAC', color: '#00305b', aliases: ['metro atlantic', 'metro atlantic athletic'] },
   { slug: 'mac', file: 'mac.svg', name: 'MAC', color: '#5b2c83', aliases: ['mid-american'] },
   { slug: 'nec', file: 'nec.svg', name: 'NEC', color: '#c8102e', aliases: ['northeast'] },
   { slug: 'patriot', file: 'patriot.svg', name: 'Patriot League', color: '#8b1e3f', aliases: ['patriot'] },
