@@ -7,6 +7,7 @@ import {
 	refreshDetails,
 	serviceStats,
 } from "./service";
+import type { V1Boxscore } from "./types";
 
 /*
  * Historical backfill: walk every day of a season window for every lacrosse
@@ -93,6 +94,12 @@ function bump(season: number, key: string, by = 1) {
 	row[key] = (row[key] ?? 0) + by;
 }
 
+/** Details count as present only when the box score carries team stats. */
+async function hasDetails(gameId: string) {
+	const box = await getDetail<V1Boxscore>(gameId, "boxscore");
+	return Boolean(box && box.data.teamStats.length > 0);
+}
+
 async function alreadyStored(sport: string, division: string, date: string) {
 	const stored = await listGames(sport, division, date);
 	return (
@@ -124,7 +131,7 @@ async function backfillDay(
 				if (!opts.details) continue;
 				for (const game of games) {
 					if (game.status.state !== "final") continue;
-					if (await getDetail(game.id, "plays")) continue;
+					if (await hasDetails(game.id)) continue;
 					try {
 						const got = await refreshDetails(game.id);
 						if (got) {
