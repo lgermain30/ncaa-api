@@ -9,7 +9,7 @@ import type {
   V1TeamDetail,
   V1TeamSummary,
   LeaderBoards,
-  NewsFeed,
+  V1NewsItem,
 } from './types';
 
 export const API_BASE =
@@ -170,8 +170,7 @@ export async function fetchGameDays(
 export const fetchLeaders = (sport: Sport, division: Division, season: string, signal?: AbortSignal) =>
   getJson<LeaderBoards>(`/lax-stats/${sport}/${division}?season=${season}`, signal);
 
-export const fetchNews = (sport: Sport, division: Division, signal?: AbortSignal) =>
-  getJson<NewsFeed>(`/news/${sport}/${division}`, signal);
+export const fetchNews = (signal?: AbortSignal) => getV1<V1NewsItem[]>('/v1/news', signal);
 
 export function streamUrl(filter: { sport?: Sport; division?: Division; date?: string; game?: string }) {
   const q = new URLSearchParams();

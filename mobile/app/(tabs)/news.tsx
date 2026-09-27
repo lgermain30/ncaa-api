@@ -1,34 +1,57 @@
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View as RNView } from 'react-native';
 
-import { Segmented } from '@/components/Segmented';
+import { ClnLogo } from '@/components/ClnLogo';
 import { Text, View, useThemeColor } from '@/components/Themed';
+import { brand } from '@/constants/Colors';
 import { useV1 } from '@/hooks/useV1';
-import { fetchNews, SPORTS } from '@/lib/api';
-import type { NewsFeed, NewsItem, Sport, V1Envelope } from '@/lib/types';
+import { fetchNews } from '@/lib/api';
+import type { V1NewsItem } from '@/lib/types';
 
-function when(pubDate: string): string {
-  const d = new Date(pubDate);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+function when(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
 }
 
-function Story({ item }: { item: NewsItem }) {
-  const card = useThemeColor({}, 'card');
+function Story({ item, lead }: { item: V1NewsItem; lead: boolean }) {
   const border = useThemeColor({}, 'border');
   const muted = useThemeColor({}, 'muted');
+  const meta = [when(item.publishedAt), item.category].filter(Boolean).join(' · ');
   return (
     <Pressable
       onPress={() => WebBrowser.openBrowserAsync(item.link)}
-      style={({ pressed }) => [styles.story, { backgroundColor: card, borderColor: border }, pressed && { opacity: 0.7 }]}>
-      {item.image ? <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" cachePolicy="disk" /> : null}
-      <RNView style={styles.storyBody}>
-        <Text style={styles.title} numberOfLines={3}>
+      style={({ pressed }) => [
+        lead ? styles.lead : styles.story,
+        { borderBottomColor: border },
+        pressed && { opacity: 0.6 },
+      ]}
+      accessibilityRole="link">
+      {item.image ? (
+        <Image
+          source={{ uri: item.image }}
+          style={lead ? styles.leadImage : styles.thumb}
+          contentFit="cover"
+          cachePolicy="disk"
+        />
+      ) : null}
+      <RNView style={[styles.body, lead && styles.leadBody]}>
+        <Text style={lead ? styles.leadTitle : styles.title} numberOfLines={lead ? 3 : 2}>
           {item.title}
         </Text>
+        {lead && item.excerpt ? (
+          <Text style={[styles.excerpt, { color: muted }]} numberOfLines={2}>
+            {item.excerpt}
+          </Text>
+        ) : null}
         <Text style={[styles.meta, { color: muted }]} numberOfLines={1}>
-          {[when(item.pubDate), item.category].filter(Boolean).join(' · ')}
+          {meta}
         </Text>
       </RNView>
     </Pressable>
@@ -37,36 +60,30 @@ function Story({ item }: { item: NewsItem }) {
 
 export default function NewsScreen() {
   const muted = useThemeColor({}, 'muted');
-  const [sport, setSport] = useState<Sport>('lacrosse-men');
-  const q = useV1<NewsFeed>(
-    `news/${sport}`,
-    useCallback(
-      async (signal: AbortSignal): Promise<V1Envelope<NewsFeed>> => ({
-        data: await fetchNews(sport, 'd1', signal),
-        meta: { updatedAt: new Date().toISOString(), stale: false },
-      }),
-      [sport],
-    ),
-    5 * 60_000,
-  );
+  const q = useV1<V1NewsItem[]>('news', fetchNews, 5 * 60_000);
 
   return (
     <View style={styles.screen}>
-      <RNView style={styles.controls}>
-        <Segmented options={SPORTS} value={sport} onChange={setSport} />
+      <RNView style={styles.band}>
+        <Text style={styles.bandTitle}>Latest News</Text>
+        <ClnLogo size={18} />
       </RNView>
       <FlatList
-        data={q.data?.items ?? []}
-        keyExtractor={(i) => i.link}
-        renderItem={({ item }) => <Story item={item} />}
+        data={q.data ?? []}
+        keyExtractor={(i) => String(i.id)}
+        renderItem={({ item, index }) => <Story item={item} lead={index === 0} />}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={false} onRefresh={q.refresh} />}
         ListEmptyComponent={
           <Text style={[styles.note, { color: muted }]}>
-            {q.loading ? 'Loading…' : q.error ? `Couldn't load news (${q.error})` : 'No stories.'}
+            {q.loading ? 'Loading…' : q.error ? `Couldn't load news (${q.error})` : 'No stories yet.'}
           </Text>
         }
-        ListFooterComponent={<Text style={[styles.note, { color: muted }]}>Stories from NCAA.com</Text>}
+        ListFooterComponent={
+          <Text style={[styles.note, { color: muted }]}>
+            From collegelacrossenews.com{q.stale ? ' · showing last saved copy' : ''}
+          </Text>
+        }
       />
     </View>
   );
@@ -74,12 +91,32 @@ export default function NewsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  controls: { padding: 12, paddingBottom: 4 },
-  list: { paddingHorizontal: 12, paddingBottom: 32, gap: 10 },
-  story: { flexDirection: 'row', borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  thumb: { width: 120, minHeight: 80 },
-  storyBody: { flex: 1, padding: 10, justifyContent: 'center', gap: 4 },
-  title: { fontSize: 14, fontWeight: '700' },
+  band: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: brand.navy,
+  },
+  bandTitle: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  list: { paddingBottom: 32 },
+  lead: { borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 10 },
+  leadImage: { width: '100%', aspectRatio: 16 / 9 },
+  leadTitle: { fontSize: 18, fontWeight: '700', lineHeight: 23 },
+  excerpt: { fontSize: 13, lineHeight: 18 },
+  story: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  thumb: { width: 96, height: 64, borderRadius: 4 },
+  body: { flex: 1, gap: 3 },
+  leadBody: { paddingHorizontal: 10, paddingTop: 6 },
+  title: { fontSize: 14, fontWeight: '600', lineHeight: 19 },
   meta: { fontSize: 11 },
   note: { fontSize: 12, textAlign: 'center', marginVertical: 12 },
 });
