@@ -25,7 +25,6 @@ import type {
 } from "@/lib/types";
 
 type Tab = "schedule" | "roster" | "stats";
-type StatKey = "goals" | "assists" | "points" | "groundBalls";
 
 const POSITIONS: Record<string, string> = {
   A: "Attack",
@@ -132,9 +131,7 @@ function PlayerSheet({
             </RNView>
           </RNView>
           <RNView style={[styles.statsHead, { backgroundColor: border }]}>
-            <Text style={styles.statsHeadText}>
-              {team.season} STATISTICS
-            </Text>
+            <Text style={styles.statsHeadText}>{team.season} STATISTICS</Text>
           </RNView>
           <ScrollView>
             {rows.map(([label, v], i) => (
@@ -152,9 +149,6 @@ function PlayerSheet({
                 <Text style={styles.statVal}>{v}</Text>
               </RNView>
             ))}
-            <Text style={[styles.source, { color: muted }]}>
-              Season totals via Lax.com
-            </Text>
           </ScrollView>
         </View>
       ) : null}
@@ -323,15 +317,246 @@ function RosterRow({
   );
 }
 
-const STAT_COLS: { key: StatKey; label: string }[] = [
-  { key: "goals", label: "G" },
-  { key: "assists", label: "A" },
-  { key: "points", label: "PTS" },
-  { key: "groundBalls", label: "GB" },
+type Col = {
+  key: string;
+  label: string;
+  value: (p: V1RosterPlayer) => number | string;
+  sort: (p: V1RosterPlayer) => number;
+  wide?: boolean;
+};
+
+const ratio = (n: number, d: number) => (d ? (n / d).toFixed(3).slice(1) : "–");
+
+const FIELD_COLS: Col[] = [
+  {
+    key: "goals",
+    label: "G",
+    value: (p) => p.stats.goals,
+    sort: (p) => p.stats.goals,
+  },
+  {
+    key: "assists",
+    label: "A",
+    value: (p) => p.stats.assists,
+    sort: (p) => p.stats.assists,
+  },
+  {
+    key: "points",
+    label: "PTS",
+    value: (p) => p.stats.goals + p.stats.assists,
+    sort: (p) => p.stats.goals + p.stats.assists,
+  },
+  {
+    key: "shots",
+    label: "SH",
+    value: (p) => p.stats.shots,
+    sort: (p) => p.stats.shots,
+  },
+  {
+    key: "shPct",
+    label: "SH%",
+    wide: true,
+    value: (p) => ratio(p.stats.goals, p.stats.shots),
+    sort: (p) => (p.stats.shots ? p.stats.goals / p.stats.shots : -1),
+  },
+  {
+    key: "groundBalls",
+    label: "GB",
+    value: (p) => p.stats.groundBalls,
+    sort: (p) => p.stats.groundBalls,
+  },
+  {
+    key: "turnovers",
+    label: "TO",
+    value: (p) => p.stats.turnovers,
+    sort: (p) => p.stats.turnovers,
+  },
+  {
+    key: "causedTurnovers",
+    label: "CT",
+    value: (p) => p.stats.causedTurnovers,
+    sort: (p) => p.stats.causedTurnovers,
+  },
+  {
+    key: "faceoffsWon",
+    label: "FOW",
+    wide: true,
+    value: (p) => p.stats.faceoffsWon,
+    sort: (p) => p.stats.faceoffsWon,
+  },
+  {
+    key: "faceoffsTaken",
+    label: "FOT",
+    wide: true,
+    value: (p) => p.stats.faceoffsTaken,
+    sort: (p) => p.stats.faceoffsTaken,
+  },
+  {
+    key: "foPct",
+    label: "FO%",
+    wide: true,
+    value: (p) => ratio(p.stats.faceoffsWon, p.stats.faceoffsTaken),
+    sort: (p) =>
+      p.stats.faceoffsTaken ? p.stats.faceoffsWon / p.stats.faceoffsTaken : -1,
+  },
 ];
 
-const statOf = (p: V1RosterPlayer, k: StatKey) =>
-  k === "points" ? p.stats.goals + p.stats.assists : p.stats[k];
+const GOALIE_COLS: Col[] = [
+  {
+    key: "saves",
+    label: "SV",
+    value: (p) => p.stats.saves,
+    sort: (p) => p.stats.saves,
+  },
+  {
+    key: "shotsFaced",
+    label: "SF",
+    value: (p) => p.stats.shotsFaced,
+    sort: (p) => p.stats.shotsFaced,
+  },
+  {
+    key: "svPct",
+    label: "SV%",
+    wide: true,
+    value: (p) => ratio(p.stats.saves, p.stats.shotsFaced),
+    sort: (p) => (p.stats.shotsFaced ? p.stats.saves / p.stats.shotsFaced : -1),
+  },
+  {
+    key: "goals",
+    label: "G",
+    value: (p) => p.stats.goals,
+    sort: (p) => p.stats.goals,
+  },
+  {
+    key: "assists",
+    label: "A",
+    value: (p) => p.stats.assists,
+    sort: (p) => p.stats.assists,
+  },
+  {
+    key: "groundBalls",
+    label: "GB",
+    value: (p) => p.stats.groundBalls,
+    sort: (p) => p.stats.groundBalls,
+  },
+  {
+    key: "turnovers",
+    label: "TO",
+    value: (p) => p.stats.turnovers,
+    sort: (p) => p.stats.turnovers,
+  },
+  {
+    key: "causedTurnovers",
+    label: "CT",
+    value: (p) => p.stats.causedTurnovers,
+    sort: (p) => p.stats.causedTurnovers,
+  },
+];
+
+const ROW_H = 34;
+const NAME_W = 150;
+
+// Player column stays fixed on the left; stat columns scroll horizontally as
+// one block so every row stays aligned with its header.
+function FrozenGrid({
+  title,
+  cols,
+  rows,
+  defaultSort,
+  onPlayer,
+}: {
+  title: string;
+  cols: Col[];
+  rows: V1RosterPlayer[];
+  defaultSort: string;
+  onPlayer: (p: V1RosterPlayer) => void;
+}) {
+  const [sort, setSort] = useState(defaultSort);
+  const card = useThemeColor({}, "card");
+  const bg = useThemeColor({}, "background");
+  const border = useThemeColor({}, "border");
+  const active = cols.find((c) => c.key === sort) ?? cols[0];
+  const sorted = useMemo(
+    () =>
+      [...rows].sort(
+        (a, b) =>
+          active.sort(b) - active.sort(a) ||
+          b.stats.goals + b.stats.assists - (a.stats.goals + a.stats.assists) ||
+          a.name.localeCompare(b.name),
+      ),
+    [rows, active],
+  );
+  const rowBg = (i: number) => ({
+    backgroundColor: i % 2 ? bg : card,
+    borderBottomColor: border,
+  });
+  return (
+    <RNView style={styles.grid}>
+      <RNView style={[styles.gridFrozen, { borderRightColor: border }]}>
+        <RNView style={[styles.gRow, styles.tHead]}>
+          <Text style={[styles.tHeadText, styles.gName]}>{title}</Text>
+        </RNView>
+        {sorted.map((p, i) => (
+          <Pressable
+            key={p.id}
+            onPress={() => onPlayer(p)}
+            style={[styles.gRow, rowBg(i)]}
+          >
+            <Text style={styles.gName} numberOfLines={1}>
+              <Text style={styles.tNum}>{p.number ?? ""} </Text>
+              {p.name}
+            </Text>
+          </Pressable>
+        ))}
+      </RNView>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+      >
+        <RNView>
+          <RNView style={[styles.gRow, styles.tHead]}>
+            {cols.map((c) => (
+              <Pressable
+                key={c.key}
+                onPress={() => setSort(c.key)}
+                style={[
+                  styles.gCell,
+                  c.wide && styles.gCellWide,
+                  sort === c.key && styles.tCellActive,
+                ]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.tHeadText}>{c.label}</Text>
+              </Pressable>
+            ))}
+          </RNView>
+          {sorted.map((p, i) => (
+            <Pressable
+              key={p.id}
+              onPress={() => onPlayer(p)}
+              style={[styles.gRow, rowBg(i)]}
+            >
+              {cols.map((c) => (
+                <Text
+                  key={c.key}
+                  style={[
+                    styles.gCell,
+                    c.wide && styles.gCellWide,
+                    styles.tVal,
+                    { borderLeftColor: border },
+                  ]}
+                >
+                  {c.value(p)}
+                </Text>
+              ))}
+            </Pressable>
+          ))}
+        </RNView>
+      </ScrollView>
+    </RNView>
+  );
+}
 
 function StatsTable({
   roster,
@@ -340,119 +565,27 @@ function StatsTable({
   roster: V1RosterPlayer[];
   onPlayer: (p: V1RosterPlayer) => void;
 }) {
-  const [sort, setSort] = useState<StatKey>("goals");
-  const card = useThemeColor({}, "card");
-  const bg = useThemeColor({}, "background");
-  const border = useThemeColor({}, "border");
-  const skaters = useMemo(
-    () =>
-      roster
-        .filter((p) => p.position !== "G")
-        .sort(
-          (a, b) =>
-            statOf(b, sort) - statOf(a, sort) ||
-            statOf(b, "points") - statOf(a, "points") ||
-            a.name.localeCompare(b.name),
-        ),
-    [roster, sort],
-  );
-  const goalies = useMemo(
-    () =>
-      roster
-        .filter((p) => p.position === "G")
-        .sort((a, b) => b.stats.saves - a.stats.saves),
-    [roster],
-  );
+  const field = roster.filter((p) => p.position !== "G");
+  const goalies = roster.filter((p) => p.position === "G");
   return (
     <RNView>
-      <RNView style={[styles.tRow, styles.tHead]}>
-        <Text style={[styles.tPlayer, styles.tHeadText]}>PLAYER</Text>
-        {STAT_COLS.map((c) => (
-          <Pressable
-            key={c.key}
-            onPress={() => setSort(c.key)}
-            style={[styles.tCell, sort === c.key && styles.tCellActive]}
-            accessibilityRole="button"
-          >
-            <Text style={styles.tHeadText}>{c.label}</Text>
-          </Pressable>
-        ))}
-      </RNView>
-      {skaters.map((p, i) => (
-        <Pressable
-          key={p.id}
-          onPress={() => onPlayer(p)}
-          style={[
-            styles.tRow,
-            { backgroundColor: i % 2 ? bg : card, borderBottomColor: border },
-          ]}
-        >
-          <Text style={styles.tPlayer} numberOfLines={1}>
-            <Text style={styles.tNum}>{p.number ?? ""} </Text>
-            {p.name}
-          </Text>
-          {STAT_COLS.map((c) => (
-            <Text
-              key={c.key}
-              style={[
-                styles.tCell,
-                styles.tVal,
-                { borderLeftColor: border },
-              ]}
-            >
-              {statOf(p, c.key)}
-            </Text>
-          ))}
-        </Pressable>
-      ))}
+      <FrozenGrid
+        title="PLAYER"
+        cols={FIELD_COLS}
+        rows={field}
+        defaultSort="points"
+        onPlayer={onPlayer}
+      />
       {goalies.length ? (
-        <>
-          <RNView style={[styles.tRow, styles.tHead]}>
-            <Text style={[styles.tPlayer, styles.tHeadText]}>GOALIE</Text>
-            {["SV", "SF", "SV%"].map((l) => (
-              <Text key={l} style={[styles.tCell, styles.tHeadText]}>
-                {l}
-              </Text>
-            ))}
-          </RNView>
-          {goalies.map((p, i) => (
-            <Pressable
-              key={p.id}
-              onPress={() => onPlayer(p)}
-              style={[
-                styles.tRow,
-                {
-                  backgroundColor: i % 2 ? bg : card,
-                  borderBottomColor: border,
-                },
-              ]}
-            >
-              <Text style={styles.tPlayer} numberOfLines={1}>
-                <Text style={styles.tNum}>{p.number ?? ""} </Text>
-                {p.name}
-              </Text>
-              {[
-                p.stats.saves,
-                p.stats.shotsFaced,
-                p.stats.shotsFaced
-                  ? (p.stats.saves / p.stats.shotsFaced).toFixed(3).slice(1)
-                  : "–",
-              ].map((v, j) => (
-                <Text
-                  key={j}
-                  style={[
-                    styles.tCell,
-                    styles.tVal,
-                    { borderLeftColor: border },
-                  ]}
-                >
-                  {v}
-                </Text>
-              ))}
-            </Pressable>
-          ))}
-        </>
+        <FrozenGrid
+          title="GOALIE"
+          cols={GOALIE_COLS}
+          rows={goalies}
+          defaultSort="saves"
+          onPlayer={onPlayer}
+        />
       ) : null}
+      <Text style={styles.swipeHint}>swipe stats for more →</Text>
     </RNView>
   );
 }
@@ -607,18 +740,9 @@ export function TeamScreen({
         ) : (
           <StatsTable roster={roster} onPlayer={setPlayer} />
         )}
-        {team ? (
-          <Text style={[styles.source, { color: muted }]}>
-            {team.season} season · schedule & roster via Lax.com
-          </Text>
-        ) : null}
       </ScrollView>
       {team ? (
-        <PlayerSheet
-          p={player}
-          team={team}
-          onClose={() => setPlayer(null)}
-        />
+        <PlayerSheet p={player} team={team} onClose={() => setPlayer(null)} />
       ) : null}
     </View>
   );
@@ -640,7 +764,6 @@ const styles = StyleSheet.create({
   recVal: { fontWeight: "500" },
   tabs: { paddingHorizontal: 10, paddingVertical: 8 },
   empty: { textAlign: "center", marginTop: 32, paddingHorizontal: 24 },
-  source: { textAlign: "center", fontSize: 11, marginTop: 14 },
 
   sRow: {
     flexDirection: "row",
@@ -686,36 +809,44 @@ const styles = StyleSheet.create({
   rName: { fontSize: 15, fontWeight: "700" },
   rTown: { fontSize: 11, marginTop: 1 },
 
-  tRow: {
+  grid: { flexDirection: "row" },
+  gridFrozen: { width: NAME_W, borderRightWidth: StyleSheet.hairlineWidth },
+  gRow: {
     flexDirection: "row",
-    alignItems: "stretch",
+    alignItems: "center",
+    height: ROW_H,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  gName: {
+    width: NAME_W,
+    fontSize: 13,
+    fontWeight: "600",
+    paddingHorizontal: 8,
+    textAlign: "left",
+  },
+  gCell: { width: 44, height: ROW_H, justifyContent: "center" },
+  gCellWide: { width: 54 },
+  swipeHint: {
+    textAlign: "center",
+    fontSize: 11,
+    marginTop: 10,
+    color: "#8e8e93",
   },
   tHead: { backgroundColor: "#3a3a3c" },
   tHeadText: {
     color: "#fff",
     fontWeight: "800",
-    fontSize: 13,
+    fontSize: 12,
     textAlign: "center",
-    paddingVertical: 6,
-  },
-  tPlayer: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 14,
-    fontWeight: "600",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
   },
   tNum: { fontWeight: "800" },
-  tCell: { width: 48, justifyContent: "center" },
   tCellActive: { backgroundColor: "#3779be" },
   tVal: {
     textAlign: "center",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#14365c",
-    paddingVertical: 8,
+    lineHeight: ROW_H,
     borderLeftWidth: StyleSheet.hairlineWidth,
     fontVariant: ["tabular-nums"],
   },
