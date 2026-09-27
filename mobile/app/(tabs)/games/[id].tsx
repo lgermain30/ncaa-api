@@ -337,67 +337,65 @@ function Boxscore({ box, game }: { box: V1Boxscore; game: V1Game }) {
   );
 }
 
-/** Last name from "First Last" or "Last, First". */
-const lastName = (s: string) =>
-  (s.includes(",") ? s.split(",")[0] : s).trim().split(/\s+/).pop()?.toLowerCase() ??
-  "";
-
-/**
- * NCAA box scores only publish a position for goalies; lax.com team rosters
- * have positions for everyone. Look them up by jersey number, then last name.
- */
-function useRosterPositions(team: V1Team, game: V1Game) {
+/** lax.com team roster for this game's season (full squad, with positions). */
+function useTeamRoster(team: V1Team, game: V1Game) {
   const season = game.date.slice(0, 4);
   const key = team.seoName || team.shortName;
-  const q = useV1<V1TeamDetail>(
+  return useV1<V1TeamDetail>(
     `team/${game.sport}/${game.division}/${key}/${season}`,
     useCallback(
       (s: AbortSignal) => fetchTeam(game.sport, game.division, key, season, s),
       [game.sport, game.division, key, season],
     ),
   );
-  return useMemo(() => {
-    const byNumber = new Map<string, string>();
-    const byLast = new Map<string, string>();
-    for (const p of q.data?.roster ?? []) {
-      if (!p.position) continue;
-      if (p.number) byNumber.set(p.number, p.position);
-      const ln = lastName(p.name);
-      byLast.set(ln, byLast.has(ln) ? "" : p.position);
-    }
-    return (p: V1PlayerLine) =>
-      p.position ||
-      (p.number !== null ? byNumber.get(String(p.number)) : undefined) ||
-      byLast.get(lastName(p.name)) ||
-      (p.isGoalie ? "G" : "");
-  }, [q.data]);
 }
 
-function Rosters({ box, game }: { box: V1Boxscore; game: V1Game }) {
+type RosterEntry = { number: string; position: string; name: string };
+
+const numSort = (a: RosterEntry, b: RosterEntry) =>
+  (Number(a.number) || Infinity) - (Number(b.number) || Infinity) ||
+  a.name.localeCompare(b.name);
+
+/**
+ * Full team roster from lax.com when available (NCAA's box score only lists
+ * players who dressed for the game); otherwise the box-score list, with
+ * positions filled in from lax.com by jersey number, then last name.
+ */
+function Rosters({ box, game }: { box: V1Boxscore | null; game: V1Game }) {
   const muted = useThemeColor({}, "muted");
-  const positions = [
-    useRosterPositions(game.away, game),
-    useRosterPositions(game.home, game),
-  ];
+  const rosterQs = [useTeamRoster(game.away, game), useTeamRoster(game.home, game)];
   const stripe = useThemeColor(
     { light: "#f2f2f4", dark: "#1c1c1e" },
     "background",
   );
   const sides = [game.away, game.home];
 
-  const lists = sides.map((team) =>
-    box.players
+  const lists: RosterEntry[][] = sides.map((team, i) => {
+    const lax = rosterQs[i].data?.roster ?? [];
+    if (lax.length) {
+      return lax
+        .map((p) => ({
+          number: p.number ?? "",
+          position: p.position ?? "",
+          name: p.name,
+        }))
+        .sort(numSort);
+    }
+    return (box?.players ?? [])
       .filter((p) => p.teamId === team.id)
-      .sort(
-        (a, b) =>
-          (a.number ?? Infinity) - (b.number ?? Infinity) ||
-          a.name.localeCompare(b.name),
-      ),
-  );
+      .map((p) => ({
+        number: p.number !== null ? String(p.number) : "",
+        position: p.position || (p.isGoalie ? "G" : ""),
+        name: titleCase(p.name),
+      }))
+      .sort(numSort);
+  });
   if (lists.every((l) => l.length === 0)) {
     return (
       <Text style={[styles.note, { color: muted, textAlign: "center" }]}>
-        Rosters have not been published for this game.
+        {rosterQs.some((q) => q.loading)
+          ? "Loading rosters…"
+          : "Rosters have not been published for this game."}
       </Text>
     );
   }
@@ -417,16 +415,110 @@ function Rosters({ box, game }: { box: V1Boxscore; game: V1Game }) {
                   {player?.number ?? ""}
                 </Text>
                 <Text style={[styles.rosterPosition, { color: muted }]}>
-                  {player ? positions[col](player) : ""}
+                  {player?.position ?? ""}
                 </Text>
                 <Text style={styles.rosterName} numberOfLines={1}>
-                  {player ? titleCase(player.name) : ""}
+                  {player?.name ?? ""}
                 </Text>
               </RNView>
             );
           })}
         </RNView>
       ))}
+    </RNView>
+  );
+}
+
+type BoxCol = { label: string; value: (p: V1PlayerLine) => string; wide?: boolean };
+
+const fo = (w: number | null, t: number | null) => (t ? `${w ?? 0}-${t}` : "–");
+
+const fieldCols = (isWomen: boolean): BoxCol[] => [
+  { label: "G", value: (p) => n(p.goals) },
+  { label: "A", value: (p) => n(p.assists) },
+  { label: "P", value: (p) => n(p.points) },
+  { label: "SH", value: (p) => n(p.shots) },
+  { label: "SOG", value: (p) => n(p.shotsOnGoal), wide: true },
+  { label: "GB", value: (p) => n(p.groundBalls) },
+  { label: "TO", value: (p) => n(p.turnovers) },
+  { label: "CT", value: (p) => n(p.causedTurnovers) },
+  isWomen
+    ? { label: "DC", value: (p) => n(p.drawControls) }
+    : { label: "FO", value: (p) => fo(p.faceoffsWon, p.faceoffsTaken), wide: true },
+  {
+    label: "PEN",
+    value: (p) => (p.penalties ? `${p.penalties.count}-${p.penalties.minutes}` : "–"),
+    wide: true,
+  },
+];
+
+const goalieCols: BoxCol[] = [
+  { label: "SV", value: (p) => n(p.saves) },
+  { label: "GA", value: (p) => n(p.goalsAllowed) },
+  {
+    label: "SV%",
+    value: (p) => {
+      const sf = (p.saves ?? 0) + (p.goalsAllowed ?? 0);
+      return sf ? (((p.saves ?? 0) / sf).toFixed(3)).slice(1) : "–";
+    },
+    wide: true,
+  },
+  { label: "GB", value: (p) => n(p.groundBalls) },
+  { label: "TO", value: (p) => n(p.turnovers) },
+  { label: "CT", value: (p) => n(p.causedTurnovers) },
+];
+
+/** Frozen name column + horizontally scrollable stat columns. */
+function StatGrid({
+  title,
+  players,
+  cols,
+}: {
+  title: string;
+  players: V1PlayerLine[];
+  cols: BoxCol[];
+}) {
+  const muted = useThemeColor({}, "muted");
+  const border = useThemeColor({}, "border");
+  const head = { borderBottomColor: border, borderBottomWidth: StyleSheet.hairlineWidth };
+  return (
+    <RNView style={styles.grid}>
+      <RNView style={[styles.gridFrozen, { borderRightColor: border }]}>
+        <RNView style={[styles.gRow, head]}>
+          <Text style={[styles.gName, { color: muted }]}>{title}</Text>
+        </RNView>
+        {players.map((p) => (
+          <RNView key={`${p.number}-${p.name}`} style={styles.gRow}>
+            <Text style={styles.gName} numberOfLines={1}>
+              {p.number !== null ? `${p.number} ` : ""}
+              {titleCase(p.name)}
+            </Text>
+          </RNView>
+        ))}
+      </RNView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
+        <RNView>
+          <RNView style={[styles.gRow, head]}>
+            {cols.map((c) => (
+              <Text
+                key={c.label}
+                style={[styles.gCell, c.wide && styles.gCellWide, { color: muted }]}
+              >
+                {c.label}
+              </Text>
+            ))}
+          </RNView>
+          {players.map((p) => (
+            <RNView key={`${p.number}-${p.name}`} style={styles.gRow}>
+              {cols.map((c) => (
+                <Text key={c.label} style={[styles.gCell, c.wide && styles.gCellWide]}>
+                  {c.value(p)}
+                </Text>
+              ))}
+            </RNView>
+          ))}
+        </RNView>
+      </ScrollView>
     </RNView>
   );
 }
@@ -441,89 +533,27 @@ function PlayerTable({
   isWomen: boolean;
 }) {
   const muted = useThemeColor({}, "muted");
-  const border = useThemeColor({}, "border");
   const field = players
     .filter((p) => !p.isGoalie && (p.played || p.points > 0))
     .sort((x, y) => y.points - x.points || y.goals - x.goals);
   const goalies = players.filter((p) => p.isGoalie && p.played);
-  const cols = isWomen
-    ? ["G", "A", "P", "SH", "GB", "DC", "CT"]
-    : ["G", "A", "P", "SH", "GB", "FO", "CT"];
-  const val = (p: V1PlayerLine, c: string) =>
-    ({
-      G: n(p.goals),
-      A: n(p.assists),
-      P: n(p.points),
-      SH: n(p.shots),
-      GB: n(p.groundBalls),
-      DC: n(p.drawControls),
-      FO: p.faceoffsTaken ? `${p.faceoffsWon}-${p.faceoffsTaken}` : "–",
-      CT: n(p.causedTurnovers),
-    })[c] ?? "–";
   return (
     <Card title={name}>
-      <RNView
-        style={[
-          styles.pRow,
-          {
-            borderBottomColor: border,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-          },
-        ]}
-      >
-        <Text style={[styles.pName, { color: muted }]}>Player</Text>
-        {cols.map((c) => (
-          <Text key={c} style={[styles.pCell, { color: muted }]}>
-            {c}
-          </Text>
-        ))}
-      </RNView>
-      {field.map((p) => (
-        <RNView key={`${p.number}-${p.name}`} style={styles.pRow}>
-          <Text style={styles.pName} numberOfLines={1}>
-            {p.number !== null ? `#${p.number} ` : ""}
-            {titleCase(p.name)}
-          </Text>
-          {cols.map((c) => (
-            <Text key={c} style={styles.pCell}>
-              {val(p, c)}
-            </Text>
-          ))}
-        </RNView>
-      ))}
+      {field.length ? (
+        <StatGrid title="Player" players={field} cols={fieldCols(isWomen)} />
+      ) : null}
       {goalies.length ? (
-        <>
-          <RNView
-            style={[
-              styles.pRow,
-              {
-                marginTop: 8,
-                borderBottomColor: border,
-                borderBottomWidth: StyleSheet.hairlineWidth,
-              },
-            ]}
-          >
-            <Text style={[styles.pName, { color: muted }]}>Goalie</Text>
-            <Text style={[styles.pCell, { color: muted }]}>SV</Text>
-            <Text style={[styles.pCell, { color: muted }]}>GA</Text>
-          </RNView>
-          {goalies.map((p) => (
-            <RNView key={`${p.number}-${p.name}`} style={styles.pRow}>
-              <Text style={styles.pName} numberOfLines={1}>
-                {p.number !== null ? `#${p.number} ` : ""}
-                {titleCase(p.name)}
-              </Text>
-              <Text style={styles.pCell}>{n(p.saves)}</Text>
-              <Text style={styles.pCell}>{n(p.goalsAllowed)}</Text>
-            </RNView>
-          ))}
-        </>
+        <RNView style={field.length ? { marginTop: 8 } : null}>
+          <StatGrid title="Goalie" players={goalies} cols={goalieCols} />
+        </RNView>
       ) : null}
       {field.length === 0 && goalies.length === 0 ? (
         <Text style={[styles.note, { color: muted }]}>
           No player stats yet.
         </Text>
-      ) : null}
+      ) : (
+        <Text style={[styles.swipeHint, { color: muted }]}>swipe stats for more →</Text>
+      )}
     </Card>
   );
 }
@@ -821,15 +851,7 @@ export default function GameScreen() {
           />
         </RNView>
         {tab === "rosters" && game ? (
-          boxQ.data ? (
-            <Rosters box={boxQ.data} game={game} />
-          ) : (
-            <Text style={[styles.note, { color: muted, textAlign: "center" }]}>
-              {boxQ.loading
-                ? "Loading rosters…"
-                : "Rosters have not been published for this game."}
-            </Text>
-          )
+          <Rosters box={boxQ.data ?? null} game={game} />
         ) : null}
         {tab === "box" && game ? (
           boxQ.data ? (
@@ -982,14 +1004,18 @@ const styles = StyleSheet.create({
   },
   rosterPosition: { width: 26, fontSize: 12 },
   rosterName: { flex: 1, fontSize: 12 },
-  pRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
-  pName: { flex: 1, fontSize: 13 },
-  pCell: {
-    width: 36,
+  grid: { flexDirection: "row" },
+  gridFrozen: { width: 170, borderRightWidth: StyleSheet.hairlineWidth },
+  gRow: { flexDirection: "row", alignItems: "center", height: 30 },
+  gName: { flex: 1, fontSize: 13, paddingRight: 6 },
+  gCell: {
+    width: 38,
     textAlign: "center",
     fontSize: 13,
     fontVariant: ["tabular-nums"],
   },
+  gCellWide: { width: 52 },
+  swipeHint: { fontSize: 11, textAlign: "right", marginTop: 6 },
   periodHead: {
     fontSize: 12,
     fontWeight: "700",
