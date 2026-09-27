@@ -8,6 +8,7 @@ import type { V1Game } from "./v1/types";
  *   games         one row per contest: normalized V1Game + sport/division/date
  *   game_details  (game_id, kind) -> jsonb   kind = boxscore | plays
  *   news_posts    CLN WordPress posts pushed by the cln-teams plugin
+ *   roster_bios   key -> jsonb  player height/weight/HS scraped from school sites
  */
 
 export type DetailKind = "boxscore" | "plays";
@@ -33,6 +34,7 @@ export const storeStats = {
 const memGames = new Map<string, { game: V1Game; updatedAt: string }>();
 const memDetails = new Map<string, StoredDetail>();
 const memNews = new Map<number, StoredNewsPost>();
+const memBios = new Map<string, StoredDetail>();
 
 export interface StoredNewsPost {
 	id: number;
@@ -74,6 +76,11 @@ const SCHEMA = [
 		updated_at timestamptz NOT NULL DEFAULT now()
 	)`,
 	`CREATE INDEX IF NOT EXISTS news_posts_published_idx ON news_posts (published_at DESC)`,
+	`CREATE TABLE IF NOT EXISTS roster_bios (
+		key text PRIMARY KEY,
+		data jsonb NOT NULL,
+		updated_at timestamptz NOT NULL DEFAULT now()
+	)`,
 ];
 
 /** Connects and applies the schema once; safe to call repeatedly. */
@@ -110,6 +117,7 @@ export function resetStore() {
 	memGames.clear();
 	memDetails.clear();
 	memNews.clear();
+	memBios.clear();
 	sql = null;
 	ready = null;
 	storeStats.backend = "memory";
@@ -460,6 +468,49 @@ export async function getDetail<T = unknown>(
 	return (
 		(memDetails.get(`${gameId}:${kind}`) as StoredDetail<T> | undefined) ?? null
 	);
+}
+
+export async function upsertBio(key: string, data: unknown): Promise<void> {
+	await initStore();
+	const updatedAt = new Date().toISOString();
+	storeStats.writes++;
+	if (!sql) {
+		memBios.set(key, { data, updatedAt });
+		return;
+	}
+	try {
+		await sql`
+			INSERT INTO roster_bios (key, data, updated_at)
+			VALUES (${key}, ${JSON.stringify(data)}::text::jsonb, ${updatedAt})
+			ON CONFLICT (key) DO UPDATE SET
+				data = EXCLUDED.data,
+				updated_at = EXCLUDED.updated_at`;
+	} catch (err) {
+		recordError(err);
+	}
+}
+
+export async function getBio<T = unknown>(
+	key: string,
+): Promise<StoredDetail<T> | null> {
+	await initStore();
+	if (sql) {
+		try {
+			const rows = await sql<{ data: T; updated_at: string | Date }[]>`
+				SELECT data, updated_at FROM roster_bios WHERE key = ${key}`;
+			const row = rows[0];
+			if (row) {
+				return {
+					data: parseJson(row.data),
+					updatedAt: new Date(row.updated_at).toISOString(),
+				};
+			}
+		} catch (err) {
+			recordError(err);
+		}
+		return null;
+	}
+	return (memBios.get(key) as StoredDetail<T> | undefined) ?? null;
 }
 
 export async function upsertNewsPosts(posts: StoredNewsPost[]): Promise<void> {

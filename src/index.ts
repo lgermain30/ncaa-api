@@ -31,6 +31,7 @@ import { openBreakers, UpstreamError, upstreamFetch, upstreamQueueSize, upstream
 import { parseStatSelect } from "./stats/stat-category-parser";
 import { pollerStats, startPoller } from "./poller";
 import { initStore, pingStore, storeStats } from "./store";
+import { startRosterBioWalk } from "./v1/rosterbiowalk";
 import { v1 } from "./v1/routes";
 import {
   convertToOldFormat,
@@ -933,6 +934,9 @@ void initStore().then(() => {
   if (process.env.POLLER_ENABLED !== "false" && Bun.env.NODE_ENV !== "test") {
     startPoller();
     log("poller started");
+  }
+  if (process.env.ROSTER_BIO_WALK !== "false" && Bun.env.NODE_ENV !== "test") {
+    startRosterBioWalk();
   }
 });
 
