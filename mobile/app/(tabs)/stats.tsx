@@ -5,8 +5,16 @@ import { Segmented } from '@/components/Segmented';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { useV1 } from '@/hooks/useV1';
-import { DIVISIONS, fetchLeaders, seasonFor, SPORTS, todayEt } from '@/lib/api';
-import type { Division, LeaderBoards, LeaderRow, Sport, V1Envelope } from '@/lib/types';
+import { DIVISIONS, fetchLeaders, fetchTeamStats, seasonFor, SPORTS, todayEt } from '@/lib/api';
+import type {
+  Division,
+  LeaderBoards,
+  LeaderRow,
+  Sport,
+  V1Envelope,
+  V1TeamSeasonStats,
+  V1TeamStatTotals,
+} from '@/lib/types';
 
 type Mode = 'players' | 'teams';
 
@@ -27,6 +35,19 @@ const BOARDS: { key: string; title: string; col: string; mode: Mode; women?: boo
   { key: 'offense', title: 'Goals For / Game', col: 'avg', mode: 'teams' },
   { key: 'defense', title: 'Goals Against / Game', col: 'avg', mode: 'teams' },
   { key: 'goaldiff', title: 'Goal Differential', col: 'diff', mode: 'teams' },
+];
+
+/** Team boards summed from our stored box scores (lax.com doesn't publish these). */
+const BOX_BOARDS: { key: keyof V1TeamStatTotals; title: string; men?: boolean }[] = [
+  { key: 'shots', title: 'Shots' },
+  { key: 'saves', title: 'Saves' },
+  { key: 'causedTurnovers', title: 'Caused Turnovers' },
+  { key: 'groundBalls', title: 'Ground Balls' },
+  { key: 'turnovers', title: 'Turnovers' },
+  { key: 'penalties', title: 'Penalties' },
+  { key: 'penaltyMinutes', title: 'Penalty Minutes' },
+  { key: 'faceoffsWon', title: 'Faceoffs Won', men: true },
+  { key: 'clears', title: 'Clears' },
 ];
 
 function titleCase(slug: string): string {
@@ -57,6 +78,47 @@ function Board({ title, col, rows, mode }: { title: string; col: string; rows: L
   );
 }
 
+function BoxBoard({
+  title,
+  stat,
+  teams,
+}: {
+  title: string;
+  stat: keyof V1TeamStatTotals;
+  teams: V1TeamSeasonStats[];
+}) {
+  const muted = useThemeColor({}, 'muted');
+  const card = useThemeColor({}, 'card');
+  const border = useThemeColor({}, 'border');
+  const bg = useThemeColor({}, 'background');
+  // Per-game ranks need a real sample: at least half as many box scores as the busiest team.
+  const minGames = Math.max(1, Math.ceil(Math.max(0, ...teams.map((t) => t.games)) / 2));
+  const rows = teams.filter((t) => t.games >= minGames).sort((a, b) => b.perGame[stat] - a.perGame[stat]);
+  if (!rows.length) return null;
+  return (
+    <RNView style={[styles.board, { backgroundColor: card, borderColor: border }]}>
+      <RNView style={[styles.boardHead, styles.boardHeadRow, { backgroundColor: brand.navy }]}>
+        <Text style={styles.boardTitle}>{title}</Text>
+        <RNView style={styles.boardCols}>
+          <Text style={styles.boardCol}>/G</Text>
+          <Text style={styles.boardCol}>TOT</Text>
+        </RNView>
+      </RNView>
+      {rows.slice(0, 10).map((t, i) => (
+        <RNView key={t.teamId} style={[styles.row, i % 2 ? { backgroundColor: bg } : null]}>
+          <Text style={[styles.rank, { color: muted }]}>{i + 1}</Text>
+          <RNView style={styles.identity}>
+            <Text style={styles.name}>{t.shortName}</Text>
+            <Text style={[styles.team, { color: muted }]}>{t.games} GP</Text>
+          </RNView>
+          <Text style={styles.val}>{t.perGame[stat].toFixed(1)}</Text>
+          <Text style={[styles.val, { color: muted, fontWeight: '500' }]}>{t.totals[stat]}</Text>
+        </RNView>
+      ))}
+    </RNView>
+  );
+}
+
 export default function StatsScreen() {
   const muted = useThemeColor({}, 'muted');
   const [sport, setSport] = useState<Sport>('lacrosse-men');
@@ -73,6 +135,11 @@ export default function StatsScreen() {
       }),
       [sport, division, season],
     ),
+  );
+
+  const teamQ = useV1<V1TeamSeasonStats[]>(
+    `team-stats/${sport}/${division}/${season}`,
+    useCallback((signal: AbortSignal) => fetchTeamStats(sport, division, season, signal), [sport, division, season]),
   );
 
   const women = sport === 'lacrosse-women';
@@ -101,6 +168,11 @@ export default function StatsScreen() {
               return rows?.length ? <Board key={b.title} title={b.title} col={b.col} rows={rows} mode={b.mode} /> : null;
             })
           : null}
+        {mode === 'teams' && teamQ.data
+          ? BOX_BOARDS.filter((b) => !(b.men && women)).map((b) => (
+              <BoxBoard key={b.key} title={b.title} stat={b.key} teams={teamQ.data ?? []} />
+            ))
+          : null}
         {q.data ? <Text style={[styles.note, { color: muted }]}>{season} season leaders</Text> : null}
       </ScrollView>
     </View>
@@ -114,6 +186,9 @@ const styles = StyleSheet.create({
   note: { fontSize: 12, textAlign: 'center', marginVertical: 8 },
   board: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   boardHead: { paddingHorizontal: 10, paddingVertical: 6 },
+  boardHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  boardCols: { flexDirection: 'row', gap: 8 },
+  boardCol: { color: '#fff', opacity: 0.8, fontSize: 11, fontWeight: '700', width: 52, textAlign: 'right' },
   boardTitle: { color: '#fff', fontWeight: '800', fontSize: 13 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, gap: 8 },
   rank: { width: 24, fontSize: 13, fontVariant: ['tabular-nums'] },

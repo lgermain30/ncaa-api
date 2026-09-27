@@ -27,6 +27,7 @@ import {
 	todayEt,
 } from "./service";
 import { getTeam, getTeams, lookupTeam } from "./teams";
+import { getTeamStats } from "./teamstats";
 
 /*
  * /v1 — the normalized, versioned API shared by collegelacrossenews.com and
@@ -393,6 +394,26 @@ export const v1 = new Elysia({ prefix: "/v1" })
 		async (ctx) =>
 			respond(ctx, await getTeams(ctx.params.sport, ctx.params.division)),
 		{ params: v.object({ sport: sportParam, division: divisionParam }) },
+	)
+	.get(
+		"/team-stats/:sport/:division",
+		async (ctx) =>
+			respond(
+				ctx,
+				await getTeamStats(
+					ctx.params.sport,
+					ctx.params.division,
+					ctx.query.season ?? todayEt().slice(0, 4),
+				),
+			),
+		{
+			params: v.object({ sport: sportParam, division: divisionParam }),
+			query: v.object({
+				season: v.optional(
+					v.pipe(v.string(), v.regex(/^\d{4}$/, "season must be YYYY")),
+				),
+			}),
+		},
 	)
 	.get(
 		"/teams/:sport/:division/:id",

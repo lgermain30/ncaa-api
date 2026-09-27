@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import type { GamecenterContest } from "../src/gamecenter";
 import { boardDates, inSeason, nextIntervalMs } from "../src/poller";
 import {
+	aggregateTeamTotals,
 	getDetail,
 	getGame,
 	listGames,
@@ -21,6 +22,7 @@ import {
 	parseGoal,
 	toInt,
 } from "../src/v1/normalize";
+import { toSeasonStats } from "../src/v1/teamstats";
 
 // Shape observed from the NCAA gamecenter query for Canisius vs Iona (6538796).
 const gamecenter = {
@@ -329,6 +331,49 @@ describe("store (memory fallback)", () => {
 		const stored = await getDetail<typeof plays>("6538796", "plays");
 		expect(stored?.data.plays.length).toBe(9);
 		expect(stored?.updatedAt).toBe(plays.updatedAt);
+	});
+
+	it("sums final box scores into season team totals", async () => {
+		const g = normalizeGame({
+			sport: "lacrosse-men",
+			division: "d1",
+			gamecenter,
+		});
+		const line = (teamId: string, shots: number, saves: number) => ({
+			teamId,
+			shots,
+			saves,
+			causedTurnovers: 4,
+			penalties: { count: 2, minutes: 3 },
+		});
+		await upsertGame(g);
+		await upsertGame({ ...g, id: "2" });
+		await upsertGame({ ...g, id: "3", status: { ...g.status, state: "live" } });
+		const detail = (teamStats: ReturnType<typeof line>[]) => ({
+			updatedAt: new Date().toISOString(),
+			teamStats,
+		});
+		await upsertDetail(
+			g.id,
+			"boxscore",
+			detail([line("43953", 30, 10), line("1388929", 20, 5)]),
+		);
+		await upsertDetail("2", "boxscore", detail([line("43953", 40, 12)]));
+		await upsertDetail("3", "boxscore", detail([line("43953", 99, 99)]));
+
+		const rows = await aggregateTeamTotals("lacrosse-men", "d1", "2026");
+		const can = toSeasonStats(rows.find((r) => r.teamId === "43953")!);
+		expect(can.shortName).toBe("Canisius");
+		expect(can.games).toBe(2);
+		expect(can.totals.shots).toBe(70);
+		expect(can.totals.saves).toBe(22);
+		expect(can.totals.penalties).toBe(4);
+		expect(can.totals.penaltyMinutes).toBe(6);
+		expect(can.perGame.shots).toBe(35);
+		expect(can.perGame.saves).toBe(11);
+		expect(can.perGame.causedTurnovers).toBe(4);
+		expect(rows.find((r) => r.teamId === "1388929")?.games).toBe(1);
+		expect(await aggregateTeamTotals("lacrosse-men", "d1", "2025")).toEqual([]);
 	});
 });
 
