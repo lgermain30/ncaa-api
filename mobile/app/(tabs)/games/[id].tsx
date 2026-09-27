@@ -213,8 +213,8 @@ function Linescore({ game }: { game: V1Game }) {
         </RNView>
         {(["away", "home"] as const).map((side) => (
           <RNView key={side} style={styles.lsRow}>
-            <Text style={styles.lsTeam} numberOfLines={1}>
-              {game[side].char6 || game[side].shortName}
+            <Text style={styles.lsTeam} numberOfLines={1} adjustsFontSizeToFit>
+              {game[side].shortName || game[side].name}
             </Text>
             {periods.map((p) => (
               <Text key={p.period} style={styles.lsCell}>
@@ -299,7 +299,7 @@ function Boxscore({ box, game }: { box: V1Boxscore; game: V1Game }) {
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {game.away.char6 || away?.shortName}
+            {game.away.shortName || game.away.name}
           </Text>
           <Text style={[styles.statLabel, { color: muted }]} />
           <Text
@@ -307,7 +307,7 @@ function Boxscore({ box, game }: { box: V1Boxscore; game: V1Game }) {
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {game.home.char6 || home?.shortName}
+            {game.home.shortName || game.home.name}
           </Text>
         </RNView>
         {rows.map((r) => (
@@ -994,12 +994,12 @@ const styles = StyleSheet.create({
   lsCell: { width: 34, textAlign: "center", fontVariant: ["tabular-nums"] },
   lsTotal: { fontWeight: "700" },
   statVal: {
-    width: 64,
+    width: 88,
     textAlign: "center",
     fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
-  statTeam: { fontSize: 11 },
+  statTeam: { fontSize: 12 },
   statLabel: { flex: 1, textAlign: "center", fontSize: 13 },
   rosterRow: { flexDirection: "row", paddingVertical: 2, paddingHorizontal: 6 },
   rosterCell: {
