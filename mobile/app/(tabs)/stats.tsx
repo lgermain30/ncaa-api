@@ -94,7 +94,8 @@ function BoxBoard({
   // Per-game ranks need a real sample: at least half as many box scores as the busiest team.
   const minGames = Math.max(1, Math.ceil(Math.max(0, ...teams.map((t) => t.games)) / 2));
   const rows = teams.filter((t) => t.games >= minGames).sort((a, b) => b.perGame[stat] - a.perGame[stat]);
-  if (!rows.length) return null;
+  // NCAA publishes no ground balls / turnovers for women's lacrosse; skip boards with no data at all.
+  if (!rows.length || rows.every((t) => t.totals[stat] === 0)) return null;
   return (
     <RNView style={[styles.board, { backgroundColor: card, borderColor: border }]}>
       <RNView style={[styles.boardHead, styles.boardHeadRow, { backgroundColor: brand.navy }]}>

@@ -330,6 +330,7 @@ function Boxscore({ box, game }: { box: V1Boxscore; game: V1Game }) {
             name={t.name}
             players={box.players.filter((p) => p.teamId === t.teamId)}
             isWomen={isWomen}
+            hide={hiddenCols(box)}
           />
         ) : null,
       )}
@@ -431,6 +432,12 @@ function Rosters({ box, game }: { box: V1Boxscore | null; game: V1Game }) {
 
 type BoxCol = { label: string; value: (p: V1PlayerLine) => string; wide?: boolean };
 
+/** Columns NCAA published nothing for in this game (women's feeds omit GB/TO). */
+const hiddenCols = (box: V1Boxscore): string[] => [
+  ...(box.derived.groundBalls === "none" ? ["GB"] : []),
+  ...(box.derived.turnovers === "none" ? ["TO"] : []),
+];
+
 const fo = (w: number | null, t: number | null) => (t ? `${w ?? 0}-${t}` : "–");
 
 const fieldCols = (isWomen: boolean): BoxCol[] => [
@@ -527,11 +534,14 @@ function PlayerTable({
   name,
   players,
   isWomen,
+  hide,
 }: {
   name: string;
   players: V1PlayerLine[];
   isWomen: boolean;
+  hide: string[];
 }) {
+  const keep = (cols: BoxCol[]) => cols.filter((c) => !hide.includes(c.label));
   const muted = useThemeColor({}, "muted");
   const field = players
     .filter((p) => !p.isGoalie && (p.played || p.points > 0))
@@ -540,11 +550,11 @@ function PlayerTable({
   return (
     <Card title={name}>
       {field.length ? (
-        <StatGrid title="Player" players={field} cols={fieldCols(isWomen)} />
+        <StatGrid title="Player" players={field} cols={keep(fieldCols(isWomen))} />
       ) : null}
       {goalies.length ? (
         <RNView style={field.length ? { marginTop: 8 } : null}>
-          <StatGrid title="Goalie" players={goalies} cols={goalieCols} />
+          <StatGrid title="Goalie" players={goalies} cols={keep(goalieCols)} />
         </RNView>
       ) : null}
       {field.length === 0 && goalies.length === 0 ? (
