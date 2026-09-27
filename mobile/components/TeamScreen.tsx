@@ -9,6 +9,7 @@ import {
   View as RNView,
 } from "react-native";
 
+import { Chips } from "@/components/Chips";
 import { ClnLogo } from "@/components/ClnLogo";
 import { Segmented } from "@/components/Segmented";
 import { TeamLogo } from "@/components/TeamLogo";
@@ -609,6 +610,8 @@ export function TeamScreen({
 }: TeamScreenProps) {
   const [tab, setTab] = useState<Tab>("schedule");
   const [player, setPlayer] = useState<V1RosterPlayer | null>(null);
+  const [season, setSeason] = useState<string | undefined>();
+  const [seasons, setSeasons] = useState<string[]>([]);
   const muted = useThemeColor({}, "muted");
   const border = useThemeColor({}, "border");
   const card = useThemeColor({}, "card");
@@ -618,13 +621,21 @@ export function TeamScreen({
     error,
     refresh,
   } = useV1<V1TeamDetail>(
-    `team/${sport}/${division}/${id}`,
+    `team/${sport}/${division}/${id}/${season ?? ""}`,
     useCallback(
-      (signal: AbortSignal) =>
-        fetchTeam(sport, division, id, undefined, signal),
-      [sport, division, id],
+      async (signal: AbortSignal) => {
+        const res = await fetchTeam(sport, division, id, season, signal);
+        const list = res.data?.seasons ?? [];
+        if (list.length)
+          setSeasons((prev) =>
+            [...new Set([...prev, ...list])].sort((a, b) => b.localeCompare(a)),
+          );
+        return res;
+      },
+      [sport, division, id, season],
     ),
   );
+  const current = season ?? team?.season ?? seasons[0];
 
   const schedule = useMemo(() => team?.schedule ?? [], [team]);
   const roster = useMemo(
@@ -728,6 +739,19 @@ export function TeamScreen({
             onChange={setTab}
           />
         </RNView>
+        {seasons.length > 1 && current ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.seasons}
+          >
+            <Chips
+              options={seasons.map((s) => ({ key: s, label: s }))}
+              value={current}
+              onChange={setSeason}
+            />
+          </ScrollView>
+        ) : null}
 
         {!team ? (
           <Text style={[styles.empty, { color: muted }]}>
@@ -835,6 +859,7 @@ const styles = StyleSheet.create({
   rMeta: { width: 26, alignItems: "center" },
   rPos: { fontSize: 13, fontWeight: "700" },
   rYear: { fontSize: 11 },
+  seasons: { paddingHorizontal: 8, paddingBottom: 6 },
   rMain: { flex: 1, minWidth: 0 },
   rName: { fontSize: 15, fontWeight: "700" },
   rTown: { fontSize: 11, marginTop: 1 },
