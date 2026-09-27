@@ -86,6 +86,8 @@ interface LaxStandingsTeam {
   losses: string;
   conf_wins: number;
   conf_losses: number;
+  goals_for?: string;
+  goals_against?: string;
 }
 
 interface LaxStandingsConference {
@@ -123,7 +125,7 @@ export async function fetchStandings(
       home: '',
       away: '',
       neutral: '',
-      goalsForAgainst: '',
+      goalsForAgainst: r.goals_for != null && r.goals_against != null ? `${r.goals_for}-${r.goals_against}` : '',
       streak: '',
     })),
   }));
