@@ -105,8 +105,9 @@ function HeaderTeam({
       <Text style={styles.rank}>{t.rank ? String(t.rank) : " "}</Text>
       <Text
         style={[styles.teamName, final && !t.isWinner && { color: muted }]}
-        numberOfLines={2}
+        numberOfLines={1}
         adjustsFontSizeToFit
+        minimumFontScale={0.6}
       >
         {t.shortName || t.name}
       </Text>
@@ -858,7 +859,12 @@ const styles = StyleSheet.create({
   },
   team: { flex: 1, alignItems: "center" },
   rank: { fontSize: 12, fontWeight: "700", color: "#3779be", lineHeight: 14 },
-  teamName: { fontSize: 22, fontWeight: "900", textAlign: "center" },
+  teamName: {
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    width: "100%",
+  },
   scoreMid: { alignItems: "center", minWidth: 120, paddingTop: 36 },
   venue: { fontSize: 12, textAlign: "center", marginTop: 2 },
   periodBar: {
