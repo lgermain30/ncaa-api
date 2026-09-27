@@ -337,11 +337,6 @@ function Boxscore({ box, game }: { box: V1Boxscore; game: V1Game }) {
   );
 }
 
-/** Last name from "First Last" or "Last, First". */
-const lastName = (s: string) =>
-  (s.includes(",") ? s.split(",")[0] : s).trim().split(/\s+/).pop()?.toLowerCase() ??
-  "";
-
 /** lax.com team roster for this game's season (full squad, with positions). */
 function useTeamRoster(team: V1Team, game: V1Game) {
   const season = game.date.slice(0, 4);
