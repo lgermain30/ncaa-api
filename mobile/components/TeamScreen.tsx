@@ -304,7 +304,9 @@ function RosterRow({
         { backgroundColor: alt ? bg : card, borderBottomColor: border },
       ]}
     >
-      <Text style={styles.rNum}>{p.number ?? ""}</Text>
+      <Text style={styles.rNum} numberOfLines={1}>
+        {p.number ?? ""}
+      </Text>
       <RNView style={styles.rMeta}>
         <Text style={styles.rPos}>{p.position ?? ""}</Text>
         <Text style={[styles.rYear, { color: muted }]}>{p.year ?? ""}</Text>
@@ -671,8 +673,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   rNum: {
-    width: 30,
-    fontSize: 22,
+    width: 34,
+    fontSize: 20,
     fontWeight: "800",
     textAlign: "right",
     fontVariant: ["tabular-nums"],

@@ -413,7 +413,9 @@ function Rosters({ box, game }: { box: V1Boxscore; game: V1Game }) {
             const player = players[i];
             return (
               <RNView key={col} style={styles.rosterCell}>
-                <Text style={styles.rosterNumber}>{player?.number ?? ""}</Text>
+                <Text style={styles.rosterNumber} numberOfLines={1}>
+                  {player?.number ?? ""}
+                </Text>
                 <Text style={[styles.rosterPosition, { color: muted }]}>
                   {player ? positions[col](player) : ""}
                 </Text>
@@ -973,7 +975,8 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   rosterNumber: {
-    width: 20,
+    width: 22,
+    textAlign: "right",
     fontSize: 12,
     fontVariant: ["tabular-nums"],
   },
