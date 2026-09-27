@@ -7,6 +7,7 @@ import type {
   V1Game,
   V1Plays,
   V1TeamDetail,
+  V1TeamSeasonStats,
   V1TeamSummary,
   LeaderBoards,
   V1NewsItem,
@@ -204,6 +205,9 @@ export async function fetchGameDays(
 
 export const fetchLeaders = (sport: Sport, division: Division, season: string, signal?: AbortSignal) =>
   getJson<LeaderBoards>(`/lax-stats/${sport}/${division}?season=${season}`, signal);
+
+export const fetchTeamStats = (sport: Sport, division: Division, season: string, signal?: AbortSignal) =>
+  getV1<V1TeamSeasonStats[]>(`/v1/team-stats/${sport}/${division}?season=${season}`, signal);
 
 export const fetchNews = (signal?: AbortSignal) => getV1<V1NewsItem[]>('/v1/news', signal);
 

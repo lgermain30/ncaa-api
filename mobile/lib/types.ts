@@ -231,6 +231,35 @@ export interface LeaderRow {
 
 export type LeaderBoards = Record<string, LeaderRow[]>;
 
+/* /v1/team-stats — season totals summed from stored final box scores */
+export interface V1TeamStatTotals {
+  shots: number;
+  shotsOnGoal: number;
+  groundBalls: number;
+  turnovers: number;
+  causedTurnovers: number;
+  saves: number;
+  penalties: number;
+  penaltyMinutes: number;
+  faceoffsWon: number;
+  faceoffsLost: number;
+  clears: number;
+  clearAttempts: number;
+  extraManGoals: number;
+  extraManOpportunities: number;
+}
+
+export interface V1TeamSeasonStats {
+  teamId: string;
+  seoName: string;
+  name: string;
+  shortName: string;
+  /** box scores counted, not schedule length */
+  games: number;
+  totals: V1TeamStatTotals;
+  perGame: V1TeamStatTotals;
+}
+
 /* /v1/news — collegelacrossenews.com posts via Railway */
 export interface V1NewsItem {
   id: number;

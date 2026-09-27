@@ -264,6 +264,155 @@ export async function listBoardTeams(
 	return [...seen.values()];
 }
 
+export interface StoredTeamTotals {
+	teamId: string;
+	seoName: string;
+	name: string;
+	shortName: string;
+	games: number;
+	shots: number;
+	shotsOnGoal: number;
+	groundBalls: number;
+	turnovers: number;
+	causedTurnovers: number;
+	saves: number;
+	penalties: number;
+	penaltyMinutes: number;
+	faceoffsWon: number;
+	faceoffsLost: number;
+	clears: number;
+	clearAttempts: number;
+	extraManGoals: number;
+	extraManOpportunities: number;
+}
+
+/**
+ * Season totals per team summed from stored final box scores
+ * (game_details.kind = 'boxscore' → teamStats[]). Only games whose box score
+ * we hold count toward `games`.
+ */
+export async function aggregateTeamTotals(
+	sport: string,
+	division: string,
+	season: string,
+): Promise<StoredTeamTotals[]> {
+	await initStore();
+	const from = `${season}-01-01`;
+	const to = `${season}-12-31`;
+	if (sql) {
+		try {
+			const rows = await sql<StoredTeamTotals[]>`
+				WITH lines AS (
+					SELECT g.data AS game, ts
+					FROM games g
+					JOIN game_details d ON d.game_id = g.id AND d.kind = 'boxscore'
+					CROSS JOIN LATERAL jsonb_array_elements(d.data->'teamStats') AS ts
+					WHERE g.sport = ${sport} AND g.division = ${division}
+						AND g.game_date BETWEEN ${from} AND ${to}
+						AND g.state = 'final'
+				),
+				named AS (
+					SELECT ts,
+						ts->>'teamId' AS team_id,
+						CASE WHEN game->'home'->>'id' = ts->>'teamId' THEN game->'home' ELSE game->'away' END AS team
+					FROM lines
+				)
+				SELECT team_id AS "teamId",
+					max(team->>'seoName') AS "seoName",
+					max(team->>'name') AS name,
+					max(team->>'shortName') AS "shortName",
+					count(*)::int AS games,
+					coalesce(sum((ts->>'shots')::int), 0)::int AS shots,
+					coalesce(sum((ts->>'shotsOnGoal')::int), 0)::int AS "shotsOnGoal",
+					coalesce(sum((ts->>'groundBalls')::int), 0)::int AS "groundBalls",
+					coalesce(sum((ts->>'turnovers')::int), 0)::int AS turnovers,
+					coalesce(sum((ts->>'causedTurnovers')::int), 0)::int AS "causedTurnovers",
+					coalesce(sum((ts->>'saves')::int), 0)::int AS saves,
+					coalesce(sum((ts->'penalties'->>'count')::int), 0)::int AS penalties,
+					coalesce(sum((ts->'penalties'->>'minutes')::int), 0)::int AS "penaltyMinutes",
+					coalesce(sum((ts->>'faceoffsWon')::int), 0)::int AS "faceoffsWon",
+					coalesce(sum((ts->>'faceoffsLost')::int), 0)::int AS "faceoffsLost",
+					coalesce(sum((ts->>'clears')::int), 0)::int AS clears,
+					coalesce(sum((ts->>'clearAttempts')::int), 0)::int AS "clearAttempts",
+					coalesce(sum((ts->'extraMan'->>'goals')::int), 0)::int AS "extraManGoals",
+					coalesce(sum((ts->'extraMan'->>'opportunities')::int), 0)::int AS "extraManOpportunities"
+				FROM named
+				WHERE team->>'id' = team_id
+				GROUP BY team_id`;
+			return rows;
+		} catch (err) {
+			recordError(err);
+		}
+	}
+	const acc = new Map<string, StoredTeamTotals>();
+	for (const { game } of memGames.values()) {
+		if (game.sport !== sport || game.division !== division) continue;
+		if (game.date < from || game.date > to) continue;
+		if (game.status.state !== "final") continue;
+		const box = memDetails.get(`${game.id}:boxscore`)?.data as
+			| { teamStats?: TeamLineLike[] }
+			| undefined;
+		for (const ts of box?.teamStats ?? []) {
+			const team = [game.home, game.away].find((t) => t.id === ts.teamId);
+			if (!team) continue;
+			const cur = acc.get(ts.teamId) ?? {
+				teamId: ts.teamId,
+				seoName: team.seoName,
+				name: team.name,
+				shortName: team.shortName,
+				games: 0,
+				shots: 0,
+				shotsOnGoal: 0,
+				groundBalls: 0,
+				turnovers: 0,
+				causedTurnovers: 0,
+				saves: 0,
+				penalties: 0,
+				penaltyMinutes: 0,
+				faceoffsWon: 0,
+				faceoffsLost: 0,
+				clears: 0,
+				clearAttempts: 0,
+				extraManGoals: 0,
+				extraManOpportunities: 0,
+			};
+			cur.games++;
+			cur.shots += ts.shots ?? 0;
+			cur.shotsOnGoal += ts.shotsOnGoal ?? 0;
+			cur.groundBalls += ts.groundBalls ?? 0;
+			cur.turnovers += ts.turnovers ?? 0;
+			cur.causedTurnovers += ts.causedTurnovers ?? 0;
+			cur.saves += ts.saves ?? 0;
+			cur.penalties += ts.penalties?.count ?? 0;
+			cur.penaltyMinutes += ts.penalties?.minutes ?? 0;
+			cur.faceoffsWon += ts.faceoffsWon ?? 0;
+			cur.faceoffsLost += ts.faceoffsLost ?? 0;
+			cur.clears += ts.clears ?? 0;
+			cur.clearAttempts += ts.clearAttempts ?? 0;
+			cur.extraManGoals += ts.extraMan?.goals ?? 0;
+			cur.extraManOpportunities += ts.extraMan?.opportunities ?? 0;
+			acc.set(ts.teamId, cur);
+		}
+	}
+	return [...acc.values()];
+}
+
+interface TeamLineLike {
+	teamId: string;
+	shots?: number | null;
+	shotsOnGoal?: number | null;
+	groundBalls?: number | null;
+	turnovers?: number | null;
+	causedTurnovers?: number | null;
+	saves?: number | null;
+	penalties?: { count: number; minutes: number } | null;
+	faceoffsWon?: number | null;
+	faceoffsLost?: number | null;
+	clears?: number | null;
+	clearAttempts?: number | null;
+	extraMan?: { goals: number; opportunities: number } | null;
+}
+
 export async function upsertDetail(
 	gameId: string,
 	kind: DetailKind,
