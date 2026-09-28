@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
-import { Segmented } from '@/components/Segmented';
+import { BoardHeader } from '@/components/BoardHeader';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { conferenceName } from '@/lib/conferences';
 import { useV1 } from '@/hooks/useV1';
-import { DIVISIONS, fetchStandings, seasonFor, SPORTS, todayEt } from '@/lib/api';
+import { fetchStandings, seasonFor, todayEt } from '@/lib/api';
 import type { ConferenceStandings, Division, Sport, StandingsRow, V1Envelope } from '@/lib/types';
 
 interface Col {
@@ -67,10 +67,13 @@ export default function StandingsScreen() {
 
   return (
     <View style={styles.screen}>
-      <RNView style={styles.controls}>
-        <Segmented options={SPORTS} value={sport} onChange={setSport} />
-        <Segmented options={DIVISIONS} value={division} onChange={setDivision} />
-      </RNView>
+      <BoardHeader
+        title="Standings"
+        sport={sport}
+        division={division}
+        onSport={setSport}
+        onDivision={setDivision}
+      />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips} contentContainerStyle={styles.chipsContent}>
         {data?.map((c) => {
           const active = c.slug === conf?.slug;
@@ -143,7 +146,6 @@ export default function StandingsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  controls: { paddingHorizontal: 12, paddingTop: 8, gap: 6 },
   chips: { flexGrow: 0, flexShrink: 0, height: 40 },
   chipsContent: { paddingHorizontal: 12, alignItems: 'center', gap: 4 },
   chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: 'transparent' },

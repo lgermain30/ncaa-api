@@ -47,6 +47,7 @@ export default function TabLayout() {
         name="standings"
         options={{
           title: 'Standings',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'trophy', android: 'emoji_events', web: 'emoji_events' }} tintColor={color} size={26} />
           ),
@@ -56,6 +57,7 @@ export default function TabLayout() {
         name="stats"
         options={{
           title: 'Statistics',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'chart.bar', android: 'bar_chart', web: 'bar_chart' }} tintColor={color} size={26} />
           ),
