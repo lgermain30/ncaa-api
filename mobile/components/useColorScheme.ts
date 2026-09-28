@@ -1,6 +1,2 @@
-import { useColorScheme as useColorSchemeCore } from 'react-native';
-
-export const useColorScheme = () => {
-  const coreScheme = useColorSchemeCore();
-  return coreScheme === 'unspecified' ? 'light' : coreScheme;
-};
+/** CLN ships light-only (CHN-style white tables), regardless of the phone's appearance setting. */
+export const useColorScheme = (): 'light' => 'light';
