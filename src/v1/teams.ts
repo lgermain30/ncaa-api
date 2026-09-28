@@ -1,6 +1,7 @@
 import { TieredCache } from "../cache";
 import { listBoardTeams, type StoredTeamIdentity } from "../store";
 import { upstreamJson } from "../upstream";
+import { getRosterBio, matchBio, type StoredRosterBio } from "./rosterbio";
 import type { Served } from "./service";
 
 /*
@@ -54,6 +55,11 @@ export interface V1RosterPlayer {
 	position: string | null;
 	year: string | null;
 	hometown: string | null;
+	/** `6'1"` from the school's athletics site, null when unpublished */
+	height: string | null;
+	/** pounds, null when unpublished */
+	weight: number | null;
+	highSchool: string | null;
 	stats: {
 		goals: number;
 		assists: number;
@@ -84,6 +90,10 @@ export interface V1TeamDetail {
 	seasons: string[];
 	schedule: V1TeamGame[];
 	roster: V1RosterPlayer[];
+	/** "school" = scraped from the athletics site (current roster), "lax" = lax.com */
+	rosterSource: "school" | "lax";
+	/** roster year when it comes from the school site and differs from `season` */
+	rosterSeason: string | null;
 }
 
 /* lax.com payload shapes (strings for most numbers) */
@@ -437,30 +447,30 @@ async function seoNamesFor(
  */
 const SEO_FALLBACK: Record<string, string> = {
 	"adams-state": "adams-st",
-	"albion": "albion",
+	albion: "albion",
 	"alderson-broaddus": "alderson-broaddus",
-	"aldersonbroaddus": "alderson-broaddus",
-	"allegheny": "allegheny",
-	"alliance": "nyack",
+	aldersonbroaddus: "alderson-broaddus",
+	allegheny: "allegheny",
+	alliance: "nyack",
 	"american-international": "american-intl",
-	"anderson": "anderson-in",
-	"asbury": "asbury",
-	"averett": "averett",
-	"bard": "bard",
-	"becker": "becker",
-	"beloit": "beloit",
-	"benedictine": "benedictine-il",
+	anderson: "anderson-in",
+	asbury: "asbury",
+	averett: "averett",
+	bard: "bard",
+	becker: "becker",
+	beloit: "beloit",
+	benedictine: "benedictine-il",
 	"birmingham-southern": "birmingham-so",
-	"birminghamsouthern": "birmingham-so",
-	"boston": "boston-u",
+	birminghamsouthern: "birmingham-so",
+	boston: "boston-u",
 	"bryn-athyn": "bryn-athyn",
-	"cabrini": "cabrini",
-	"cairn": "cairn",
+	cabrini: "cabrini",
+	cairn: "cairn",
 	"carroll-wisc": "carroll-wi",
-	"cazenovia": "cazenovia",
-	"centenary": "centenary-nj",
-	"centralmichigan": "central-mich",
-	"chowan": "chowan",
+	cazenovia: "cazenovia",
+	centenary: "centenary-nj",
+	centralmichigan: "central-mich",
+	chowan: "chowan",
 	"christopher-newport": "chris-newport",
 	"coast-guard": "coast-guard",
 	"college-of-new-jersey": "tcnj",
@@ -470,93 +480,93 @@ const SEO_FALLBACK: Record<string, string> = {
 	"connecticut-college": "connecticut-col",
 	"cornell-college": "cornell-college",
 	"csu-pueblo": "colorado-st-pueblo",
-	"curry": "curry",
-	"dallas": "dallas",
-	"earlham": "earlham",
+	curry: "curry",
+	dallas: "dallas",
+	earlham: "earlham",
 	"eastern-mennonite": "east-mennonite",
 	"eastern-michigan": "eastern-mich",
 	"eastern-nazarene": "eastern-nazarene",
-	"elms": "elms",
-	"erskine": "erskine",
-	"ferrum": "ferrum",
-	"fit": "florida-tech",
+	elms: "elms",
+	erskine: "erskine",
+	ferrum: "ferrum",
+	fit: "florida-tech",
 	"florida-southern": "fla-southern",
-	"fontbonne": "fontbonne",
-	"franciscan": "franciscan",
-	"franklin": "franklin",
-	"fresnostate": "fresno-st",
-	"geneseo": "suny-geneseo",
+	fontbonne: "fontbonne",
+	franciscan: "franciscan",
+	franklin: "franklin",
+	fresnostate: "fresno-st",
+	geneseo: "suny-geneseo",
 	"green-mountain": "green-mountain",
-	"hamline": "hamline",
-	"heidelberg": "heidelberg",
-	"hendrix": "hendrix",
-	"hollins": "hollins",
-	"houghton": "houghton",
-	"huntingdon": "huntingdon",
-	"husson": "husson",
+	hamline: "hamline",
+	heidelberg: "heidelberg",
+	hendrix: "hendrix",
+	hollins: "hollins",
+	houghton: "houghton",
+	huntingdon: "huntingdon",
+	husson: "husson",
 	"illinois-wesleyan": "ill-wesleyan",
 	"johnson--wales-providence": "johnson-wales-ri",
 	"johnson-and-wales": "johnson-wales-ri",
 	"johnson-state": "johnson-st",
 	"jwu-denver": "johnson-wales-co",
-	"keystone": "keystone",
+	keystone: "keystone",
 	"la-roche": "la-roche",
 	"lancaster-bible": "lancaster-bible",
-	"limestone": "limestone",
-	"lindenwood": "lindenwood",
+	limestone: "limestone",
+	lindenwood: "lindenwood",
 	"liu-post": "liu-post",
 	"lyndon-state": "lyndon-st",
-	"mainefarmington": "me-farmington",
-	"manhattanville": "manhattanville",
+	mainefarmington: "me-farmington",
+	manhattanville: "manhattanville",
 	"maritime-college": "suny-maritime",
 	"mary-washington": "mary-washington",
 	"massachusetts-cla": "mcla",
-	"mcla": "mcla",
-	"medaille": "medaille",
-	"michigan": "michigan",
+	mcla: "mcla",
+	medaille: "medaille",
+	michigan: "michigan",
 	"monmouth-il": "monmouth-il",
 	"monmouth-illinois": "monmouth-il",
 	"mount-ida": "mount-ida",
 	"mount-st-joseph": "mt-st-joseph",
 	"new-england-college": "new-england-col",
 	"new-paltz": "suny-new-paltz",
-	"newbury": "newbury",
+	newbury: "newbury",
 	"north-central": "north-central-il",
 	"north-central-univ.-(mn)": "north-central-mn",
 	"northern-michigan": "northern-mich",
-	"northland": "northland",
+	northland: "northland",
 	"northwestern-mn": "northwestern-st-paul",
 	"northwestern-st-paul": "northwestern-st-paul",
 	"notre-dame-de-namur": "notre-dame-de-namur",
 	"notre-dame-md": "notre-dame-md",
 	"notre-dame-oh": "notre-dame-oh",
-	"notredamemd": "notre-dame-md",
-	"nvulyndon": "lyndon-st",
-	"nyack": "nyack",
-	"nyit": "nyit",
+	notredamemd: "notre-dame-md",
+	nvulyndon: "lyndon-st",
+	nyack: "nyack",
+	nyit: "nyit",
 	"ohio-valley": "ohio-valley",
-	"olivet": "olivet",
-	"oneonta": "oneonta-st",
-	"oswego": "oswego-st",
+	olivet: "olivet",
+	oneonta: "oneonta-st",
+	oswego: "oswego-st",
 	"palm-beach-atlantic": "palm-beach-atl",
-	"palmbeachatlantic": "palm-beach-atl",
+	palmbeachatlantic: "palm-beach-atl",
 	"penn-stateabington": "penn-st-abington",
 	"plattsburg-state": "plattsburgh-st",
 	"rhode-island-college": "rhode-island",
-	"rhodes": "rhodes",
-	"rosemont": "rosemont",
-	"rutgerscamden": "rutgers-camden",
+	rhodes: "rhodes",
+	rosemont: "rosemont",
+	rutgerscamden: "rutgers-camden",
 	"saint-rose": "saint-rose",
-	"saintfrancis": "st-francis-pa",
-	"simmons": "simmons",
+	saintfrancis: "st-francis-pa",
+	simmons: "simmons",
 	"southern-maine": "southern-me",
 	"southern-virginia": "southern-va",
-	"southflorida": "south-fla",
-	"southwestern": "southwestern-tx",
+	southflorida: "south-fla",
+	southwestern: "southwestern-tx",
 	"st-marys-md": "st-marys-md",
-	"stonybrook": "stony-brook",
+	stonybrook: "stony-brook",
 	"suny-cobleskill": "cobleskill-st",
-	"swarthmore": "swarthmore",
+	swarthmore: "swarthmore",
 	"trinity-dc": "trinity-washington",
 	"umass-dartmouth": "umass-dartmouth",
 	"univ-of-dc": "dist-columbia",
@@ -565,22 +575,22 @@ const SEO_FALLBACK: Record<string, string> = {
 	"university-of-new-england": "u-new-england",
 	"upper-iowa": "upper-iowa",
 	"uw-stout": "wis-stout",
-	"uwstevenspoint": "wis-stevens-point",
-	"wartburg": "wartburg",
+	uwstevenspoint: "wis-stevens-point",
+	wartburg: "wartburg",
 	"washington--jefferson": "wash-jeff",
 	"washington--lee": "wash-lee",
 	"washington-and-jefferson": "wash-jeff",
 	"washington-and-lee": "wash-lee",
 	"washington-college": "washington",
-	"waynesburg": "waynesburg",
-	"wells": "wells",
-	"wesley": "wesley",
+	waynesburg: "waynesburg",
+	wells: "wells",
+	wesley: "wesley",
 	"west-virginia-wesleyan": "west-va-wesleyan",
 	"western-new-england": "western-new-eng",
-	"whittier": "whittier",
+	whittier: "whittier",
 	"william-smith": "william-smith",
 	"wisconsin-eau-claire": "wis-eau-claire",
-	"wooster": "wooster",
+	wooster: "wooster",
 };
 
 const stripGender = (id: string) => id.replace(/-?(w|m|womens|women)$/, "");
@@ -626,11 +636,132 @@ export async function lookupTeam(
 	return resolve(indexTeams(teams), idOrName);
 }
 
-export function getTeam(
+const EMPTY_STATS: V1RosterPlayer["stats"] = {
+	goals: 0,
+	assists: 0,
+	shots: 0,
+	groundBalls: 0,
+	turnovers: 0,
+	causedTurnovers: 0,
+	faceoffsWon: 0,
+	faceoffsTaken: 0,
+	saves: 0,
+	shotsFaced: 0,
+};
+
+const classYear = (y: string | null) =>
+	y ? y.replace(/\.$/, "").replace(/^(\w)/, (c) => c.toUpperCase()) : null;
+
+/**
+ * Current-season roster straight from the school's site (the source of truth
+ * as new rosters are posted), with each player's lax.com line matched in by
+ * number/name for stats and ids. Returners keep their stats; newcomers get 0s.
+ */
+function schoolRoster(
+	bio: StoredRosterBio,
+	lax: V1RosterPlayer[],
+): V1RosterPlayer[] {
+	return bio.players
+		.map((sp, i) => {
+			const lp = sameNamePlayer(lax, sp);
+			return {
+				id: lp?.id ?? `school-${sp.number ?? i}-${sp.name}`,
+				number: sp.number,
+				name: sp.name,
+				position: sp.position?.toUpperCase() ?? lp?.position ?? null,
+				year: classYear(sp.year) ?? lp?.year ?? null,
+				hometown: sp.hometown ?? lp?.hometown ?? null,
+				height: sp.height,
+				weight: sp.weight,
+				highSchool: sp.highSchool,
+				stats: lp?.stats ?? EMPTY_STATS,
+			};
+		})
+		.sort(
+			(a, b) => num(a.number) - num(b.number) || a.name.localeCompare(b.name),
+		);
+}
+
+/**
+ * The lax.com line for a school-roster player: same last name and first
+ * initial (rosters roll over between seasons, so a jersey number alone must
+ * never match), jersey number breaking ties between siblings/namesakes.
+ */
+function sameNamePlayer(
+	lax: V1RosterPlayer[],
+	sp: { number: string | null; name: string },
+): V1RosterPlayer | undefined {
+	const key = nameKey(sp.name);
+	if (!key) return undefined;
+	const byName = lax.filter((p) => nameKey(p.name) === key);
+	if (byName.length === 1) return byName[0];
+	if (!byName.length || !sp.number) return undefined;
+	const n = String(Number(sp.number));
+	const byNumber = byName.filter(
+		(p) => p.number && String(Number(p.number)) === n,
+	);
+	return byNumber.length === 1 ? byNumber[0] : undefined;
+}
+
+/** "José Núñez Jr." -> "j|nunez" */
+function nameKey(name: string): string | null {
+	const parts = name
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^a-z ]/g, "")
+		.split(" ")
+		.filter((w) => w && !/^(jr|sr|ii|iii|iv)$/.test(w));
+	if (parts.length < 2) return null;
+	return `${parts[0][0]}|${parts[parts.length - 1]}`;
+}
+
+export async function getTeam(
 	sport: Sport,
 	division: Division,
 	id: string,
 	season = defaultTeamSeason(),
+): Promise<Served<V1TeamDetail | null>> {
+	const served = await getTeamRaw(sport, division, id, season);
+	const team = served.data;
+	if (!team) return served;
+	const bio = await getRosterBio(sport, id, team.website);
+	if (!bio?.players.length) return served;
+	if (season === defaultTeamSeason()) {
+		return {
+			...served,
+			data: {
+				...team,
+				roster: schoolRoster(bio, team.roster),
+				rosterSource: "school",
+				rosterSeason: bio.season && bio.season !== season ? bio.season : null,
+			},
+		};
+	}
+	return {
+		...served,
+		data: {
+			...team,
+			roster: team.roster.map((p) => {
+				const b = matchBio(bio, p);
+				return b
+					? {
+							...p,
+							height: b.height,
+							weight: b.weight,
+							highSchool: b.highSchool,
+						}
+					: p;
+			}),
+		},
+	};
+}
+
+function getTeamRaw(
+	sport: Sport,
+	division: Division,
+	id: string,
+	season: string,
 ): Promise<Served<V1TeamDetail | null>> {
 	return cached(
 		`team:${laxDivision(sport, division)}:${id}:${season}`,
@@ -662,6 +793,8 @@ export function getTeam(
 					? { wins: num(conf.conf_wins), losses: num(conf.conf_losses) }
 					: null,
 				website: t.website || null,
+				rosterSource: "lax",
+				rosterSeason: null,
 				seasons: t.years ?? [],
 				schedule: (raw?.schedule ?? []).map((g) => {
 					const final = String(g.is_final) === "1";
@@ -697,6 +830,9 @@ export function getTeam(
 							? p.year.charAt(0).toUpperCase() + p.year.slice(1)
 							: null,
 						hometown: [p.town, p.state].filter(Boolean).join(", ") || null,
+						height: null,
+						weight: null,
+						highSchool: null,
 						stats: {
 							goals: num(p.goals),
 							assists: num(p.assists),

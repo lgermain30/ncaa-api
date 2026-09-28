@@ -121,6 +121,7 @@ function PlayerSheet({
             <RNView style={styles.bioCol}>
               <Text style={styles.bioLine}>{team.name}</Text>
               <Text style={styles.bioLine}>{p.hometown ?? ""}</Text>
+              <Text style={styles.bioLine}>{p.highSchool ?? ""}</Text>
             </RNView>
             <RNView style={styles.bioCol}>
               <Text style={styles.bioLine}>
@@ -129,6 +130,7 @@ function PlayerSheet({
               <Text style={styles.bioLine}>
                 {p.year ? (YEARS[p.year] ?? p.year) : ""}
               </Text>
+              <Text style={styles.bioLine}>{heightWeight(p)}</Text>
             </RNView>
           </RNView>
           <RNView style={[styles.statsHead, { backgroundColor: border }]}>
@@ -320,8 +322,20 @@ function RosterRow({
           {p.hometown ?? ""}
         </Text>
       </RNView>
+      <RNView style={styles.rSize}>
+        <Text style={styles.rHt}>{p.height ?? ""}</Text>
+        <Text style={[styles.rWt, { color: muted }]}>
+          {p.weight != null ? String(p.weight) : ""}
+        </Text>
+      </RNView>
     </Pressable>
   );
+}
+
+function heightWeight(p: V1RosterPlayer): string {
+  return [p.height, p.weight != null ? `${p.weight} lbs` : null]
+    .filter(Boolean)
+    .join(" / ");
 }
 
 type Col = {
@@ -783,14 +797,21 @@ export function TeamScreen({
             No roster published for {team.season}.
           </Text>
         ) : tab === "roster" ? (
-          roster.map((p, i) => (
-            <RosterRow
-              key={p.id}
-              p={p}
-              alt={i % 2 === 1}
-              onPress={() => setPlayer(p)}
-            />
-          ))
+          <>
+            {team.rosterSeason && team.rosterSeason !== team.season ? (
+              <Text style={[styles.rosterNote, { color: muted }]}>
+                {team.rosterSeason} roster
+              </Text>
+            ) : null}
+            {roster.map((p, i) => (
+              <RosterRow
+                key={p.id}
+                p={p}
+                alt={i % 2 === 1}
+                onPress={() => setPlayer(p)}
+              />
+            ))}
+          </>
         ) : (
           <StatsTable roster={roster} onPlayer={setPlayer} />
         )}
@@ -863,6 +884,16 @@ const styles = StyleSheet.create({
   rMain: { flex: 1, minWidth: 0 },
   rName: { fontSize: 15, fontWeight: "700" },
   rTown: { fontSize: 11, marginTop: 1 },
+  rosterNote: {
+    fontSize: 11,
+    fontWeight: "600",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    textTransform: "uppercase",
+  },
+  rSize: { width: 40, alignItems: "flex-end" },
+  rHt: { fontSize: 12, fontWeight: "600" },
+  rWt: { fontSize: 11 },
 
   grid: { flexDirection: "row" },
   gridFrozen: { width: NAME_W, borderRightWidth: StyleSheet.hairlineWidth },

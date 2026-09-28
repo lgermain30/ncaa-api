@@ -308,6 +308,9 @@ export interface V1RosterPlayer {
   position: string | null;
   year: string | null;
   hometown: string | null;
+  height: string | null;
+  weight: number | null;
+  highSchool: string | null;
   stats: {
     goals: number;
     assists: number;
@@ -338,4 +341,6 @@ export interface V1TeamDetail {
   seasons: string[];
   schedule: V1TeamGame[];
   roster: V1RosterPlayer[];
+  rosterSource: 'school' | 'lax';
+  rosterSeason: string | null;
 }
