@@ -28,9 +28,9 @@ function gamesPlayed(rec: string): string {
 }
 
 const COLS: Col[] = [
-  { key: 'gp', label: 'GP', width: 34, value: (r) => gamesPlayed(r.overallRecord) },
-  { key: 'w', label: 'W', width: 30, value: (r) => splitRecord(r.overallRecord)[0] },
-  { key: 'l', label: 'L', width: 30, value: (r) => splitRecord(r.overallRecord)[1] },
+  { key: 'gp', label: 'GP', width: 34, value: (r) => gamesPlayed(r.conferenceRecord) },
+  { key: 'w', label: 'W', width: 30, value: (r) => splitRecord(r.conferenceRecord)[0] },
+  { key: 'l', label: 'L', width: 30, value: (r) => splitRecord(r.conferenceRecord)[1] },
   { key: 'gf', label: 'GF', width: 38, value: (r) => splitRecord(r.goalsForAgainst)[0] },
   { key: 'ga', label: 'GA', width: 38, value: (r) => splitRecord(r.goalsForAgainst)[1] },
 ];
@@ -106,7 +106,7 @@ export default function StandingsScreen() {
                     <Text style={styles.teamName} numberOfLines={1}>
                       {r.team}
                     </Text>
-                    <Text style={[styles.confRecord, { color: muted }]}>{r.conferenceRecord}</Text>
+                    <Text style={[styles.confRecord, { color: muted }]}>Overall {r.overallRecord}</Text>
                   </RNView>
                 </RNView>
                 {cols.map((c, j) => {
@@ -133,7 +133,7 @@ export default function StandingsScreen() {
         {!loading && !error && !conf ? <Text style={[styles.note, { color: muted }]}>No standings available for {season}.</Text> : null}
         {conf ? (
           <Text style={[styles.note, { color: muted }]}>
-            Conference standings · {season} · record under team = conference
+            Conference standings · {season} · GP/W/L = conference games, GF/GA = season
           </Text>
         ) : null}
       </ScrollView>
