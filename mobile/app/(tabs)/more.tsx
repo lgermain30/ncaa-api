@@ -8,8 +8,15 @@ import { API_BASE } from '@/lib/api';
 const LINKS: { label: string; url: string }[] = [
   { label: 'College Lacrosse News', url: 'https://collegelacrossenews.com' },
   { label: 'Rankings', url: 'https://collegelacrossenews.com/rankings/' },
-  { label: 'Transfers', url: 'https://collegelacrossenews.com/transfers/' },
-  { label: 'Camps & Showcases', url: 'https://collegelacrossenews.com/camps/' },
+  { label: 'Commitments', url: 'https://collegelacrossenews.com/recruiting/commitments/' },
+  { label: 'Transfer Portal', url: 'https://collegelacrossenews.com/recruiting/transfer-portal/' },
+  {
+    label: 'Camps & Showcases',
+    url: 'https://collegelacrossenews.com/recruiting/prospect-camps-showcases-calendar/',
+  },
+  { label: 'Records & History', url: 'https://collegelacrossenews.com/records-history/' },
+  { label: 'TV Schedule', url: 'https://collegelacrossenews.com/tv-schedule/' },
+  { label: 'Streaming Guide', url: 'https://collegelacrossenews.com/streaming-guide/' },
 ];
 
 export default function MoreScreen() {
