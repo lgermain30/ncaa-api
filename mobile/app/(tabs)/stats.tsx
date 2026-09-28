@@ -2,7 +2,8 @@ import { type ReactNode, useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
 import { schoolName } from '@/lib/names';
-import { Segmented } from '@/components/Segmented';
+import { BoardHeader } from '@/components/BoardHeader';
+import { Chips } from '@/components/Chips';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { useV1 } from '@/hooks/useV1';
@@ -216,18 +217,23 @@ export default function StatsScreen() {
 
   return (
     <View style={styles.screen}>
-      <RNView style={styles.controls}>
-        <Segmented options={SPORTS} value={sport} onChange={setSport} />
-        <Segmented options={DIVISIONS} value={division} onChange={setDivision} />
-        <Segmented<Mode>
-          options={[
-            { key: 'players', label: 'Players' },
-            { key: 'teams', label: 'Teams' },
-          ]}
-          value={mode}
-          onChange={setMode}
-        />
-      </RNView>
+      <BoardHeader
+        title="Statistics"
+        sport={sport}
+        division={division}
+        onSport={setSport}
+        onDivision={setDivision}
+        extra={
+          <Chips<Mode>
+            options={[
+              { key: 'players', label: 'Players' },
+              { key: 'teams', label: 'Teams' },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
+        }
+      />
       <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={false} onRefresh={q.refresh} />}>
         {q.loading ? <Text style={[styles.note, { color: muted }]}>Loading…</Text> : null}
         {q.error ? <Text style={[styles.note, { color: muted }]}>Couldn&apos;t load stats ({q.error})</Text> : null}
@@ -267,7 +273,6 @@ export default function StatsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  controls: { padding: 12, paddingBottom: 4, gap: 8 },
   content: { paddingBottom: 32 },
   note: { fontSize: 12, textAlign: 'center', marginVertical: 8 },
   board: { borderBottomWidth: StyleSheet.hairlineWidth },
