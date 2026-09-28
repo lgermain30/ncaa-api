@@ -12,6 +12,7 @@ import type {
   LeaderBoards,
   V1NewsItem,
 } from './types';
+import { schoolName } from './names';
 
 export const API_BASE =
   process.env.EXPO_PUBLIC_API_BASE ?? 'https://ncaa-api-production-1586.up.railway.app';
@@ -148,7 +149,7 @@ export async function fetchStandings(
     season,
     count: c.conf_leaderboard.length,
     standings: c.conf_leaderboard.map((r) => {
-      const name = r.name.replace(/(^|[\s(-])([a-z])/g, (_, prefix: string, letter: string) => prefix + letter.toUpperCase());
+      const name = schoolName(r.name);
       const extra = extras.get(teamKey(name));
       return {
         team: name,

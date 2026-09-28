@@ -400,31 +400,32 @@ function Rosters({ box, game }: { box: V1Boxscore | null; game: V1Game }) {
       </Text>
     );
   }
-  const rows = Math.max(lists[0].length, lists[1].length);
   return (
-    <RNView>
-      {Array.from({ length: rows }, (_, i) => (
-        <RNView
-          key={i}
-          style={[styles.rosterRow, i % 2 ? { backgroundColor: stripe } : null]}
+    <RNView style={styles.rosterColumns}>
+      {lists.map((players, col) => (
+        <ScrollView
+          key={col}
+          style={styles.rosterColumn}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         >
-          {lists.map((players, col) => {
-            const player = players[i];
-            return (
-              <RNView key={col} style={styles.rosterCell}>
-                <Text style={styles.rosterNumber} numberOfLines={1}>
-                  {player?.number ?? ""}
-                </Text>
-                <Text style={[styles.rosterPosition, { color: muted }]}>
-                  {player?.position ?? ""}
-                </Text>
-                <Text style={styles.rosterName} numberOfLines={1}>
-                  {player?.name ?? ""}
-                </Text>
-              </RNView>
-            );
-          })}
-        </RNView>
+          {players.map((player, i) => (
+            <RNView
+              key={`${player.number}-${player.name}`}
+              style={[styles.rosterCell, i % 2 ? { backgroundColor: stripe } : null]}
+            >
+              <Text style={styles.rosterNumber} numberOfLines={1}>
+                {player.number}
+              </Text>
+              <Text style={[styles.rosterPosition, { color: muted }]}>
+                {player.position}
+              </Text>
+              <Text style={styles.rosterName} numberOfLines={1}>
+                {player.name}
+              </Text>
+            </RNView>
+          ))}
+        </ScrollView>
       ))}
     </RNView>
   );
@@ -837,7 +838,11 @@ export default function GameScreen() {
             : undefined,
         }}
       />
-      <ScrollView key={tab} contentContainerStyle={styles.content}>
+      <ScrollView
+        key={tab}
+        scrollEnabled={tab !== "rosters"}
+        contentContainerStyle={tab === "rosters" ? styles.fill : styles.content}
+      >
         {game ? (
           <Header game={game} />
         ) : (
@@ -926,6 +931,7 @@ const styles = StyleSheet.create({
   },
   watermark: { position: "absolute", top: -6, opacity: 0.18 },
   content: { paddingBottom: 32 },
+  fill: { flexGrow: 1 },
   card: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1001,10 +1007,10 @@ const styles = StyleSheet.create({
   },
   statTeam: { fontSize: 12 },
   statLabel: { flex: 1, textAlign: "center", fontSize: 13 },
-  rosterRow: { flexDirection: "row", paddingVertical: 2, paddingHorizontal: 6 },
+  rosterColumns: { flex: 1, flexDirection: "row", paddingHorizontal: 6 },
+  rosterColumn: { flex: 1, minWidth: 0 },
   rosterCell: {
-    flex: 1,
-    minWidth: 0,
+    paddingVertical: 2,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
