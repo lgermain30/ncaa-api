@@ -1,7 +1,7 @@
 import { TieredCache } from "../cache";
 import { listBoardTeams, type StoredTeamIdentity } from "../store";
 import { upstreamJson } from "../upstream";
-import { getRosterBio, matchBio } from "./rosterbio";
+import { getRosterBio, matchBio, type StoredRosterBio } from "./rosterbio";
 import type { Served } from "./service";
 
 /*
@@ -90,6 +90,10 @@ export interface V1TeamDetail {
 	seasons: string[];
 	schedule: V1TeamGame[];
 	roster: V1RosterPlayer[];
+	/** "school" = scraped from the athletics site (current roster), "lax" = lax.com */
+	rosterSource: "school" | "lax";
+	/** roster year when it comes from the school site and differs from `season` */
+	rosterSeason: string | null;
 }
 
 /* lax.com payload shapes (strings for most numbers) */
@@ -632,6 +636,86 @@ export async function lookupTeam(
 	return resolve(indexTeams(teams), idOrName);
 }
 
+const EMPTY_STATS: V1RosterPlayer["stats"] = {
+	goals: 0,
+	assists: 0,
+	shots: 0,
+	groundBalls: 0,
+	turnovers: 0,
+	causedTurnovers: 0,
+	faceoffsWon: 0,
+	faceoffsTaken: 0,
+	saves: 0,
+	shotsFaced: 0,
+};
+
+const classYear = (y: string | null) =>
+	y ? y.replace(/\.$/, "").replace(/^(\w)/, (c) => c.toUpperCase()) : null;
+
+/**
+ * Current-season roster straight from the school's site (the source of truth
+ * as new rosters are posted), with each player's lax.com line matched in by
+ * number/name for stats and ids. Returners keep their stats; newcomers get 0s.
+ */
+function schoolRoster(
+	bio: StoredRosterBio,
+	lax: V1RosterPlayer[],
+): V1RosterPlayer[] {
+	return bio.players
+		.map((sp, i) => {
+			const lp = sameNamePlayer(lax, sp);
+			return {
+				id: lp?.id ?? `school-${sp.number ?? i}-${sp.name}`,
+				number: sp.number,
+				name: sp.name,
+				position: sp.position?.toUpperCase() ?? lp?.position ?? null,
+				year: classYear(sp.year) ?? lp?.year ?? null,
+				hometown: sp.hometown ?? lp?.hometown ?? null,
+				height: sp.height,
+				weight: sp.weight,
+				highSchool: sp.highSchool,
+				stats: lp?.stats ?? EMPTY_STATS,
+			};
+		})
+		.sort(
+			(a, b) => num(a.number) - num(b.number) || a.name.localeCompare(b.name),
+		);
+}
+
+/**
+ * The lax.com line for a school-roster player: same last name and first
+ * initial (rosters roll over between seasons, so a jersey number alone must
+ * never match), jersey number breaking ties between siblings/namesakes.
+ */
+function sameNamePlayer(
+	lax: V1RosterPlayer[],
+	sp: { number: string | null; name: string },
+): V1RosterPlayer | undefined {
+	const key = nameKey(sp.name);
+	if (!key) return undefined;
+	const byName = lax.filter((p) => nameKey(p.name) === key);
+	if (byName.length === 1) return byName[0];
+	if (!byName.length || !sp.number) return undefined;
+	const n = String(Number(sp.number));
+	const byNumber = byName.filter(
+		(p) => p.number && String(Number(p.number)) === n,
+	);
+	return byNumber.length === 1 ? byNumber[0] : undefined;
+}
+
+/** "José Núñez Jr." -> "j|nunez" */
+function nameKey(name: string): string | null {
+	const parts = name
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^a-z ]/g, "")
+		.split(" ")
+		.filter((w) => w && !/^(jr|sr|ii|iii|iv)$/.test(w));
+	if (parts.length < 2) return null;
+	return `${parts[0][0]}|${parts[parts.length - 1]}`;
+}
+
 export async function getTeam(
 	sport: Sport,
 	division: Division,
@@ -640,9 +724,20 @@ export async function getTeam(
 ): Promise<Served<V1TeamDetail | null>> {
 	const served = await getTeamRaw(sport, division, id, season);
 	const team = served.data;
-	if (!team?.roster.length) return served;
+	if (!team) return served;
 	const bio = await getRosterBio(sport, id, team.website);
-	if (!bio) return served;
+	if (!bio?.players.length) return served;
+	if (season === defaultTeamSeason()) {
+		return {
+			...served,
+			data: {
+				...team,
+				roster: schoolRoster(bio, team.roster),
+				rosterSource: "school",
+				rosterSeason: bio.season && bio.season !== season ? bio.season : null,
+			},
+		};
+	}
 	return {
 		...served,
 		data: {
@@ -698,6 +793,8 @@ function getTeamRaw(
 					? { wins: num(conf.conf_wins), losses: num(conf.conf_losses) }
 					: null,
 				website: t.website || null,
+				rosterSource: "lax",
+				rosterSeason: null,
 				seasons: t.years ?? [],
 				schedule: (raw?.schedule ?? []).map((g) => {
 					const final = String(g.is_final) === "1";

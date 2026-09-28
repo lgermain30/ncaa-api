@@ -16,6 +16,9 @@ import type { Sport } from "./teams";
 export interface BioPlayer {
 	number: string | null;
 	name: string;
+	position: string | null;
+	year: string | null;
+	hometown: string | null;
 	height: string | null;
 	weight: number | null;
 	highSchool: string | null;
@@ -24,6 +27,8 @@ export interface BioPlayer {
 export interface StoredRosterBio {
 	host: string;
 	source: "sidearm_classic" | "sidearm_nuxt";
+	/** roster year the school page is showing (e.g. "2027"), when detectable */
+	season: string | null;
 	players: BioPlayer[];
 }
 
@@ -91,6 +96,17 @@ export function parseSidearmClassic(html: string): BioPlayer[] | null {
 					node.find(".sidearm-roster-player-jersey-number").first().text(),
 				) || null,
 			name,
+			position:
+				clean(
+					node.find(".sidearm-roster-player-position-long-short").last().text(),
+				) || null,
+			year:
+				clean(
+					node.find(".sidearm-roster-player-academic-year").first().text(),
+				) || null,
+			hometown:
+				clean(node.find(".sidearm-roster-player-hometown").first().text()) ||
+				null,
 			height: normalizeHeight(
 				node.find(".sidearm-roster-player-height").first().text(),
 			),
@@ -160,6 +176,9 @@ export function parseSidearmNuxt(html: string): BioPlayer[] | null {
 		players.push({
 			number,
 			name,
+			position: strOf(arr, o.positionShort),
+			year: strOf(arr, o.academicYearShort),
+			hometown: strOf(arr, o.hometown),
 			height: feet ? `${feet}'${inches ?? 0}"` : null,
 			weight: normalizeWeight(numOf(arr, o.weight)),
 			highSchool: strOf(arr, o.highSchool),
@@ -168,11 +187,37 @@ export function parseSidearmNuxt(html: string): BioPlayer[] | null {
 	return players.length ? players : null;
 }
 
+/** Roster year from the page title ("2027 Men's Lacrosse Roster") or the Sidearm season object. */
+export function parseRosterSeason(html: string): string | null {
+	const title = html.match(/<title>[^<]*?\b(20\d\d)\b[^<]*<\/title>/);
+	if (title) return title[1];
+	const m = html.match(
+		/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/,
+	);
+	if (!m) return null;
+	try {
+		const arr = JSON.parse(m[1]) as Devalue;
+		let best: string | null = null;
+		for (const item of arr) {
+			if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+			const o = item as Record<string, unknown>;
+			if (!("startDate" in o) || !("title" in o) || "heightFeet" in o) continue;
+			const t = strOf(arr, o.title);
+			if (t && /^20\d\d$/.test(t) && (!best || t > best)) best = t;
+		}
+		return best;
+	} catch {
+		return null;
+	}
+}
+
 export function parseRosterHtml(html: string) {
+	const season = parseRosterSeason(html);
 	const classic = parseSidearmClassic(html);
-	if (classic) return { source: "sidearm_classic" as const, players: classic };
+	if (classic)
+		return { source: "sidearm_classic" as const, season, players: classic };
 	const nuxt = parseSidearmNuxt(html);
-	if (nuxt) return { source: "sidearm_nuxt" as const, players: nuxt };
+	if (nuxt) return { source: "sidearm_nuxt" as const, season, players: nuxt };
 	return null;
 }
 

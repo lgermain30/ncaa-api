@@ -15,6 +15,7 @@ describe("roster bios", () => {
 		expect(parsed?.source).toBe("sidearm_classic");
 		const durnan = parsed?.players.find((p) => p.name === "Jack Durnan");
 		expect(durnan).toMatchObject({ number: "0", height: `6'3"`, weight: 222 });
+		expect(durnan?.position).toBe("G");
 	});
 
 	it("parses Sidearm Nuxt __NUXT_DATA__ rosters", async () => {
@@ -27,6 +28,8 @@ describe("roster bios", () => {
 			height: `6'0"`,
 			weight: 195,
 			highSchool: "Episcopal High School",
+			position: "G",
+			hometown: expect.any(String),
 		});
 	});
 
@@ -48,6 +51,7 @@ describe("roster bios", () => {
 		const bio = {
 			host: "x",
 			source: "sidearm_classic" as const,
+			season: null,
 			players: [
 				{
 					number: "7",
@@ -55,6 +59,9 @@ describe("roster bios", () => {
 					height: `6'0"`,
 					weight: 180,
 					highSchool: null,
+					position: null,
+					year: null,
+					hometown: null,
 				},
 				{
 					number: "07",
@@ -62,6 +69,9 @@ describe("roster bios", () => {
 					height: `5'6"`,
 					weight: 140,
 					highSchool: null,
+					position: null,
+					year: null,
+					hometown: null,
 				},
 				{
 					number: null,
@@ -69,6 +79,9 @@ describe("roster bios", () => {
 					height: `5'9"`,
 					weight: 160,
 					highSchool: null,
+					position: null,
+					year: null,
+					hometown: null,
 				},
 			],
 		};
