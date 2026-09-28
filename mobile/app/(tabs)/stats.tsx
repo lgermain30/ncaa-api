@@ -131,7 +131,7 @@ function Board({
               {titleCase(r.team_name)}
             </Text>
           ) : null}
-          <Text style={styles.val}>{r[col] ?? '–'}</Text>
+          <Text style={styles.val} numberOfLines={1}>{r[col] ?? '–'}</Text>
         </RNView>
       ))}
     </Band>
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   boardRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  boardCol: { color: '#fff', opacity: 0.8, fontSize: 11, fontWeight: '700', width: 48, textAlign: 'right' },
+  boardCol: { color: '#fff', opacity: 0.8, fontSize: 11, fontWeight: '700', width: 56, textAlign: 'right' },
   boardClose: { color: '#fff', fontSize: 15, fontWeight: '800', marginLeft: 4 },
   boardTitle: { color: '#fff', fontWeight: '600', fontSize: 17 },
   row: {
@@ -283,6 +283,6 @@ const styles = StyleSheet.create({
   },
   rank: { width: 26, fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
   name: { flex: 1, minWidth: 0, fontSize: 15 },
-  team: { width: 92, fontSize: 14 },
-  val: { width: 48, textAlign: 'right', fontSize: 15, fontVariant: ['tabular-nums'] },
+  team: { width: 84, fontSize: 14 },
+  val: { width: 56, textAlign: 'right', fontSize: 15, fontVariant: ['tabular-nums'] },
 });
