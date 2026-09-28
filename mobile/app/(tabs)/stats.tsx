@@ -19,7 +19,7 @@ import type {
 type Mode = 'players' | 'teams';
 
 /** Leader boards from /lax-stats, in display order, with the column to show. */
-const BOARDS: { key: string; title: string; col: string; mode: Mode; women?: boolean; men?: boolean }[] = [
+const BOARDS: { key: string; title: string; col: string; mode: Mode; women?: boolean; men?: boolean; asc?: boolean }[] = [
   { key: 'goals', title: 'Goals', col: 'goals', mode: 'players' },
   { key: 'goals', title: 'Goals Per Game', col: 'avg', mode: 'players' },
   { key: 'assists', title: 'Assists', col: 'assists', mode: 'players' },
@@ -33,7 +33,7 @@ const BOARDS: { key: string; title: string; col: string; mode: Mode; women?: boo
   { key: 'ground_balls', title: 'Ground Balls', col: 'ground_balls', mode: 'players' },
   { key: 'caused_turnovers', title: 'Caused Turnovers', col: 'caused_turnovers', mode: 'players' },
   { key: 'offense', title: 'Goals For / Game', col: 'avg', mode: 'teams' },
-  { key: 'defense', title: 'Goals Against / Game', col: 'avg', mode: 'teams' },
+  { key: 'defense', title: 'Goals Against / Game', col: 'avg', mode: 'teams', asc: true },
   { key: 'goaldiff', title: 'Goal Differential', col: 'diff', mode: 'teams' },
 ];
 
@@ -52,6 +52,12 @@ const BOX_BOARDS: { key: keyof V1TeamStatTotals; title: string; men?: boolean }[
 
 function titleCase(slug: string): string {
   return slug.split(/[-\s]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/** lax.com ranks every board by per-game average; re-rank by the column we actually display. */
+function rankBy(rows: LeaderRow[], col: string, asc = false): LeaderRow[] {
+  const num = (r: LeaderRow) => Number.parseFloat(r[col] ?? '') || 0;
+  return [...rows].sort((a, b) => (asc ? num(a) - num(b) : num(b) - num(a)));
 }
 
 const COLLAPSED = 5;
@@ -230,7 +236,7 @@ export default function StatsScreen() {
                   key={b.title}
                   title={b.title}
                   col={b.col}
-                  rows={rows}
+                  rows={rankBy(rows, b.col, b.asc)}
                   mode={b.mode}
                   expanded={open === b.title}
                   onToggle={() => toggle(b.title)}
