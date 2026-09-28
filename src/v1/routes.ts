@@ -14,6 +14,8 @@ import {
 	subscribe,
 } from "./events";
 import { getNews, ingestNews } from "./news";
+import { rosterBioStats } from "./rosterbio";
+import { rosterBioWalk, walkRosterBios } from "./rosterbiowalk";
 import {
 	getBoard,
 	getBoxscore,
@@ -271,8 +273,20 @@ export const v1 = new Elysia({ prefix: "/v1" })
 			service: serviceStats,
 			stream: { ...eventStats, lastEventId: lastEventId() },
 			backfill: backfillProgress,
+			rosterBios: { ...rosterBioStats, walk: rosterBioWalk },
 			todayEt: todayEt(),
 		};
+	})
+	.post("/admin/roster-bios", ({ request, set }) => {
+		if (!adminAuthorized(request)) return forbidden(set);
+		set.headers["Cache-Control"] = "no-store";
+		if (rosterBioWalk.running) {
+			set.status = 409;
+			return { error: "walk already running", walk: rosterBioWalk };
+		}
+		void walkRosterBios();
+		set.status = 202;
+		return { walk: rosterBioWalk };
 	})
 	.post(
 		"/admin/backfill",
