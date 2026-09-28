@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
+import { type ReactNode, useCallback, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
 import { Segmented } from '@/components/Segmented';
 import { Text, View, useThemeColor } from '@/components/Themed';
@@ -54,27 +54,87 @@ function titleCase(slug: string): string {
   return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-function Board({ title, col, rows, mode }: { title: string; col: string; rows: LeaderRow[]; mode: Mode }) {
-  const muted = useThemeColor({}, 'muted');
+const COLLAPSED = 5;
+const EXPANDED = 30;
+
+/** CHN-style band: navy title, top 5 rows; tap to expand to 30 with an ✕ to collapse. */
+function Band({
+  title,
+  cols,
+  expanded,
+  onToggle,
+  children,
+}: {
+  title: string;
+  cols?: string[];
+  expanded: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  const border = useThemeColor({}, 'border');
+  return (
+    <RNView style={[styles.board, { borderColor: border }]}>
+      <Pressable
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityLabel={expanded ? `Collapse ${title}` : `Expand ${title}`}
+        style={[styles.boardHead, { backgroundColor: brand.navy }]}
+      >
+        <Text style={styles.boardTitle}>{title}</Text>
+        <RNView style={styles.boardRight}>
+          {cols?.map((c) => (
+            <Text key={c} style={styles.boardCol}>
+              {c}
+            </Text>
+          ))}
+          {expanded ? <Text style={styles.boardClose}>✕</Text> : null}
+        </RNView>
+      </Pressable>
+      <Pressable onPress={expanded ? undefined : onToggle} disabled={expanded}>
+        {children}
+      </Pressable>
+    </RNView>
+  );
+}
+
+function Board({
+  title,
+  col,
+  rows,
+  mode,
+  expanded,
+  onToggle,
+}: {
+  title: string;
+  col: string;
+  rows: LeaderRow[];
+  mode: Mode;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const card = useThemeColor({}, 'card');
   const border = useThemeColor({}, 'border');
   const bg = useThemeColor({}, 'background');
   return (
-    <RNView style={[styles.board, { backgroundColor: card, borderColor: border }]}>
-      <RNView style={[styles.boardHead, { backgroundColor: brand.navy }]}>
-        <Text style={styles.boardTitle}>{title}</Text>
-      </RNView>
-      {rows.slice(0, 10).map((r, i) => (
-        <RNView key={`${r.player_id ?? r.team_id}-${i}`} style={[styles.row, i % 2 ? { backgroundColor: bg } : null]}>
-          <Text style={[styles.rank, { color: muted }]}>{i + 1}</Text>
-          <RNView style={styles.identity}>
-            <Text style={styles.name}>{mode === 'players' ? r.name : titleCase(r.team_name)}</Text>
-            {mode === 'players' ? <Text style={[styles.team, { color: muted }]}>{titleCase(r.team_name)}</Text> : null}
-          </RNView>
+    <Band title={title} expanded={expanded} onToggle={onToggle}>
+      {rows.slice(0, expanded ? EXPANDED : COLLAPSED).map((r, i) => (
+        <RNView
+          key={`${r.player_id ?? r.team_id}-${i}`}
+          style={[styles.row, { backgroundColor: i % 2 ? bg : card, borderBottomColor: border }]}
+        >
+          <Text style={styles.rank}>{i + 1}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {mode === 'players' ? r.name : titleCase(r.team_name)}
+          </Text>
+          {mode === 'players' ? (
+            <Text style={styles.team} numberOfLines={1}>
+              {titleCase(r.team_name)}
+            </Text>
+          ) : null}
           <Text style={styles.val}>{r[col] ?? '–'}</Text>
         </RNView>
       ))}
-    </RNView>
+    </Band>
   );
 }
 
@@ -82,10 +142,14 @@ function BoxBoard({
   title,
   stat,
   teams,
+  expanded,
+  onToggle,
 }: {
   title: string;
   stat: keyof V1TeamStatTotals;
   teams: V1TeamSeasonStats[];
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const muted = useThemeColor({}, 'muted');
   const card = useThemeColor({}, 'card');
@@ -97,26 +161,19 @@ function BoxBoard({
   // NCAA publishes no ground balls / turnovers for women's lacrosse; skip boards with no data at all.
   if (!rows.length || rows.every((t) => t.totals[stat] === 0)) return null;
   return (
-    <RNView style={[styles.board, { backgroundColor: card, borderColor: border }]}>
-      <RNView style={[styles.boardHead, styles.boardHeadRow, { backgroundColor: brand.navy }]}>
-        <Text style={styles.boardTitle}>{title}</Text>
-        <RNView style={styles.boardCols}>
-          <Text style={styles.boardCol}>/G</Text>
-          <Text style={styles.boardCol}>TOT</Text>
-        </RNView>
-      </RNView>
-      {rows.slice(0, 10).map((t, i) => (
-        <RNView key={t.teamId} style={[styles.row, i % 2 ? { backgroundColor: bg } : null]}>
-          <Text style={[styles.rank, { color: muted }]}>{i + 1}</Text>
-          <RNView style={styles.identity}>
-            <Text style={styles.name}>{t.shortName}</Text>
-            <Text style={[styles.team, { color: muted }]}>{t.games} GP</Text>
-          </RNView>
+    <Band title={title} cols={['/G', 'TOT']} expanded={expanded} onToggle={onToggle}>
+      {rows.slice(0, expanded ? EXPANDED : COLLAPSED).map((t, i) => (
+        <RNView key={t.teamId} style={[styles.row, { backgroundColor: i % 2 ? bg : card, borderBottomColor: border }]}>
+          <Text style={styles.rank}>{i + 1}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {t.shortName}
+          </Text>
+          <Text style={styles.team}>{t.games} GP</Text>
           <Text style={styles.val}>{t.perGame[stat].toFixed(1)}</Text>
           <Text style={[styles.val, { color: muted, fontWeight: '500' }]}>{t.totals[stat]}</Text>
         </RNView>
       ))}
-    </RNView>
+    </Band>
   );
 }
 
@@ -125,6 +182,8 @@ export default function StatsScreen() {
   const [sport, setSport] = useState<Sport>('lacrosse-men');
   const [division, setDivision] = useState<Division>('d1');
   const [mode, setMode] = useState<Mode>('players');
+  const [open, setOpen] = useState<string | null>(null);
+  const toggle = (key: string) => setOpen((cur) => (cur === key ? null : key));
   const season = seasonFor(todayEt());
 
   const q = useV1<LeaderBoards>(
@@ -166,12 +225,29 @@ export default function StatsScreen() {
         {q.data
           ? boards.map((b) => {
               const rows = q.data?.[b.key];
-              return rows?.length ? <Board key={b.title} title={b.title} col={b.col} rows={rows} mode={b.mode} /> : null;
+              return rows?.length ? (
+                <Board
+                  key={b.title}
+                  title={b.title}
+                  col={b.col}
+                  rows={rows}
+                  mode={b.mode}
+                  expanded={open === b.title}
+                  onToggle={() => toggle(b.title)}
+                />
+              ) : null;
             })
           : null}
         {mode === 'teams' && teamQ.data
           ? BOX_BOARDS.filter((b) => !(b.men && women)).map((b) => (
-              <BoxBoard key={b.key} title={b.title} stat={b.key} teams={teamQ.data ?? []} />
+              <BoxBoard
+                key={b.key}
+                title={b.title}
+                stat={b.key}
+                teams={teamQ.data ?? []}
+                expanded={open === b.title}
+                onToggle={() => toggle(b.title)}
+              />
             ))
           : null}
         {q.data ? <Text style={[styles.note, { color: muted }]}>{season} season leaders</Text> : null}
@@ -183,18 +259,30 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   controls: { padding: 12, paddingBottom: 4, gap: 8 },
-  content: { paddingHorizontal: 12, paddingBottom: 32, gap: 12 },
+  content: { paddingBottom: 32 },
   note: { fontSize: 12, textAlign: 'center', marginVertical: 8 },
-  board: { borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  boardHead: { paddingHorizontal: 10, paddingVertical: 6 },
-  boardHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  boardCols: { flexDirection: 'row', gap: 8 },
-  boardCol: { color: '#fff', opacity: 0.8, fontSize: 11, fontWeight: '700', width: 52, textAlign: 'right' },
-  boardTitle: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, gap: 8 },
-  rank: { width: 24, fontSize: 13, fontVariant: ['tabular-nums'] },
-  identity: { flex: 1, minWidth: 0 },
-  name: { fontSize: 14, fontWeight: '600' },
-  team: { fontSize: 12, marginTop: 2 },
-  val: { width: 52, textAlign: 'right', fontSize: 14, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  board: { borderBottomWidth: StyleSheet.hairlineWidth },
+  boardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  boardRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  boardCol: { color: '#fff', opacity: 0.8, fontSize: 11, fontWeight: '700', width: 48, textAlign: 'right' },
+  boardClose: { color: '#fff', fontSize: 15, fontWeight: '800', marginLeft: 4 },
+  boardTitle: { color: '#fff', fontWeight: '600', fontSize: 17 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  rank: { width: 26, fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  name: { flex: 1, minWidth: 0, fontSize: 15 },
+  team: { width: 92, fontSize: 14 },
+  val: { width: 48, textAlign: 'right', fontSize: 15, fontVariant: ['tabular-nums'] },
 });
