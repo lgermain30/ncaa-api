@@ -51,7 +51,7 @@ const BOX_BOARDS: { key: keyof V1TeamStatTotals; title: string; men?: boolean }[
 ];
 
 function titleCase(slug: string): string {
-  return slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return slug.split(/[-\s]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 const COLLAPSED = 5;
