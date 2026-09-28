@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  name: { flex: 1, fontSize: 18, fontWeight: "700" },
+  name: { flex: 1, fontSize: 16, fontWeight: "600" },
   rank: { fontSize: 12, fontWeight: "700", color: "#3779be" },
   empty: { textAlign: "center", marginTop: 40 },
 });

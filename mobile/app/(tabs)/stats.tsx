@@ -19,21 +19,26 @@ import type {
 type Mode = 'players' | 'teams';
 
 /** Leader boards from /lax-stats, in display order, with the column to show. */
-const BOARDS: { key: string; title: string; col: string; mode: Mode; women?: boolean; men?: boolean }[] = [
+const BOARDS: { key: string; title: string; col: string; mode: Mode; women?: boolean; men?: boolean; asc?: boolean }[] = [
   { key: 'goals', title: 'Goals', col: 'goals', mode: 'players' },
   { key: 'goals', title: 'Goals Per Game', col: 'avg', mode: 'players' },
   { key: 'assists', title: 'Assists', col: 'assists', mode: 'players' },
+  { key: 'assists', title: 'Assists Per Game', col: 'avg', mode: 'players' },
   { key: 'points', title: 'Points', col: 'points', mode: 'players' },
   { key: 'points', title: 'Points Per Game', col: 'avg', mode: 'players' },
   { key: 'shot_pct', title: 'Shooting %', col: 'avg', mode: 'players' },
   { key: 'saves', title: 'Saves', col: 'shots_saved', mode: 'players' },
   { key: 'saves', title: 'Save %', col: 'avg', mode: 'players' },
   { key: 'faceoffs', title: 'Faceoffs Won', col: 'faceoffs_won', mode: 'players', men: true },
+  { key: 'faceoffs', title: 'Faceoff %', col: 'avg', mode: 'players', men: true },
   { key: 'draws', title: 'Draw Controls', col: 'draws', mode: 'players', women: true },
+  { key: 'draws', title: 'Draw Controls Per Game', col: 'avg', mode: 'players', women: true },
   { key: 'ground_balls', title: 'Ground Balls', col: 'ground_balls', mode: 'players' },
+  { key: 'ground_balls', title: 'Ground Balls Per Game', col: 'avg', mode: 'players' },
   { key: 'caused_turnovers', title: 'Caused Turnovers', col: 'caused_turnovers', mode: 'players' },
+  { key: 'caused_turnovers', title: 'Caused Turnovers Per Game', col: 'avg', mode: 'players' },
   { key: 'offense', title: 'Goals For / Game', col: 'avg', mode: 'teams' },
-  { key: 'defense', title: 'Goals Against / Game', col: 'avg', mode: 'teams' },
+  { key: 'defense', title: 'Goals Against / Game', col: 'avg', mode: 'teams', asc: true },
   { key: 'goaldiff', title: 'Goal Differential', col: 'diff', mode: 'teams' },
 ];
 
@@ -50,8 +55,32 @@ const BOX_BOARDS: { key: keyof V1TeamStatTotals; title: string; men?: boolean }[
   { key: 'clears', title: 'Clears' },
 ];
 
-function titleCase(slug: string): string {
-  return slug.split(/[-\s]+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+const ACRONYMS: Record<string, string> = {
+  njit: 'NJIT', umbc: 'UMBC', umass: 'UMass', liu: 'LIU', vmi: 'VMI', iupui: 'IUPUI', suny: 'SUNY',
+  rpi: 'RPI', mit: 'MIT', rit: 'RIT', wpi: 'WPI', tcnj: 'TCNJ', uc: 'UC', usc: 'USC', ucla: 'UCLA',
+  unc: 'UNC', smu: 'SMU', byu: 'BYU', nyu: 'NYU', cuny: 'CUNY', upenn: 'UPenn', lsu: 'LSU', uconn: 'UConn',
+  umd: 'UMD', unh: 'UNH', uri: 'URI', uva: 'UVA', usf: 'USF', fdu: 'FDU', pfw: 'PFW', vcu: 'VCU', ncaa: 'NCAA',
+  depaul: 'DePaul', desales: 'DeSales', lemoyne: 'Le Moyne', mcdaniel: 'McDaniel', mckendree: 'McKendree',
+};
+
+/** Title-case lax.com's lowercase school names: "anderson (sc)" -> "Anderson (SC)", "umbc" -> "UMBC". */
+function titleCase(name: string): string {
+  return name
+    .split(/(\s+|-|\()/)
+    .map((w) => {
+      const key = w.toLowerCase();
+      if (ACRONYMS[key]) return ACRONYMS[key];
+      return /^[a-z]/.test(w) ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+    })
+    .join('')
+    .replace(/\(([a-z]{2})\)/gi, (_, s: string) => `(${s.toUpperCase()})`)
+    .replace(/\bSt\b\.?/g, 'St.');
+}
+
+/** lax.com ranks every board by per-game average; re-rank by the column we actually display. */
+function rankBy(rows: LeaderRow[], col: string, asc = false): LeaderRow[] {
+  const num = (r: LeaderRow) => Number.parseFloat(r[col] ?? '') || 0;
+  return [...rows].sort((a, b) => (asc ? num(a) - num(b) : num(b) - num(a)));
 }
 
 const COLLAPSED = 5;
@@ -230,7 +259,7 @@ export default function StatsScreen() {
                   key={b.title}
                   title={b.title}
                   col={b.col}
-                  rows={rows}
+                  rows={rankBy(rows, b.col, b.asc)}
                   mode={b.mode}
                   expanded={open === b.title}
                   onToggle={() => toggle(b.title)}

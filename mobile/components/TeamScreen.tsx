@@ -827,9 +827,9 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  sSide: { width: 118, alignItems: "flex-start", gap: 6 },
+  sSide: { width: 136, alignItems: "flex-start", gap: 6 },
   sSideRight: { alignItems: "flex-end" },
-  sName: { fontSize: 16, fontWeight: "800", maxWidth: "100%" },
+  sName: { fontSize: 14, fontWeight: "700", maxWidth: "100%" },
   rank: { fontSize: 11, fontWeight: "700", color: "#3779be" },
   sCenter: {
     flex: 1,
@@ -837,8 +837,8 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 4,
   },
-  sTime: { fontSize: 16, fontWeight: "800" },
-  sScore: { fontSize: 18, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  sTime: { fontSize: 14, fontWeight: "700" },
+  sScore: { fontSize: 16, fontWeight: "700", fontVariant: ["tabular-nums"] },
   sSub: { fontSize: 10, marginTop: 3 },
 
   rRow: {
