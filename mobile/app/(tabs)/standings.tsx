@@ -6,7 +6,7 @@ import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { conferenceName } from '@/lib/conferences';
 import { useV1 } from '@/hooks/useV1';
-import { DIVISIONS, fetchStandings, seasonFor, SPORTS, todayEt } from '@/lib/api';
+import { fetchStandings, seasonFor, todayEt } from '@/lib/api';
 import type { ConferenceStandings, Division, Sport, StandingsRow, V1Envelope } from '@/lib/types';
 
 interface Col {

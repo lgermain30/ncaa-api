@@ -7,7 +7,7 @@ import { Chips } from '@/components/Chips';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { useV1 } from '@/hooks/useV1';
-import { DIVISIONS, fetchLeaders, fetchTeamStats, seasonFor, SPORTS, todayEt } from '@/lib/api';
+import { fetchLeaders, fetchTeamStats, seasonFor, todayEt } from '@/lib/api';
 import type {
   Division,
   LeaderBoards,
