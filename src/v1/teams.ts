@@ -679,6 +679,59 @@ const EMPTY_STATS: V1RosterPlayer["stats"] = {
 const classYear = (y: string | null) =>
 	y ? y.replace(/\.$/, "").replace(/^(\w)/, (c) => c.toUpperCase()) : null;
 
+const POSITION_CODES: Record<string, string> = {
+	attack: "A",
+	attackman: "A",
+	attacker: "A",
+	att: "A",
+	midfield: "M",
+	midfielder: "M",
+	mid: "M",
+	midi: "M",
+	middie: "M",
+	defense: "D",
+	defence: "D",
+	defenseman: "D",
+	defender: "D",
+	def: "D",
+	goalie: "G",
+	goalkeeper: "G",
+	goaltender: "G",
+	gk: "G",
+	faceoff: "FO",
+	"face-off": "FO",
+	fogo: "FO",
+	"faceoff specialist": "FO",
+	"face-off specialist": "FO",
+	"long stick midfielder": "LSM",
+	"long-stick midfielder": "LSM",
+	"longstick midfielder": "LSM",
+	"long stick midfield": "LSM",
+	"long-stick midfield": "LSM",
+	"longstick midfield": "LSM",
+	"long stick": "LSM",
+	"long-stick": "LSM",
+	longstick: "LSM",
+	"defensive midfielder": "SSDM",
+	"defensive midfield": "SSDM",
+	"short stick defensive midfielder": "SSDM",
+	"short-stick defensive midfielder": "SSDM",
+	"short stick defensive midfield": "SSDM",
+	"short-stick defensive midfield": "SSDM",
+};
+
+/** School sites spell positions out ("Attackman/Midfielder"); shorten to A/M. */
+export function positionCode(raw: string | null | undefined): string | null {
+	if (!raw) return null;
+	const code = raw
+		.split("/")
+		.map((part) => part.trim().toLowerCase().replace(/\s+/g, " "))
+		.filter(Boolean)
+		.map((part) => POSITION_CODES[part] ?? part.toUpperCase())
+		.join("/");
+	return code || null;
+}
+
 /**
  * Current-season roster straight from the school's site (the source of truth
  * as new rosters are posted), with each player's lax.com line matched in by
@@ -695,7 +748,7 @@ function schoolRoster(
 				id: lp?.id ?? `school-${sp.number ?? i}-${sp.name}`,
 				number: sp.number,
 				name: sp.name,
-				position: sp.position?.toUpperCase() ?? lp?.position ?? null,
+				position: positionCode(sp.position) ?? lp?.position ?? null,
 				year: classYear(sp.year) ?? lp?.year ?? null,
 				hometown: sp.hometown ?? lp?.hometown ?? null,
 				height: sp.height,

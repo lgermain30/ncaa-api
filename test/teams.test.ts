@@ -3,6 +3,7 @@ import {
 	laxDivision,
 	matchKeys,
 	playerName,
+	positionCode,
 	titleCase,
 } from "../src/v1/teams";
 
@@ -29,6 +30,17 @@ describe("v1 teams", () => {
 		expect(playerName("Marvin Johnson Jr.")).toBe("Marvin Johnson Jr.");
 		expect(playerName("Onenioteko:wa Maracle")).toBe("Onenioteko:wa Maracle");
 		expect(playerName("Brennan O'Neill")).toBe("Brennan O'Neill");
+	});
+
+	test("positionCode shortens school-site positions", () => {
+		expect(positionCode("Attackman")).toBe("A");
+		expect(positionCode("DEFENSEMAN/LONGSTICK MIDFIELDER")).toBe("D/LSM");
+		expect(positionCode("Attackman/Midfielder")).toBe("A/M");
+		expect(positionCode("Defensive Midfielder")).toBe("SSDM");
+		expect(positionCode("Faceoff")).toBe("FO");
+		expect(positionCode("Goalkeeper")).toBe("G");
+		expect(positionCode("fo/m")).toBe("FO/M");
+		expect(positionCode(null)).toBeNull();
 	});
 
 	test("matchKeys lines up NCAA and lax.com spellings", () => {
