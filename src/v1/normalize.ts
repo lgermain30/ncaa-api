@@ -104,7 +104,7 @@ function periodLabel(period: string): string {
 	return n === 5 ? "OT" : `${n - 4}OT`;
 }
 
-function statusDisplay(
+export function statusDisplay(
 	state: GameState,
 	period: string,
 	clock: string,
