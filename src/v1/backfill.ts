@@ -1,5 +1,6 @@
 import { getDetail, listGames } from "../store";
 import { UpstreamError } from "../upstream";
+import { boxscoreIsEmpty } from "./pbpbox";
 import {
 	LACROSSE_DIVISIONS,
 	LACROSSE_SPORTS,
@@ -7,7 +8,7 @@ import {
 	refreshDetails,
 	serviceStats,
 } from "./service";
-import type { V1Boxscore } from "./types";
+import type { V1Boxscore, V1Plays } from "./types";
 
 /*
  * Historical backfill: walk every day of a season window for every lacrosse
@@ -94,14 +95,39 @@ function bump(season: number, key: string, by = 1) {
 	row[key] = (row[key] ?? 0) + by;
 }
 
-/** Details count as present only when the box score carries team stats. */
+/** Consecutive identical plays mean the stored PBP predates deduping. */
+function hasDuplicatePlays(plays: V1Plays | null) {
+	if (!plays) return false;
+	const ps = plays.plays;
+	for (let i = 1; i < ps.length; i++) {
+		const a = ps[i - 1];
+		const b = ps[i];
+		if (
+			a.text === b.text &&
+			a.clock === b.clock &&
+			a.period === b.period &&
+			a.teamId === b.teamId
+		)
+			return true;
+	}
+	return false;
+}
+
+/**
+ * Details count as present only when the box score carries team stats that
+ * aren't all zero and the play-by-play has been deduped.
+ */
 async function hasDetails(gameId: string) {
 	const box = await getDetail<V1Boxscore>(gameId, "boxscore");
-	return Boolean(
-		box &&
-			box.data.teamStats.length > 0 &&
-			box.data.derived.groundBalls !== undefined,
-	);
+	if (
+		!box ||
+		box.data.teamStats.length === 0 ||
+		box.data.derived.groundBalls === undefined
+	)
+		return false;
+	const plays = await getDetail<V1Plays>(gameId, "plays");
+	if (hasDuplicatePlays(plays?.data ?? null)) return false;
+	return !boxscoreIsEmpty(box.data, plays?.data.plays ?? []);
 }
 
 async function alreadyStored(sport: string, division: string, date: string) {

@@ -545,6 +545,7 @@ export function splitsFromPlays(
 		hasSaves: false,
 	};
 	if (!pbp) return out;
+	pbp = dedupePlayByPlay(pbp) ?? pbp;
 	const bump = (m: Map<string, number>, k: string) =>
 		m.set(k, (m.get(k) ?? 0) + 1);
 	const teamIds = (pbp.teams ?? []).map((t) => str(t.teamId));
@@ -752,7 +753,7 @@ export function normalizeBoxscore(
 					: null),
 			clears: useClearsFromPbp ? pbpClears.good : ncaaClears,
 			clearAttempts: useClearsFromPbp
-				? (ncaaClearAttempts ?? pbpClears.attempts)
+				? ncaaClearAttempts || pbpClears.attempts
 				: ncaaClearAttempts,
 			saves,
 			goalsAllowed,
@@ -861,6 +862,32 @@ export function linescoreAddsUp(
 
 // ------------------------------------------------------------------- plays --
 
+/**
+ * Older NCAA feeds repeat every play 2-4 times back to back; keep the first of
+ * each run of identical consecutive rows.
+ */
+export function dedupePlayByPlay(
+	pbp: RawPlayByPlay | null,
+): RawPlayByPlay | null {
+	if (!pbp?.periods) return pbp;
+	let prev = "";
+	return {
+		...pbp,
+		periods: pbp.periods.map((period) => ({
+			...period,
+			playbyplayStats: (period.playbyplayStats ?? []).map((stat) => ({
+				...stat,
+				plays: (stat.plays ?? []).filter((play) => {
+					const key = `${period.periodNumber}|${stat.teamId}|${str(play.clock || stat.clock)}|${play.homeScore}|${play.visitorScore}|${str(play.playText).trim()}`;
+					if (key === prev) return false;
+					prev = key;
+					return true;
+				}),
+			})),
+		})),
+	};
+}
+
 export function classifyPlay(text: string): PlayType {
 	const t = text.trim();
 	if (!t) return "other";
@@ -912,7 +939,7 @@ export function normalizePlays(
 ): V1Plays {
 	const plays: V1Play[] = [];
 	let n = 0;
-	for (const period of pbp?.periods ?? []) {
+	for (const period of dedupePlayByPlay(pbp)?.periods ?? []) {
 		const periodNumber = period.periodNumber ?? 0;
 		for (const stat of period.playbyplayStats ?? []) {
 			for (const play of stat.plays ?? []) {

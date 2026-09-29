@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { resetStore, upsertDetail, upsertGame } from "../src/store";
 import { resetEvents, subscribe } from "../src/v1/events";
+import { normalizePlays } from "../src/v1/normalize";
+import { boxscoreFromPlays, boxscoreIsEmpty } from "../src/v1/pbpbox";
 import {
-	boxscoreFromPlays,
 	periodStartMs,
 	playElapsedMs,
 	QUARTER_MS,
@@ -211,5 +212,88 @@ describe("replay run", () => {
 		expect(after?.data.status.state).toBe("final");
 		expect(after?.data.date).toBe(game.date);
 		expect((await getLive()).data).toEqual([]);
+	});
+});
+
+describe("empty NCAA box + duplicated PBP (older seasons)", () => {
+	it("dedupes back-to-back repeated plays", () => {
+		const play = (t: string, c = "15:00") => ({
+			playText: t,
+			clock: c,
+			homeScore: "0",
+			visitorScore: "0",
+		});
+		const raw = {
+			periods: [
+				{
+					periodNumber: 1,
+					playbyplayStats: [
+						{
+							teamId: 1,
+							plays: [
+								play("A at goalie for X."),
+								play("A at goalie for X."),
+								play("A at goalie for X."),
+								play("Faceoff A vs B won by X", "14:59"),
+								play("Faceoff A vs B won by X", "14:59"),
+								play("Faceoff A vs B won by X", "14:30"),
+							],
+						},
+					],
+				},
+			],
+		};
+		const out = normalizePlays("1", raw as never);
+		expect(out.plays.map((p) => p.clock)).toEqual(["15:00", "14:59", "14:30"]);
+	});
+
+	it("rebuilds an all-zero box from the play-by-play", () => {
+		const zero: V1Boxscore = {
+			...boxscore,
+			teamStats: boxscore.teamStats.map((t) => ({
+				...t,
+				goals: 0,
+				shots: 0,
+				groundBalls: 0,
+				turnovers: 0,
+				saves: null,
+				faceoffsWon: null,
+				faceoffsLost: null,
+				clears: null,
+				penalties: null,
+			})),
+			players: boxscore.players.map((p) => ({
+				...p,
+				goals: 0,
+				assists: 0,
+				shots: 0,
+				groundBalls: 0,
+				saves: null,
+				faceoffsWon: null,
+				faceoffsTaken: null,
+				isGoalie: false,
+				penalties: null,
+				position: "",
+				played: false,
+			})),
+		};
+		expect(boxscoreIsEmpty(zero, plays.plays)).toBe(true);
+		expect(boxscoreIsEmpty(boxscore, plays.plays)).toBe(false);
+		const fixed = boxscoreFromPlays(zero, plays.plays, zero.status, "x", true);
+		const jhu = fixed.teamStats.find((t) => t.teamId === "43920");
+		expect(jhu?.goals).toBe(
+			boxscore.teamStats.find((t) => t.teamId === "43920")?.goals ?? -1,
+		);
+		expect((jhu?.faceoffsWon ?? 0) + (jhu?.faceoffsLost ?? 0)).toBeGreaterThan(
+			15,
+		);
+		expect(jhu?.saves).toBe(9);
+		expect(jhu?.penalties?.count ?? 0).toBeGreaterThan(0);
+		const gelinas = fixed.players.find((p) => p.name === "ORAN GELINAS");
+		expect(gelinas?.isGoalie).toBe(true);
+		expect(gelinas?.saves).toBe(9);
+		expect(gelinas?.played).toBe(true);
+		expect(fixed.derived.faceoffs).toBe("pbp");
+		expect(fixed.derived.groundBalls).toBe("pbp");
 	});
 });

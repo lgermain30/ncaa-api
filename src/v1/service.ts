@@ -26,6 +26,7 @@ import {
 	normalizeGame,
 	normalizePlays,
 } from "./normalize";
+import { boxscoreFromPlays, boxscoreIsEmpty } from "./pbpbox";
 import {
 	replayActive,
 	replayBoard,
@@ -331,8 +332,17 @@ export async function refreshDetails(
 		]);
 		serviceStats.detailRefreshes++;
 		if (!box && !teamStats && !pbp) return null;
-		const boxscore = normalizeBoxscore(gameId, box, teamStats, pbp);
 		const plays = normalizePlays(gameId, pbp);
+		let boxscore = normalizeBoxscore(gameId, box, teamStats, pbp);
+		if (boxscoreIsEmpty(boxscore, plays.plays)) {
+			boxscore = boxscoreFromPlays(
+				boxscore,
+				plays.plays,
+				boxscore.status,
+				boxscore.updatedAt,
+				true,
+			);
+		}
 		await Promise.all([
 			upsertDetail(gameId, "boxscore", boxscore),
 			upsertDetail(gameId, "plays", plays),
