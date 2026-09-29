@@ -14,6 +14,7 @@ import { brand } from "@/constants/Colors";
 import { useGameStream } from "@/hooks/useGameStream";
 import { useV1 } from "@/hooks/useV1";
 import { fetchBoxscore, fetchGame, fetchPlays, fetchTeam } from "@/lib/api";
+import { personName } from "@/lib/names";
 import type {
   GameEvent,
   V1Boxscore,
@@ -417,11 +418,16 @@ function Rosters({ box, game }: { box: V1Boxscore | null; game: V1Game }) {
               <Text style={styles.rosterNumber} numberOfLines={1}>
                 {player.number}
               </Text>
-              <Text style={[styles.rosterPosition, { color: muted }]}>
+              <Text
+                style={[styles.rosterPosition, { color: muted }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
                 {player.position}
               </Text>
               <Text style={styles.rosterName} numberOfLines={1}>
-                {player.name}
+                {personName(player.name)}
               </Text>
             </RNView>
           ))}
@@ -1021,7 +1027,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontVariant: ["tabular-nums"],
   },
-  rosterPosition: { width: 26, fontSize: 12 },
+  rosterPosition: { width: 36, fontSize: 12 },
   rosterName: { flex: 1, fontSize: 12 },
   grid: { flexDirection: "row" },
   gridFrozen: { width: 170, borderRightWidth: StyleSheet.hairlineWidth },

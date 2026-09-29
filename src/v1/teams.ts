@@ -221,6 +221,33 @@ const ACRONYMS: Record<string, string> = {
 	mcmurry: "McMurry",
 };
 
+const POSITION_WORDS =
+	/^(a|m|d|g|lsm|ssdm|fo|fogo|f|c|attack|attackman|midfield|midfielder|midi|middie|defense|defence|defenseman|defender|goalie|goalkeeper|goaltender|face-?off|faceoffs?|close|long-?stick|long-?pole|short-?stick|specialist|utility|dm|om|sm|ld|ls|fs|off|def)$/i;
+
+/**
+ * Clean lax.com player names for older seasons, which sometimes carry the
+ * position in the name ("austin blumbergs a /", "brandon ramirez face-off",
+ * "will whitney defense/long-stick") or are stored "Last, First".
+ */
+export function playerName(raw: string): string {
+	let name = raw.replace(/\s+/g, " ").trim();
+	const comma = name.match(/^([^,]+),\s*(.+)$/);
+	if (comma) name = `${comma[2]} ${comma[1]}`.trim();
+	const words = name.split(" ");
+	while (words.length > 2) {
+		const last = words[words.length - 1];
+		if (
+			last === "/" ||
+			last.split("/").every((part) => part === "" || POSITION_WORDS.test(part))
+		) {
+			words.pop();
+			continue;
+		}
+		break;
+	}
+	return words.join(" ");
+}
+
 /** Title-case lax.com's lowercase school names ("johns hopkins" -> "Johns Hopkins"). */
 export function titleCase(name: string): string {
 	return name
@@ -652,6 +679,59 @@ const EMPTY_STATS: V1RosterPlayer["stats"] = {
 const classYear = (y: string | null) =>
 	y ? y.replace(/\.$/, "").replace(/^(\w)/, (c) => c.toUpperCase()) : null;
 
+const POSITION_CODES: Record<string, string> = {
+	attack: "A",
+	attackman: "A",
+	attacker: "A",
+	att: "A",
+	midfield: "M",
+	midfielder: "M",
+	mid: "M",
+	midi: "M",
+	middie: "M",
+	defense: "D",
+	defence: "D",
+	defenseman: "D",
+	defender: "D",
+	def: "D",
+	goalie: "G",
+	goalkeeper: "G",
+	goaltender: "G",
+	gk: "G",
+	faceoff: "FO",
+	"face-off": "FO",
+	fogo: "FO",
+	"faceoff specialist": "FO",
+	"face-off specialist": "FO",
+	"long stick midfielder": "LSM",
+	"long-stick midfielder": "LSM",
+	"longstick midfielder": "LSM",
+	"long stick midfield": "LSM",
+	"long-stick midfield": "LSM",
+	"longstick midfield": "LSM",
+	"long stick": "LSM",
+	"long-stick": "LSM",
+	longstick: "LSM",
+	"defensive midfielder": "SSDM",
+	"defensive midfield": "SSDM",
+	"short stick defensive midfielder": "SSDM",
+	"short-stick defensive midfielder": "SSDM",
+	"short stick defensive midfield": "SSDM",
+	"short-stick defensive midfield": "SSDM",
+};
+
+/** School sites spell positions out ("Attackman/Midfielder"); shorten to A/M. */
+export function positionCode(raw: string | null | undefined): string | null {
+	if (!raw) return null;
+	const code = raw
+		.split("/")
+		.map((part) => part.trim().toLowerCase().replace(/\s+/g, " "))
+		.filter(Boolean)
+		.map((part) => POSITION_CODES[part] ?? part.toUpperCase())
+		.join("/");
+	return code || null;
+}
+
 /**
  * Current-season roster straight from the school's site (the source of truth
  * as new rosters are posted), with each player's lax.com line matched in by
@@ -668,7 +748,7 @@ function schoolRoster(
 				id: lp?.id ?? `school-${sp.number ?? i}-${sp.name}`,
 				number: sp.number,
 				name: sp.name,
-				position: sp.position?.toUpperCase() ?? lp?.position ?? null,
+				position: positionCode(sp.position) ?? lp?.position ?? null,
 				year: classYear(sp.year) ?? lp?.year ?? null,
 				hometown: sp.hometown ?? lp?.hometown ?? null,
 				height: sp.height,
@@ -824,7 +904,7 @@ function getTeamRaw(
 					.map((p) => ({
 						id: p.player_id,
 						number: p.number || null,
-						name: p.name,
+						name: playerName(p.name),
 						position: p.position ? p.position.toUpperCase() : null,
 						year: p.year
 							? p.year.charAt(0).toUpperCase() + p.year.slice(1)

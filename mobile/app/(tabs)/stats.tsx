@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
-import { schoolName } from '@/lib/names';
+import { personName, schoolName } from '@/lib/names';
 import { BoardHeader } from '@/components/BoardHeader';
 import { Chips } from '@/components/Chips';
 import { Text, View, useThemeColor } from '@/components/Themed';
@@ -134,7 +134,7 @@ function Board({
         >
           <Text style={styles.rank}>{i + 1}</Text>
           <Text style={styles.name} numberOfLines={1}>
-            {mode === 'players' ? r.name : schoolName(r.team_name)}
+            {mode === 'players' ? personName(r.name) : schoolName(r.team_name)}
           </Text>
           {mode === 'players' ? (
             <Text style={styles.team} numberOfLines={1}>
