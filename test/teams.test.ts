@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { laxDivision, matchKeys, titleCase } from "../src/v1/teams";
+import {
+	laxDivision,
+	matchKeys,
+	playerName,
+	titleCase,
+} from "../src/v1/teams";
 
 describe("v1 teams", () => {
 	test("laxDivision maps women to 4-6", () => {
@@ -13,6 +18,17 @@ describe("v1 teams", () => {
 		expect(titleCase("johns hopkins")).toBe("Johns Hopkins");
 		expect(titleCase("saint john's")).toBe("Saint John's");
 		expect(titleCase("mount st mary")).toBe("Mount St. Mary");
+	});
+
+	test("playerName strips positions and flips Last, First", () => {
+		expect(playerName("austin blumbergs a /")).toBe("austin blumbergs");
+		expect(playerName("brandon ramirez face-off")).toBe("brandon ramirez");
+		expect(playerName("brodie anderson close")).toBe("brodie anderson");
+		expect(playerName("will whitney defense/long-stick")).toBe("will whitney");
+		expect(playerName("Madlang, Dominic")).toBe("Dominic Madlang");
+		expect(playerName("Marvin Johnson Jr.")).toBe("Marvin Johnson Jr.");
+		expect(playerName("Onenioteko:wa Maracle")).toBe("Onenioteko:wa Maracle");
+		expect(playerName("Brennan O'Neill")).toBe("Brennan O'Neill");
 	});
 
 	test("matchKeys lines up NCAA and lax.com spellings", () => {

@@ -221,6 +221,33 @@ const ACRONYMS: Record<string, string> = {
 	mcmurry: "McMurry",
 };
 
+const POSITION_WORDS =
+	/^(a|m|d|g|lsm|ssdm|fo|fogo|f|c|attack|attackman|midfield|midfielder|midi|middie|defense|defence|defenseman|defender|goalie|goalkeeper|goaltender|face-?off|faceoffs?|close|long-?stick|long-?pole|short-?stick|specialist|utility|dm|om|sm|ld|ls|fs|off|def)$/i;
+
+/**
+ * Clean lax.com player names for older seasons, which sometimes carry the
+ * position in the name ("austin blumbergs a /", "brandon ramirez face-off",
+ * "will whitney defense/long-stick") or are stored "Last, First".
+ */
+export function playerName(raw: string): string {
+	let name = raw.replace(/\s+/g, " ").trim();
+	const comma = name.match(/^([^,]+),\s*(.+)$/);
+	if (comma) name = `${comma[2]} ${comma[1]}`.trim();
+	const words = name.split(" ");
+	while (words.length > 2) {
+		const last = words[words.length - 1];
+		if (
+			last === "/" ||
+			last.split("/").every((part) => part === "" || POSITION_WORDS.test(part))
+		) {
+			words.pop();
+			continue;
+		}
+		break;
+	}
+	return words.join(" ");
+}
+
 /** Title-case lax.com's lowercase school names ("johns hopkins" -> "Johns Hopkins"). */
 export function titleCase(name: string): string {
 	return name
@@ -824,7 +851,7 @@ function getTeamRaw(
 					.map((p) => ({
 						id: p.player_id,
 						number: p.number || null,
-						name: p.name,
+						name: playerName(p.name),
 						position: p.position ? p.position.toUpperCase() : null,
 						year: p.year
 							? p.year.charAt(0).toUpperCase() + p.year.slice(1)
