@@ -19,3 +19,13 @@ export function schoolName(name: string): string {
     .replace(/\(([a-z]{2})\)/gi, (_, s: string) => `(${s.toUpperCase()})`)
     .replace(/\bSt\b\.?/g, 'St.');
 }
+
+/** Title-case an all-lowercase person name ("michael sowers" -> "Michael Sowers", "brennan o'neill" -> "Brennan O'Neill"). Mixed-case input is returned unchanged. */
+export function personName(name: string | null | undefined): string {
+  if (!name) return '';
+  if (/[A-Z]/.test(name)) return name;
+  return name
+    .replace(/(^|[\s\-'’.])([a-z])/g, (_, sep: string, ch: string) => sep + ch.toUpperCase())
+    .replace(/\bMc([a-z])/g, (_, ch: string) => `Mc${ch.toUpperCase()}`)
+    .replace(/\b(Ii|Iii|Iv|Jp|Cj|Tj|Aj|Jj|Dj|Rj|Jt)\b/g, (m) => m.toUpperCase());
+}

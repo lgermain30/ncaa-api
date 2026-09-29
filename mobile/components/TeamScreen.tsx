@@ -17,6 +17,7 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
 import { useV1 } from "@/hooks/useV1";
 import { fetchGames, fetchTeam } from "@/lib/api";
+import { personName } from "@/lib/names";
 import type {
   Division,
   Sport,
@@ -99,7 +100,7 @@ function PlayerSheet({
           <RNView style={styles.sheetHead}>
             <Text style={styles.sheetName} numberOfLines={1}>
               {p.number ? `${p.number} ` : ""}
-              {p.name}
+              {personName(p.name)}
             </Text>
             <Pressable
               onPress={onClose}
@@ -316,7 +317,7 @@ function RosterRow({
       </RNView>
       <RNView style={styles.rMain}>
         <Text style={styles.rName} numberOfLines={1}>
-          {p.name}
+          {personName(p.name)}
         </Text>
         <Text style={[styles.rTown, { color: muted }]} numberOfLines={1}>
           {p.hometown ?? ""}
@@ -528,7 +529,7 @@ function FrozenGrid({
           >
             <Text style={styles.gName} numberOfLines={1}>
               <Text style={styles.tNum}>{p.number ?? ""} </Text>
-              {p.name}
+              {personName(p.name)}
             </Text>
           </Pressable>
         ))}
@@ -732,7 +733,7 @@ export function TeamScreen({
             </Text>
             {team?.coach ? (
               <Text style={styles.recLine}>
-                Coach: <Text style={styles.recVal}>{team.coach}</Text>
+                Coach: <Text style={styles.recVal}>{personName(team.coach)}</Text>
               </Text>
             ) : null}
             {team?.rank ? (

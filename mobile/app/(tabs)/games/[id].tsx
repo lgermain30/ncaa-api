@@ -14,6 +14,7 @@ import { brand } from "@/constants/Colors";
 import { useGameStream } from "@/hooks/useGameStream";
 import { useV1 } from "@/hooks/useV1";
 import { fetchBoxscore, fetchGame, fetchPlays, fetchTeam } from "@/lib/api";
+import { personName } from "@/lib/names";
 import type {
   GameEvent,
   V1Boxscore,
@@ -426,7 +427,7 @@ function Rosters({ box, game }: { box: V1Boxscore | null; game: V1Game }) {
                 {player.position}
               </Text>
               <Text style={styles.rosterName} numberOfLines={1}>
-                {player.name}
+                {personName(player.name)}
               </Text>
             </RNView>
           ))}
