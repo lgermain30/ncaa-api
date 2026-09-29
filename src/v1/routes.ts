@@ -14,6 +14,7 @@ import {
 	subscribe,
 } from "./events";
 import { getNews, ingestNews } from "./news";
+import { replayStatus, startReplay, stopReplay } from "./replay";
 import { rosterBioStats } from "./rosterbio";
 import { rosterBioWalk, walkRosterBios } from "./rosterbiowalk";
 import {
@@ -274,6 +275,7 @@ export const v1 = new Elysia({ prefix: "/v1" })
 			stream: { ...eventStats, lastEventId: lastEventId() },
 			backfill: backfillProgress,
 			rosterBios: { ...rosterBioStats, walk: rosterBioWalk },
+			replay: replayStatus(),
 			todayEt: todayEt(),
 		};
 	})
@@ -330,6 +332,47 @@ export const v1 = new Elysia({ prefix: "/v1" })
 			}),
 		},
 	)
+	.get("/admin/replay", ({ request, set }) => {
+		if (!adminAuthorized(request)) return forbidden(set);
+		set.headers["Cache-Control"] = "no-store";
+		return { replay: replayStatus() };
+	})
+	.post(
+		"/admin/replay",
+		async ({ request, body, set }) => {
+			if (!adminAuthorized(request)) return forbidden(set);
+			set.headers["Cache-Control"] = "no-store";
+			try {
+				const replay = await startReplay(
+					body,
+					LACROSSE_SPORTS,
+					LACROSSE_DIVISIONS,
+				);
+				set.status = 202;
+				return { replay };
+			} catch (err) {
+				set.status = 404;
+				return { error: err instanceof Error ? err.message : String(err) };
+			}
+		},
+		{
+			body: v.object({
+				date: dateParam,
+				sports: v.optional(v.array(sportParam)),
+				divisions: v.optional(v.array(divisionParam)),
+				games: v.optional(v.array(idParam)),
+				speed: v.optional(v.pipe(v.number(), v.minValue(0.1), v.maxValue(600))),
+				leadSec: v.optional(v.pipe(v.number(), v.minValue(0))),
+				staggerSec: v.optional(v.pipe(v.number(), v.minValue(0))),
+				limit: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+			}),
+		},
+	)
+	.delete("/admin/replay", ({ request, set }) => {
+		if (!adminAuthorized(request)) return forbidden(set);
+		set.headers["Cache-Control"] = "no-store";
+		return { replay: stopReplay() };
+	})
 	.delete("/admin/backfill", ({ request, set }) => {
 		if (!adminAuthorized(request)) return forbidden(set);
 		set.headers["Cache-Control"] = "no-store";

@@ -26,6 +26,14 @@ import {
 	normalizeGame,
 	normalizePlays,
 } from "./normalize";
+import {
+	replayActive,
+	replayBoard,
+	replayBoxscore,
+	replayGame,
+	replayLive,
+	replayPlays,
+} from "./replay";
 import type { V1Boxscore, V1Game, V1Plays } from "./types";
 
 /*
@@ -197,7 +205,40 @@ export interface Served<T> {
 }
 
 /** Games for a board, refreshing from NCAA when the stored copy is stale. */
+/** While a replay is running, its games replace/precede the real ones on that board. */
+function withReplay(
+	sport: string,
+	division: string,
+	date: string,
+	served: Served<V1Game[]>,
+): Served<V1Game[]> {
+	const replayed = replayBoard(sport, division, date);
+	if (!replayed) return served;
+	const ids = new Set(replayed.map((g) => g.id));
+	return {
+		data: [...replayed, ...served.data.filter((g) => !ids.has(g.id))],
+		updatedAt: new Date().toISOString(),
+		stale: served.stale,
+	};
+}
+
 export async function getBoard(
+	sport: string,
+	division: string,
+	date: string,
+): Promise<Served<V1Game[]>> {
+	if (!replayActive()) return getStoredBoard(sport, division, date);
+	let served: Served<V1Game[]>;
+	try {
+		served = await getStoredBoard(sport, division, date);
+	} catch (err) {
+		if (!(err instanceof UpstreamError)) throw err;
+		served = { data: [], updatedAt: new Date().toISOString(), stale: true };
+	}
+	return withReplay(sport, division, date, served);
+}
+
+async function getStoredBoard(
 	sport: string,
 	division: string,
 	date: string,
@@ -237,6 +278,9 @@ export async function getBoard(
 
 /** One game; fetches gamecenter directly when we have never seen the id. */
 export async function getGameById(id: string): Promise<Served<V1Game> | null> {
+	const replayed = replayActive() ? replayGame(id) : null;
+	if (replayed)
+		return { data: replayed, updatedAt: replayed.updatedAt, stale: false };
 	const now = Date.now();
 	const stored = await getGame(id);
 	if (
@@ -368,14 +412,41 @@ async function detail<T>(
 }
 
 export function getBoxscore(gameId: string) {
+	const replayed = replayActive() ? replayBoxscore(gameId) : null;
+	if (replayed)
+		return Promise.resolve({
+			data: replayed,
+			updatedAt: replayed.updatedAt,
+			stale: false,
+		});
 	return detail<V1Boxscore>(gameId, "boxscore");
 }
 
 export function getPlays(gameId: string) {
+	const replayed = replayActive() ? replayPlays(gameId) : null;
+	if (replayed)
+		return Promise.resolve({
+			data: replayed,
+			updatedAt: replayed.updatedAt,
+			stale: false,
+		});
 	return detail<V1Plays>(gameId, "plays");
 }
 
 export async function getLive(): Promise<Served<V1Game[]>> {
+	if (replayActive()) {
+		const real = await listLiveGames();
+		const replayed = replayLive();
+		const ids = new Set(replayed.map((g) => g.id));
+		return {
+			data: [
+				...replayed,
+				...real.map((g) => g.game).filter((g) => !ids.has(g.id)),
+			],
+			updatedAt: new Date().toISOString(),
+			stale: false,
+		};
+	}
 	const live = await listLiveGames();
 	const updatedAt = live.length
 		? new Date(
