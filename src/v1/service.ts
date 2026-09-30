@@ -117,6 +117,12 @@ function needsGamecenter(
 	// went final since we last looked: pick up the final linescore / records
 	if (game.status.state === "final" && previous.status.state !== "final")
 		return true;
+	// finals from more than two days ago don't change; don't re-pull gamecenter
+	if (
+		game.status.state === "final" &&
+		game.date < epochToEtDate(Math.floor(now / 1000) - 2 * 86_400)
+	)
+		return false;
 	// periodic refresh of records/venue for upcoming games
 	return isStale(
 		previous.updatedAt,
@@ -199,6 +205,17 @@ function boardFreshness(
 	return Math.min(...games.map((g) => freshnessMs(g.game, now)), FRESH_MS.pre);
 }
 
+/** A day at least two days back whose games are all over. */
+function isSettledPastDay(games: StoredGame[], date: string, now: number) {
+	const cutoff = epochToEtDate(Math.floor(now / 1000) - 2 * 86_400);
+	return (
+		date < cutoff &&
+		games.every(
+			(g) => g.game.status.state !== "live" && g.game.status.state !== "pre",
+		)
+	);
+}
+
 export interface Served<T> {
 	data: T;
 	updatedAt: string;
@@ -256,6 +273,19 @@ async function getStoredBoard(
 	const fresh =
 		stored.length > 0 && now - storedAt <= boardFreshness(stored, date, now);
 	if (fresh) {
+		return {
+			data: stored.map((g) => g.game),
+			updatedAt: new Date(storedAt).toISOString(),
+			stale: false,
+		};
+	}
+	// Settled past day: answer from the store right away and refresh behind
+	// the response, so browsing history never waits on NCAA.
+	if (stored.length && isSettledPastDay(stored, date, now)) {
+		boardRefreshedAt.set(boardKey(sport, division, date), now);
+		refreshBoard(sport, division, date).catch(() => {
+			serviceStats.upstreamFailures++;
+		});
 		return {
 			data: stored.map((g) => g.game),
 			updatedAt: new Date(storedAt).toISOString(),
@@ -400,6 +430,12 @@ async function detail<T>(
 	]);
 	const ttl = game ? freshnessMs(game.game, now) : FRESH_MS.pre;
 	if (stored && !isStale(stored.updatedAt, ttl, now)) {
+		return { data: stored.data, updatedAt: stored.updatedAt, stale: false };
+	}
+	if (stored && game && isSettledPastDay([game], game.game.date, now)) {
+		refreshDetails(gameId).catch(() => {
+			serviceStats.upstreamFailures++;
+		});
 		return { data: stored.data, updatedAt: stored.updatedAt, stale: false };
 	}
 	try {
