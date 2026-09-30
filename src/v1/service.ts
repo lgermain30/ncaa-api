@@ -205,15 +205,14 @@ function boardFreshness(
 	return Math.min(...games.map((g) => freshnessMs(g.game, now)), FRESH_MS.pre);
 }
 
-/** A day at least two days back whose games are all over. */
+/**
+ * A day at least two days back. Stored games may still read "pre" (postponed,
+ * cancelled, or never re-polled) — those are stale rather than upcoming, so the
+ * day is served from the store and refreshed behind the response.
+ */
 function isSettledPastDay(games: StoredGame[], date: string, now: number) {
 	const cutoff = epochToEtDate(Math.floor(now / 1000) - 2 * 86_400);
-	return (
-		date < cutoff &&
-		games.every(
-			(g) => g.game.status.state !== "live" && g.game.status.state !== "pre",
-		)
-	);
+	return date < cutoff && games.every((g) => g.game.status.state !== "live");
 }
 
 export interface Served<T> {

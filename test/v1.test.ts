@@ -464,4 +464,24 @@ describe("service: settled past days are served from the store", () => {
 		expect(served.data.map((x) => x.id)).toEqual(["6538796"]);
 		expect(served.stale).toBe(false);
 	});
+
+	it("still answers immediately when an old stored game never left 'pre'", async () => {
+		const { getBoard } = await import("../src/v1/service");
+		const g = normalizeGame({
+			sport: "lacrosse-men",
+			division: "d2",
+			gamecenter,
+		});
+		await upsertGame({
+			...g,
+			id: "1",
+			date: "2025-04-05",
+			status: { ...g.status, state: "pre" },
+			updatedAt: "2025-04-05T00:00:00.000Z",
+		});
+		const t0 = Date.now();
+		const served = await getBoard("lacrosse-men", "d2", "2025-04-05");
+		expect(Date.now() - t0).toBeLessThan(500);
+		expect(served.data.map((x) => x.id)).toEqual(["1"]);
+	});
 });
