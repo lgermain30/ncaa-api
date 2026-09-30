@@ -446,3 +446,22 @@ describe("poller scheduling", () => {
 		expect(nextIntervalMs(0, spring)).toBeLessThan(nextIntervalMs(0, fall));
 	});
 });
+
+describe("service: settled past days are served from the store", () => {
+	beforeEach(() => resetStore());
+
+	it("getBoard answers immediately for an all-final day even when the stored copy is old", async () => {
+		const { getBoard } = await import("../src/v1/service");
+		const g = normalizeGame({
+			sport: "lacrosse-men",
+			division: "d1",
+			gamecenter,
+		});
+		await upsertGame({ ...g, updatedAt: "2026-03-08T00:00:00.000Z" });
+		const t0 = Date.now();
+		const served = await getBoard("lacrosse-men", "d1", "2026-03-07");
+		expect(Date.now() - t0).toBeLessThan(500);
+		expect(served.data.map((x) => x.id)).toEqual(["6538796"]);
+		expect(served.stale).toBe(false);
+	});
+});
