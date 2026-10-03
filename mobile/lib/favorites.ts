@@ -1,4 +1,4 @@
-import Storage from 'expo-sqlite/kv-store';
+import { kv } from './kv';
 import { useEffect, useState } from 'react';
 
 import type { Division, Sport } from './types';
@@ -22,7 +22,7 @@ const EMPTY: Follows = { favorite: null, watching: [] };
 
 function load(): Follows {
   try {
-    const raw = Storage.getItemSync(KEY);
+    const raw = kv.get(KEY);
     if (!raw) return EMPTY;
     const parsed = JSON.parse(raw) as Partial<Follows>;
     return { favorite: parsed.favorite ?? null, watching: parsed.watching ?? [] };
@@ -37,7 +37,7 @@ const listeners = new Set<(f: Follows) => void>();
 function set(next: Follows) {
   state = next;
   try {
-    Storage.setItemSync(KEY, JSON.stringify(next));
+    kv.set(KEY, JSON.stringify(next));
   } catch {
     // storage unavailable (web preview): keep in memory only
   }
