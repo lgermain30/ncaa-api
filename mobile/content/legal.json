@@ -1,0 +1,94 @@
+{
+  "terms": {
+    "title": "Terms of Use",
+    "updated": "October 3, 2026",
+    "sections": [
+      [
+        "Who we are",
+        "CLN Lacrosse (the “App”) and collegelacrossenews.com (the “Site”, together the “Service”) are operated by Call Partner Group LLC, doing business as College Lacrosse News (“CLN”, “we”, “us”). By using the Service you agree to these Terms. If you do not agree, do not use the Service."
+      ],
+      [
+        "Use of the Service",
+        "The Service is provided for your personal, non-commercial use to follow NCAA men’s and women’s lacrosse. You may not copy, scrape, resell, redistribute or frame the Service or its data feeds, interfere with its operation, or use automated tools to access it without our written permission."
+      ],
+      [
+        "Scores, statistics and content",
+        "Scores, schedules, statistics, rosters and related data are compiled from the NCAA, member schools and other public sources and are provided for information only. They may be delayed, incomplete or incorrect, and are not official records. Team names and logos belong to their respective institutions and are shown for identification only. News articles and original content are © Call Partner Group LLC."
+      ],
+      [
+        "Favorites and settings",
+        "Favorite and watched teams and settings are stored on your device. We may offer optional accounts, subscriptions or notifications in the future; any such features will be described in the App and are subject to these Terms and the app store’s terms."
+      ],
+      [
+        "Third-party links",
+        "The Service links to third-party sites such as school athletics sites, broadcasters and streaming services. We do not control and are not responsible for their content or practices."
+      ],
+      [
+        "Disclaimer of warranties",
+        "The Service is provided “as is” and “as available” without warranties of any kind, express or implied, including accuracy, availability, merchantability and fitness for a particular purpose. Do not rely on the Service for wagering or any decision where errors or delays could cause loss."
+      ],
+      [
+        "Limitation of liability",
+        "To the fullest extent permitted by law, Call Partner Group LLC and its owners, employees and contractors are not liable for any indirect, incidental, consequential or punitive damages, or for any loss arising from your use of or inability to use the Service. Our total liability for any claim will not exceed the amount you paid us (if any) in the twelve months before the claim."
+      ],
+      [
+        "Changes and termination",
+        "We may change, suspend or discontinue any part of the Service, and may update these Terms, at any time. Continued use after a change means you accept the updated Terms. We may restrict access for misuse."
+      ],
+      [
+        "Governing law",
+        "These Terms are governed by the laws of the State in which Call Partner Group LLC is organized, without regard to conflict-of-law rules, and any dispute will be brought in the state or federal courts located there."
+      ],
+      [
+        "Contact",
+        "Questions about these Terms: use the E-mail Support link in the App or the contact page at collegelacrossenews.com."
+      ]
+    ]
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "updated": "October 3, 2026",
+    "sections": [
+      [
+        "Summary",
+        "CLN Lacrosse does not require an account and does not collect personal information. Your favorite and watched teams and your settings are stored only on your device. We do not sell data."
+      ],
+      [
+        "Information stored on your device",
+        "Favorite team, watched teams and app settings (such as alert preferences) are saved in the App’s local storage on your phone. They are not sent to our servers. Resetting the App from Help, or deleting the App, removes them."
+      ],
+      [
+        "Information we receive automatically",
+        "When the App loads scores, stats or news it requests data from our servers (hosted on Railway) and from content delivery networks for logos and images. Like any web server, these receive your IP address, device/app version and the pages requested, and keep standard server logs for a limited time for security and troubleshooting. We do not use these logs to identify or profile you."
+      ],
+      [
+        "Notifications",
+        "If you turn on push notifications in a store-installed version of the App, Apple or Google will issue a device token so we can deliver alerts you asked for (goals, final scores, game reminders). The token is tied to your device, not to you, and is deleted when you turn notifications off or uninstall."
+      ],
+      [
+        "Analytics and advertising",
+        "The App currently contains no analytics SDKs, advertising networks or third-party trackers. If that changes, we will update this policy and describe any choices you have."
+      ],
+      [
+        "Third-party sites",
+        "Links to school athletics sites, broadcasters, streaming services and collegelacrossenews.com open in your browser or an in-app browser and are governed by those sites’ own privacy policies."
+      ],
+      [
+        "Children",
+        "The Service is not directed to children under 13 and we do not knowingly collect personal information from them."
+      ],
+      [
+        "Your choices and rights",
+        "Because we hold no personal data about App users, there is nothing to access, correct or delete on our side; use Reset in Help to clear on-device data. If you contact us by e-mail we keep that correspondence to respond to you. Residents of California, the EU/UK and other regions may contact us to exercise any applicable rights."
+      ],
+      [
+        "Changes",
+        "We may update this policy as the App gains features. The “Last updated” date above will change, and material changes will be noted in the App."
+      ],
+      [
+        "Contact",
+        "Call Partner Group LLC d/b/a College Lacrosse News — use the E-mail Support link in the App or the contact page at collegelacrossenews.com."
+      ]
+    ]
+  }
+}

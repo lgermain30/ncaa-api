@@ -38,6 +38,7 @@ import {
   fetchGqlScoreboard,
   fetchPlayoffScoreboard,
 } from "./scoreboard/scoreboard";
+import { legalHtml } from "./legal";
 import type { NewScoreboardParams } from "./scoreboard/types";
 import * as v from 'valibot';
 import { validDivisions, validGameIds, validScoreboardSports, validSports, validYears } from "./schema";
@@ -175,6 +176,16 @@ export const app = new Elysia()
       }),
     }
   )
+  .get("/legal/:doc", ({ params, set }) => {
+    const html = legalHtml(params.doc);
+    if (!html) {
+      set.status = 404;
+      return "Not found";
+    }
+    set.headers["content-type"] = "text/html; charset=utf-8";
+    set.headers["cache-control"] = "public, max-age=3600";
+    return html;
+  })
   // liveness / readiness for Railway health checks and monitoring
   .get("/health", async ({ set }) => {
     set.headers["Cache-Control"] = "no-store";
