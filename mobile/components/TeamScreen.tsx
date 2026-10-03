@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   View as RNView,
-  Alert,
 } from "react-native";
 
 import { Chips } from "@/components/Chips";
@@ -18,6 +17,7 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
 import { useV1 } from "@/hooks/useV1";
 import { fetchGames, fetchTeam } from "@/lib/api";
+import { notify } from "@/lib/dialog";
 import { isFavorite, isWatching, MAX_WATCH, setFavorite, toggleWatch, useFollows } from "@/lib/favorites";
 import { personName } from "@/lib/names";
 import type {
@@ -763,7 +763,7 @@ export function TeamScreen({
                 <Pressable
                   onPress={() => {
                     if (!toggleWatch(me))
-                      Alert.alert("Watch list full", `You can watch up to ${MAX_WATCH} teams per gender. Remove one on its team page first.`);
+                      notify("Watch list full", `You can watch up to ${MAX_WATCH} teams per gender. Remove one on its team page first.`);
                   }}
                   hitSlop={6}
                   accessibilityRole="button"

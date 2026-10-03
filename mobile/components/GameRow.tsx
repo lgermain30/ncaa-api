@@ -84,7 +84,8 @@ export function GameRow({
   highlight?: [Highlight, Highlight];
   bold?: boolean;
 }) {
-  const hl = highlight?.[0] ?? highlight?.[1] ?? null;
+  const [a, h] = highlight ?? [null, null];
+  const hl = a === "favorite" || h === "favorite" ? "favorite" : (a ?? h);
   const hlBg = hl ? HIGHLIGHT_BG[hl][bold ? 1 : 0] : null;
   const border = useThemeColor({}, "border");
   const muted = useThemeColor({}, "muted");

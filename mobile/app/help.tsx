@@ -1,9 +1,10 @@
 import { Stack } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { Alert, Pressable, ScrollView, StyleSheet, View as RNView } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
 import { Text, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
+import { confirm } from '@/lib/dialog';
 import { clearFollows, MAX_WATCH } from '@/lib/favorites';
 import { resetSettings } from '@/lib/settings';
 
@@ -40,17 +41,15 @@ export default function HelpScreen() {
   const muted = useThemeColor({}, 'muted');
 
   const reset = () =>
-    Alert.alert('Reset the app?', 'This clears your favorite team, watched teams and settings.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reset',
-        style: 'destructive',
-        onPress: () => {
-          clearFollows();
-          resetSettings();
-        },
+    confirm(
+      'Reset the app?',
+      'This clears your favorite team, watched teams and settings.',
+      () => {
+        clearFollows();
+        resetSettings();
       },
-    ]);
+      'Reset',
+    );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
