@@ -20,6 +20,7 @@ import { useGameStream } from "@/hooks/useGameStream";
 import { useV1 } from "@/hooks/useV1";
 import { addDays, DIVISIONS, fetchGames, SPORTS, todayEt } from "@/lib/api";
 import { conferenceName } from "@/lib/conferences";
+import { followedOn, teamKey, useFollows } from "@/lib/favorites";
 import type { Division, GameEvent, Sport, V1Game } from "@/lib/types";
 
 const STATE_ORDER: Record<V1Game["status"]["state"], number> = {
@@ -40,10 +41,17 @@ function sortGames(games: V1Game[]): V1Game[] {
 }
 
 /** Conference games under their conference; everything else under Non-conference. */
+const MY_TEAMS = "My Teams";
+
 function groupByConference(
   games: V1Game[],
+  mine: Set<string>,
 ): { title: string; conference: string | null; data: V1Game[] }[] {
   const groups = new Map<string, V1Game[]>();
+  const myGames = games.filter(
+    (g) => mine.has(teamKey(g.home)) || mine.has(teamKey(g.away)),
+  );
+  if (myGames.length) groups.set(MY_TEAMS, myGames);
   const slugs = new Map<string, string>();
   for (const g of games) {
     const slug =
@@ -60,11 +68,15 @@ function groupByConference(
   }
   return [...groups.entries()]
     .sort(([a], [b]) =>
-      a === "Non-conference"
-        ? 1
-        : b === "Non-conference"
-          ? -1
-          : a.localeCompare(b),
+      a === MY_TEAMS
+        ? -1
+        : b === MY_TEAMS
+          ? 1
+          : a === "Non-conference"
+            ? 1
+            : b === "Non-conference"
+              ? -1
+              : a.localeCompare(b),
     )
     .map(([title, data]) => ({
       title,
@@ -103,8 +115,13 @@ function prettyDate(date: string): string {
 }
 
 export default function ScoresScreen() {
-  const [sport, setSport] = useState<Sport>("lacrosse-men");
-  const [division, setDivision] = useState<Division>("d1");
+  const follows = useFollows();
+  const [sport, setSport] = useState<Sport>(
+    follows.favorite?.sport ?? "lacrosse-men",
+  );
+  const [division, setDivision] = useState<Division>(
+    follows.favorite?.division ?? "d1",
+  );
   const [date, setDate] = useState(todayEt());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const isToday = date === todayEt();
@@ -143,7 +160,14 @@ export default function ScoresScreen() {
     const byGame = patches.key === key ? patches.byGame : {};
     return sortGames(board.data.map((g) => applyPatch(g, byGame[g.id])));
   }, [board.data, patches, key]);
-  const sections = useMemo(() => groupByConference(games), [games]);
+  const mine = useMemo(
+    () => new Set(followedOn(follows, sport, division).map(teamKey)),
+    [follows, sport, division],
+  );
+  const sections = useMemo(
+    () => groupByConference(games, mine),
+    [games, mine],
+  );
   const refresh = board.refresh;
 
   const stream = useGameStream(
@@ -231,7 +255,7 @@ export default function ScoresScreen() {
 
       <SectionList
         sections={sections}
-        keyExtractor={(g) => g.id}
+        keyExtractor={(g, i) => `${g.id}-${i}`}
         stickySectionHeadersEnabled
         renderSectionHeader={({ section }) => (
           <ConferenceBand title={section.title} conference={section.conference} />

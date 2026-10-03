@@ -17,12 +17,15 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { useV1 } from "@/hooks/useV1";
 import { DIVISIONS, fetchTeams, SPORTS } from "@/lib/api";
 import { conferenceName } from "@/lib/conferences";
+import { followedOn, teamKey, useFollows } from "@/lib/favorites";
 import type { Division, Sport, V1TeamSummary } from "@/lib/types";
 
 const INDEPENDENT = "Independent";
 
-function groupByConference(teams: V1TeamSummary[]) {
+function groupByConference(teams: V1TeamSummary[], mine: Set<string>) {
   const map = new Map<string, V1TeamSummary[]>();
+  const myTeams = teams.filter((t) => mine.has(teamKey(t)));
+  if (myTeams.length) map.set("My Teams", myTeams);
   for (const t of teams) {
     const key = t.conference ? conferenceName(t.conference) : INDEPENDENT;
     if (!map.has(key)) map.set(key, []);
@@ -30,7 +33,15 @@ function groupByConference(teams: V1TeamSummary[]) {
   }
   return [...map.entries()]
     .sort(([a], [b]) =>
-      a === INDEPENDENT ? 1 : b === INDEPENDENT ? -1 : a.localeCompare(b),
+      a === "My Teams"
+        ? -1
+        : b === "My Teams"
+          ? 1
+          : a === INDEPENDENT
+            ? 1
+            : b === INDEPENDENT
+              ? -1
+              : a.localeCompare(b),
     )
     .map(([title, data]) => ({
       title,
@@ -39,8 +50,13 @@ function groupByConference(teams: V1TeamSummary[]) {
 }
 
 export default function TeamsScreen() {
-  const [sport, setSport] = useState<Sport>("lacrosse-men");
-  const [division, setDivision] = useState<Division>("d1");
+  const follows = useFollows();
+  const [sport, setSport] = useState<Sport>(
+    follows.favorite?.sport ?? "lacrosse-men",
+  );
+  const [division, setDivision] = useState<Division>(
+    follows.favorite?.division ?? "d1",
+  );
   const card = useThemeColor({}, "card");
   const muted = useThemeColor({}, "muted");
   const border = useThemeColor({}, "border");
@@ -55,7 +71,14 @@ export default function TeamsScreen() {
     ),
   );
 
-  const sections = useMemo(() => groupByConference(data ?? []), [data]);
+  const mine = useMemo(
+    () => new Set(followedOn(follows, sport, division).map(teamKey)),
+    [follows, sport, division],
+  );
+  const sections = useMemo(
+    () => groupByConference(data ?? [], mine),
+    [data, mine],
+  );
 
   return (
     <View style={styles.screen}>
@@ -84,13 +107,14 @@ export default function TeamsScreen() {
       </RNView>
       <SectionList
         sections={sections}
-        keyExtractor={(t) => t.id}
+        keyExtractor={(t, i) => `${t.id}-${i}`}
         stickySectionHeadersEnabled
         renderSectionHeader={({ section }) => (
           <ConferenceBand title={section.title} />
         )}
-        renderItem={({ item, index }) => (
+        renderItem={({ item, index, section }) => (
           <Pressable
+            key={`${section.title}-${item.id}`}
             onPress={() =>
               router.push({
                 pathname: "/teams/[id]",
