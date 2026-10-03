@@ -17,6 +17,7 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
 import { useV1 } from "@/hooks/useV1";
 import { fetchGames, fetchTeam } from "@/lib/api";
+import { isFavorite, isWatching, setFavorite, toggleWatch, useFollows } from "@/lib/favorites";
 import { personName } from "@/lib/names";
 import type {
   Division,
@@ -699,6 +700,10 @@ export function TeamScreen({
 
   const title = team?.name ?? name ?? "Team";
   const logo = team?.seoName ?? seoName ?? null;
+  const follows = useFollows();
+  const me = { id, name: title, seoName: logo, sport, division };
+  const fav = isFavorite(follows, me);
+  const watching = isWatching(follows, me);
 
   return (
     <View style={styles.screen}>
@@ -741,6 +746,32 @@ export function TeamScreen({
                 Ranked #{team.rank}
               </Text>
             ) : null}
+            <RNView style={styles.follow}>
+              <Pressable
+                onPress={() => setFavorite(fav ? null : me)}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityState={{ selected: fav }}
+                style={[styles.followBtn, fav && styles.followOn]}
+              >
+                <Text style={[styles.followText, fav && styles.followTextOn]}>
+                  {fav ? "★ Favorite" : "☆ Make favorite"}
+                </Text>
+              </Pressable>
+              {!fav ? (
+                <Pressable
+                  onPress={() => toggleWatch(me)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: watching }}
+                  style={[styles.followBtn, watching && styles.followOn]}
+                >
+                  <Text style={[styles.followText, watching && styles.followTextOn]}>
+                    {watching ? "✓ Watching" : "+ Watch"}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </RNView>
           </RNView>
         </RNView>
         <RNView style={styles.tabs}>
@@ -836,6 +867,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   records: { flex: 1, gap: 2 },
+  follow: { flexDirection: "row", gap: 6, marginTop: 4 },
+  followBtn: {
+    borderWidth: 1,
+    borderColor: brand.navy,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 2,
+  },
+  followOn: { backgroundColor: brand.navy },
+  followText: { fontSize: 12, fontWeight: "700", color: brand.navy },
+  followTextOn: { color: "#fff" },
   recLine: { fontSize: 14, fontWeight: "700" },
   recVal: { fontWeight: "500" },
   tabs: { paddingHorizontal: 10, paddingVertical: 8 },
