@@ -28,13 +28,13 @@ export default function MoreScreen() {
           </Pressable>
         </Link>
         <Link href="/settings" asChild>
-          <Pressable style={[styles.row, rowBorder]}>
+          <Pressable style={StyleSheet.flatten([styles.row, rowBorder])}>
             <Text style={styles.label}>Settings</Text>
             <Text style={{ color: muted }}>›</Text>
           </Pressable>
         </Link>
         <Link href="/help" asChild>
-          <Pressable style={[styles.row, rowBorder]}>
+          <Pressable style={StyleSheet.flatten([styles.row, rowBorder])}>
             <Text style={styles.label}>Help & About</Text>
             <Text style={{ color: muted }}>›</Text>
           </Pressable>
