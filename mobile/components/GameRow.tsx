@@ -4,7 +4,13 @@ import { Pressable, StyleSheet, View as RNView } from "react-native";
 import { TeamLogo } from "@/components/TeamLogo";
 import { Text, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
+import type { Highlight } from "@/lib/favorites";
 import type { V1Game, V1Team } from "@/lib/types";
+
+const HIGHLIGHT_BG: Record<"favorite" | "watching", [string, string]> = {
+  favorite: ["#fff7d6", "#ffe9a3"],
+  watching: ["#e8f1fb", "#cfe1f7"],
+};
 
 const LOGO = 34;
 
@@ -13,10 +19,12 @@ function Side({
   team,
   game,
   home,
+  bold,
 }: {
   team: V1Team;
   game: V1Game;
   home: boolean;
+  bold?: boolean;
 }) {
   const name = team.shortName || team.name;
   const open = () =>
@@ -46,7 +54,7 @@ function Side({
         {home && team.rank ? (
           <Text style={styles.rank}>{team.rank} </Text>
         ) : null}
-        <Text style={[styles.name, home && styles.nameHome]} numberOfLines={1}>
+        <Text style={[styles.name, home && styles.nameHome, bold && styles.nameBold]} numberOfLines={1}>
           {name}
         </Text>
         {!home && team.rank ? (
@@ -66,11 +74,19 @@ export function GameRow({
   game,
   last,
   alt,
+  highlight,
+  bold,
 }: {
   game: V1Game;
   last?: boolean;
   alt?: boolean;
+  /** Which followed team (if any) plays in this game: [away, home]. */
+  highlight?: [Highlight, Highlight];
+  bold?: boolean;
 }) {
+  const [a, h] = highlight ?? [null, null];
+  const hl = a === "favorite" || h === "favorite" ? "favorite" : (a ?? h);
+  const hlBg = hl ? HIGHLIGHT_BG[hl][bold ? 1 : 0] : null;
   const border = useThemeColor({}, "border");
   const muted = useThemeColor({}, "muted");
   const card = useThemeColor({}, "card");
@@ -102,12 +118,12 @@ export function GameRow({
       accessibilityRole="button"
       style={({ pressed }) => [
         styles.row,
-        { backgroundColor: alt ? bg : card, borderBottomColor: border },
+        { backgroundColor: hlBg ?? (alt ? bg : card), borderBottomColor: border },
         last && { borderBottomWidth: 0 },
         pressed && { opacity: 0.6 },
       ]}
     >
-      <Side team={game.away} game={game} home={false} />
+      <Side team={game.away} game={game} home={false} bold={bold && !!highlight?.[0]} />
       <RNView style={styles.center}>
         {showScore ? (
           <RNView style={styles.scoreLine}>
@@ -139,7 +155,7 @@ export function GameRow({
           </Text>
         ) : null}
       </RNView>
-      <Side team={game.home} game={game} home />
+      <Side team={game.home} game={game} home bold={bold && !!highlight?.[1]} />
     </Pressable>
   );
 }
@@ -159,6 +175,7 @@ const styles = StyleSheet.create({
   nameLineHome: { justifyContent: "flex-end" },
   name: { fontSize: 15, fontWeight: "600", flexShrink: 1 },
   nameHome: { textAlign: "right" },
+  nameBold: { fontWeight: "800", color: brand.navy },
   rank: { fontSize: 11, fontWeight: "600", color: "#3779be" },
   center: {
     width: 150,

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -20,7 +20,8 @@ import { useGameStream } from "@/hooks/useGameStream";
 import { useV1 } from "@/hooks/useV1";
 import { addDays, DIVISIONS, fetchGames, SPORTS, todayEt } from "@/lib/api";
 import { conferenceName } from "@/lib/conferences";
-import { followedOn, teamKey, useFollows } from "@/lib/favorites";
+import { boardKeys, followedOn, highlightFor, homeBoard, teamKey, useFollows } from "@/lib/favorites";
+import { useSettings } from "@/lib/settings";
 import type { Division, GameEvent, Sport, V1Game } from "@/lib/types";
 
 const STATE_ORDER: Record<V1Game["status"]["state"], number> = {
@@ -116,12 +117,11 @@ function prettyDate(date: string): string {
 
 export default function ScoresScreen() {
   const follows = useFollows();
-  const [sport, setSport] = useState<Sport>(
-    follows.favorite?.sport ?? "lacrosse-men",
-  );
-  const [division, setDivision] = useState<Division>(
-    follows.favorite?.division ?? "d1",
-  );
+  const settings = useSettings();
+  const [home] = useState(() => homeBoard(follows));
+  const [sport, setSport] = useState<Sport>(home.sport);
+  const [division, setDivision] = useState<Division>(home.division);
+  const [toast, setToast] = useState<string | null>(null);
   const [date, setDate] = useState(todayEt());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const isToday = date === todayEt();
@@ -164,6 +164,19 @@ export default function ScoresScreen() {
     () => new Set(followedOn(follows, sport, division).map(teamKey)),
     [follows, sport, division],
   );
+  const keys = useMemo(() => boardKeys(follows, sport, division), [follows, sport, division]);
+  const gamesRef = useRef(games);
+  const mineRef = useRef(mine);
+  useEffect(() => {
+    gamesRef.current = games;
+    mineRef.current = mine;
+  }, [games, mine]);
+  const goalAlerts = settings.inAppGoalAlerts;
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(t);
+  }, [toast]);
   const sections = useMemo(
     () => groupByConference(games, mine),
     [games, mine],
@@ -178,12 +191,21 @@ export default function ScoresScreen() {
           refresh();
           return;
         }
+        if (ev.type === "game.score" && ev.scored && goalAlerts) {
+          const g = gamesRef.current.find((x) => x.id === ev.gameId);
+          if (g && (mineRef.current.has(teamKey(g.home)) || mineRef.current.has(teamKey(g.away)))) {
+            const scorer = ev.scored.side === "home" ? g.home : g.away;
+            setToast(
+              `GOAL ${scorer.shortName || scorer.name} — ${g.away.shortName || g.away.name} ${ev.away.score ?? 0}, ${g.home.shortName || g.home.name} ${ev.home.score ?? 0}`,
+            );
+          }
+        }
         setPatches((p) => ({
           key,
           byGame: { ...(p.key === key ? p.byGame : {}), [ev.gameId]: ev },
         }));
       },
-      [refresh, key],
+      [refresh, key, goalAlerts],
     ),
     isToday,
   );
@@ -265,6 +287,11 @@ export default function ScoresScreen() {
             game={item}
             alt={index % 2 === 1}
             last={index === section.data.length - 1}
+            highlight={[
+              highlightFor(item.away, keys.favKeys, keys.watchKeys),
+              highlightFor(item.home, keys.favKeys, keys.watchKeys),
+            ]}
+            bold={settings.boldColors}
           />
         )}
         refreshControl={
@@ -324,11 +351,27 @@ export default function ScoresScreen() {
         onMonthChange={addYear}
         onClose={() => setCalendarOpen(false)}
       />
+      {toast ? (
+        <Pressable onPress={() => setToast(null)} style={styles.toast} accessibilityRole="alert">
+          <Text style={styles.toastText} numberOfLines={2}>{toast}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  toast: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 12,
+    backgroundColor: brand.live,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  toastText: { color: "#fff", fontWeight: "800", fontSize: 14, textAlign: "center" },
   screen: { flex: 1 },
   controls: {
     paddingBottom: 6,

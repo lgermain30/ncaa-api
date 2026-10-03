@@ -46,6 +46,8 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="game/[id]" options={{ headerBackTitle: 'Scores' }} />
+        <Stack.Screen name="settings" options={{ presentation: 'modal', title: 'Settings' }} />
+        <Stack.Screen name="help" options={{ presentation: 'modal', title: 'Help & About' }} />
       </Stack>
     </ThemeProvider>
   );
