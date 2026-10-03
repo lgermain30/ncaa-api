@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   View as RNView,
+  Alert,
 } from "react-native";
 
 import { Chips } from "@/components/Chips";
@@ -17,7 +18,7 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
 import { useV1 } from "@/hooks/useV1";
 import { fetchGames, fetchTeam } from "@/lib/api";
-import { isFavorite, isWatching, setFavorite, toggleWatch, useFollows } from "@/lib/favorites";
+import { isFavorite, isWatching, MAX_WATCH, setFavorite, toggleWatch, useFollows } from "@/lib/favorites";
 import { personName } from "@/lib/names";
 import type {
   Division,
@@ -748,7 +749,7 @@ export function TeamScreen({
             ) : null}
             <RNView style={styles.follow}>
               <Pressable
-                onPress={() => setFavorite(fav ? null : me)}
+                onPress={() => setFavorite(fav ? null : me, sport)}
                 hitSlop={6}
                 accessibilityRole="button"
                 accessibilityState={{ selected: fav }}
@@ -760,7 +761,10 @@ export function TeamScreen({
               </Pressable>
               {!fav ? (
                 <Pressable
-                  onPress={() => toggleWatch(me)}
+                  onPress={() => {
+                    if (!toggleWatch(me))
+                      Alert.alert("Watch list full", `You can watch up to ${MAX_WATCH} teams per gender. Remove one on its team page first.`);
+                  }}
                   hitSlop={6}
                   accessibilityRole="button"
                   accessibilityState={{ selected: watching }}

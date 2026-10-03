@@ -4,39 +4,12 @@ import { Pressable, ScrollView, StyleSheet, View as RNView } from 'react-native'
 
 import { Text, useThemeColor } from '@/components/Themed';
 import { API_BASE } from '@/lib/api';
-import { useFollows } from '@/lib/favorites';
+import { favoriteFor, useFollows } from '@/lib/favorites';
 
 const LINKS: { label: string; url: string }[] = [
   { label: 'CLN Website', url: 'https://collegelacrossenews.com' },
   { label: 'TV Schedule', url: 'https://collegelacrossenews.com/tv-schedule/' },
   { label: 'Streaming Guide', url: 'https://collegelacrossenews.com/streaming-guide/' },
-];
-
-const HOW_TO: { title: string; body: string }[] = [
-  {
-    title: 'Games',
-    body: 'Live scores for every NCAA men’s and women’s game in DI, DII and DIII. Use the Men’s/Women’s and DI/DII/DIII pills to switch boards, the arrows or Calendar to change the day, and tap a game for the box score, goals and rosters. Games in progress update in real time.',
-  },
-  {
-    title: 'Favorite team & watch list',
-    body: 'Open any team page (tap a team name anywhere) and tap ☆ Make favorite or + Watch. Your teams appear in a “My Teams” band at the top of Games and Teams, and the app opens to your favorite’s board.',
-  },
-  {
-    title: 'Teams',
-    body: 'Every program grouped by conference. A team page has its schedule and results, roster, season stats, and past seasons.',
-  },
-  {
-    title: 'Standings',
-    body: 'Conference standings ranked by conference record, with the overall record under each team.',
-  },
-  {
-    title: 'Statistics',
-    body: 'Player and team leaders by category — top 5 shown, tap a category for the top 30.',
-  },
-  {
-    title: 'News',
-    body: 'The latest from College Lacrosse News, inside the app.',
-  },
 ];
 
 export default function MoreScreen() {
@@ -54,11 +27,27 @@ export default function MoreScreen() {
             <Text style={{ color: muted }}>›</Text>
           </Pressable>
         </Link>
-        {LINKS.map((l) => (
+        <Link href="/settings" asChild>
+          <Pressable style={[styles.row, rowBorder]}>
+            <Text style={styles.label}>Settings</Text>
+            <Text style={{ color: muted }}>›</Text>
+          </Pressable>
+        </Link>
+        <Link href="/help" asChild>
+          <Pressable style={[styles.row, rowBorder]}>
+            <Text style={styles.label}>Help & About</Text>
+            <Text style={{ color: muted }}>›</Text>
+          </Pressable>
+        </Link>
+      </RNView>
+
+      <Text style={[styles.heading, { color: muted }]}>COLLEGE LACROSSE NEWS</Text>
+      <RNView style={[styles.card, { backgroundColor: card, borderColor: border }]}>
+        {LINKS.map((l, i) => (
           <Pressable
             key={l.url}
             onPress={() => WebBrowser.openBrowserAsync(l.url)}
-            style={[styles.row, rowBorder]}>
+            style={[styles.row, i > 0 && rowBorder]}>
             <Text style={styles.label}>{l.label}</Text>
             <Text style={[styles.ext, { color: muted }]}>opens website ›</Text>
           </Pressable>
@@ -67,32 +56,27 @@ export default function MoreScreen() {
 
       <Text style={[styles.heading, { color: muted }]}>MY TEAMS</Text>
       <RNView style={[styles.card, { backgroundColor: card, borderColor: border }]}>
-        <RNView style={styles.row}>
-          <Text style={styles.label}>Favorite</Text>
-          <Text style={{ color: muted }}>{follows.favorite?.name ?? 'None yet'}</Text>
-        </RNView>
-        <RNView style={[styles.row, rowBorder]}>
-          <Text style={styles.label}>Watching</Text>
-          <Text style={[styles.value, { color: muted }]} numberOfLines={2}>
-            {follows.watching.length ? follows.watching.map((t) => t.name).join(', ') : 'None yet'}
-          </Text>
-        </RNView>
+        {(["lacrosse-men", "lacrosse-women"] as const).map((sp, i) => {
+          const fav = favoriteFor(follows, sp);
+          const watching = follows.watching.filter((t) => t.sport === sp);
+          return (
+            <RNView key={sp} style={i > 0 ? rowBorder : undefined}>
+              <RNView style={styles.row}>
+                <Text style={styles.label}>{sp === "lacrosse-men" ? "Men’s favorite" : "Women’s favorite"}</Text>
+                <Text style={{ color: muted }}>{fav?.name ?? "None yet"}</Text>
+              </RNView>
+              <RNView style={[styles.row, { paddingTop: 0 }]}>
+                <Text style={styles.label}>Watching</Text>
+                <Text style={[styles.value, { color: muted }]} numberOfLines={2}>
+                  {watching.length ? watching.map((t) => t.name).join(", ") : "None yet"}
+                </Text>
+              </RNView>
+            </RNView>
+          );
+        })}
         <Text style={[styles.hint, { color: muted }]}>
           Pick teams from any team page with ☆ Make favorite or + Watch.
         </Text>
-      </RNView>
-
-      <Text style={[styles.heading, { color: muted }]}>ABOUT THE APP</Text>
-      <RNView style={[styles.card, { backgroundColor: card, borderColor: border }]}>
-        <Text style={styles.about}>
-          CLN Lacrosse is the College Lacrosse News app for NCAA men’s and women’s lacrosse: live scores, box scores, play-by-play, rosters, standings and stat leaders for all three divisions, plus CLN news.
-        </Text>
-        {HOW_TO.map((h) => (
-          <RNView key={h.title} style={[styles.howRow, rowBorder]}>
-            <Text style={styles.howTitle}>{h.title}</Text>
-            <Text style={[styles.howBody, { color: muted }]}>{h.body}</Text>
-          </RNView>
-        ))}
       </RNView>
 
       <Text style={[styles.note, { color: muted }]}>

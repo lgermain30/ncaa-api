@@ -17,7 +17,8 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { useV1 } from "@/hooks/useV1";
 import { DIVISIONS, fetchTeams, SPORTS } from "@/lib/api";
 import { conferenceName } from "@/lib/conferences";
-import { followedOn, teamKey, useFollows } from "@/lib/favorites";
+import { boardKeys, followedOn, highlightFor, homeBoard, teamKey, useFollows } from "@/lib/favorites";
+import { useSettings } from "@/lib/settings";
 import type { Division, Sport, V1TeamSummary } from "@/lib/types";
 
 const INDEPENDENT = "Independent";
@@ -51,12 +52,10 @@ function groupByConference(teams: V1TeamSummary[], mine: Set<string>) {
 
 export default function TeamsScreen() {
   const follows = useFollows();
-  const [sport, setSport] = useState<Sport>(
-    follows.favorite?.sport ?? "lacrosse-men",
-  );
-  const [division, setDivision] = useState<Division>(
-    follows.favorite?.division ?? "d1",
-  );
+  const settings = useSettings();
+  const [home] = useState(() => homeBoard(follows));
+  const [sport, setSport] = useState<Sport>(home.sport);
+  const [division, setDivision] = useState<Division>(home.division);
   const card = useThemeColor({}, "card");
   const muted = useThemeColor({}, "muted");
   const border = useThemeColor({}, "border");
@@ -79,6 +78,13 @@ export default function TeamsScreen() {
     () => groupByConference(data ?? [], mine),
     [data, mine],
   );
+  const keys = useMemo(() => boardKeys(follows, sport, division), [follows, sport, division]);
+  const rowBg = (t: V1TeamSummary, index: number) => {
+    const hl = highlightFor(t, keys.favKeys, keys.watchKeys);
+    if (hl === "favorite") return settings.boldColors ? "#ffe9a3" : "#fff7d6";
+    if (hl === "watching") return settings.boldColors ? "#cfe1f7" : "#e8f1fb";
+    return index % 2 ? bg : card;
+  };
 
   return (
     <View style={styles.screen}>
@@ -131,14 +137,20 @@ export default function TeamsScreen() {
             style={({ pressed }) => [
               styles.row,
               {
-                backgroundColor: index % 2 ? bg : card,
+                backgroundColor: rowBg(item, index),
                 borderBottomColor: border,
               },
               pressed && { opacity: 0.6 },
             ]}
           >
             <TeamLogo seoName={item.seoName} fallback={item.name} size={40} />
-            <Text style={styles.name} numberOfLines={1}>
+            <Text
+              style={[
+                styles.name,
+                settings.boldColors && highlightFor(item, keys.favKeys, keys.watchKeys) && styles.nameBold,
+              ]}
+              numberOfLines={1}
+            >
               {item.rank ? <Text style={styles.rank}>{item.rank} </Text> : null}
               {item.name}
             </Text>
@@ -195,6 +207,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   name: { flex: 1, fontSize: 16, fontWeight: "600" },
+  nameBold: { fontWeight: "800" },
   rank: { fontSize: 12, fontWeight: "700", color: "#3779be" },
   empty: { textAlign: "center", marginTop: 40 },
 });

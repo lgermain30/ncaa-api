@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View as RNView } from 'react-native';
 
@@ -20,40 +19,18 @@ function when(iso: string): string {
   });
 }
 
-function Story({ item, lead }: { item: V1NewsItem; lead: boolean }) {
+function Story({ item }: { item: V1NewsItem }) {
   const border = useThemeColor({}, 'border');
   const muted = useThemeColor({}, 'muted');
-  const meta = [when(item.publishedAt), item.category].filter(Boolean).join(' · ');
   return (
     <Pressable
       onPress={() => WebBrowser.openBrowserAsync(item.link)}
-      style={({ pressed }) => [
-        lead ? styles.lead : styles.story,
-        { borderBottomColor: border },
-        pressed && { opacity: 0.6 },
-      ]}
+      style={({ pressed }) => [styles.story, { borderBottomColor: border }, pressed && { opacity: 0.6 }]}
       accessibilityRole="link">
-      {item.image ? (
-        <Image
-          source={{ uri: item.image }}
-          style={lead ? styles.leadImage : styles.thumb}
-          contentFit="cover"
-          cachePolicy="disk"
-        />
-      ) : null}
-      <RNView style={[styles.body, lead && styles.leadBody]}>
-        <Text style={lead ? styles.leadTitle : styles.title} numberOfLines={lead ? 3 : 2}>
-          {item.title}
-        </Text>
-        {lead && item.excerpt ? (
-          <Text style={[styles.excerpt, { color: muted }]} numberOfLines={2}>
-            {item.excerpt}
-          </Text>
-        ) : null}
-        <Text style={[styles.meta, { color: muted }]} numberOfLines={1}>
-          {meta}
-        </Text>
-      </RNView>
+      <Text style={styles.title}>{item.title}</Text>
+      <Text style={[styles.meta, { color: muted }]} numberOfLines={1}>
+        {[when(item.publishedAt), item.category].filter(Boolean).join(' · ')}
+      </Text>
     </Pressable>
   );
 }
@@ -71,7 +48,7 @@ export default function NewsScreen() {
       <FlatList
         data={q.data ?? []}
         keyExtractor={(i) => String(i.id)}
-        renderItem={({ item, index }) => <Story item={item} lead={index === 0} />}
+        renderItem={({ item }) => <Story item={item} />}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={false} onRefresh={q.refresh} />}
         ListEmptyComponent={
@@ -101,22 +78,8 @@ const styles = StyleSheet.create({
   },
   bandTitle: { color: '#fff', fontWeight: '600', fontSize: 14 },
   list: { paddingBottom: 32 },
-  lead: { borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 10 },
-  leadImage: { width: '100%', aspectRatio: 16 / 9 },
-  leadTitle: { fontSize: 18, fontWeight: '700', lineHeight: 23 },
-  excerpt: { fontSize: 13, lineHeight: 18 },
-  story: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  thumb: { width: 96, height: 64, borderRadius: 4 },
-  body: { flex: 1, gap: 3 },
-  leadBody: { paddingHorizontal: 10, paddingTop: 6 },
-  title: { fontSize: 14, fontWeight: '600', lineHeight: 19 },
-  meta: { fontSize: 11 },
+  story: { paddingHorizontal: 14, paddingVertical: 9, gap: 2, borderBottomWidth: StyleSheet.hairlineWidth },
+  title: { fontSize: 15, fontWeight: '600', lineHeight: 20, color: brand.navy },
+  meta: { fontSize: 12 },
   note: { fontSize: 12, textAlign: 'center', marginVertical: 12 },
 });
