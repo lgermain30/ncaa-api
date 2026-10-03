@@ -8,6 +8,7 @@ COPY package.json bun.lock tsconfig.json ./
 RUN bun install --production --no-cache
 
 COPY src src
+COPY mobile/content mobile/content
 
 RUN bun build \
   --compile \

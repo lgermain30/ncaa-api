@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Link, Stack } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Pressable, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
@@ -67,6 +67,23 @@ export default function HelpScreen() {
           </RNView>
         ))}
       </RNView>
+      <RNView style={[styles.card, styles.legal, { backgroundColor: card, borderColor: border }]}>
+        <Link href="/legal/terms" asChild>
+          <Pressable style={styles.row}>
+            <Text style={styles.rowLabel}>Terms of Use</Text>
+            <Text style={{ color: muted }}>›</Text>
+          </Pressable>
+        </Link>
+        <Link href="/legal/privacy" asChild>
+          <Pressable style={StyleSheet.flatten([styles.row, { borderTopColor: border, borderTopWidth: StyleSheet.hairlineWidth }])}>
+            <Text style={styles.rowLabel}>Privacy Policy</Text>
+            <Text style={{ color: muted }}>›</Text>
+          </Pressable>
+        </Link>
+        <Text style={[styles.operator, { color: muted, borderTopColor: border }]}>
+          CLN Lacrosse is operated by Call Partner Group LLC d/b/a College Lacrosse News.
+        </Text>
+      </RNView>
       <RNView style={styles.actions}>
         <Pressable
           onPress={() => WebBrowser.openBrowserAsync('https://collegelacrossenews.com/contact/')}
@@ -90,6 +107,10 @@ const styles = StyleSheet.create({
   section: { padding: 14, gap: 3, borderTopWidth: StyleSheet.hairlineWidth },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: brand.navy },
   body: { fontSize: 13, lineHeight: 18 },
+  legal: { marginTop: 12 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
+  rowLabel: { fontSize: 15, fontWeight: '600' },
+  operator: { fontSize: 12, padding: 14, borderTopWidth: StyleSheet.hairlineWidth },
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   btn: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   btnText: { fontSize: 14, fontWeight: '700' },
