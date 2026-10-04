@@ -809,46 +809,8 @@ export default function GameScreen() {
     ? `${game.sport === "lacrosse-men" ? "M" : "W"}: ${new Date(`${game.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}`
     : "Game";
 
-  return (
-    <View style={styles.screen}>
-      <Stack.Screen
-        options={{
-          title: inBoxScore ? "Box Score" : title,
-          headerLeft: inBoxScore
-            ? () => (
-                <Pressable
-                  onPress={() => setTab("rosters")}
-                  accessibilityRole="button"
-                  accessibilityLabel="Back to rosters"
-                >
-                  <Text style={[styles.headerAction, { color: tint }]}>
-                    ‹ Back
-                  </Text>
-                </Pressable>
-              )
-            : undefined,
-          headerRight: !inBoxScore
-            ? () => (
-                <RNView style={styles.headerRight}>
-                  <Pressable
-                    onPress={() => setTab("box")}
-                    accessibilityRole="button"
-                    accessibilityLabel="Box Score"
-                  >
-                    <Text style={[styles.headerAction, { color: tint }]}>
-                      Box Score
-                    </Text>
-                  </Pressable>
-                </RNView>
-              )
-            : undefined,
-        }}
-      />
-      <ScrollView
-        key={tab}
-        scrollEnabled={tab !== "rosters"}
-        contentContainerStyle={tab === "rosters" ? styles.fill : styles.content}
-      >
+  const body = (
+    <>
         {game ? (
           <Header game={game} />
         ) : (
@@ -918,7 +880,50 @@ export default function GameScreen() {
           )
         ) : null}
         {tab === "info" && game ? <Info game={game} /> : null}
-      </ScrollView>
+    </>
+  );
+  return (
+    <View style={styles.screen}>
+      <Stack.Screen
+        options={{
+          title: inBoxScore ? "Box Score" : title,
+          headerLeft: inBoxScore
+            ? () => (
+                <Pressable
+                  onPress={() => setTab("rosters")}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to rosters"
+                >
+                  <Text style={[styles.headerAction, { color: tint }]}>
+                    ‹ Back
+                  </Text>
+                </Pressable>
+              )
+            : undefined,
+          headerRight: !inBoxScore
+            ? () => (
+                <RNView style={styles.headerRight}>
+                  <Pressable
+                    onPress={() => setTab("box")}
+                    accessibilityRole="button"
+                    accessibilityLabel="Box Score"
+                  >
+                    <Text style={[styles.headerAction, { color: tint }]}>
+                      Box Score
+                    </Text>
+                  </Pressable>
+                </RNView>
+              )
+            : undefined,
+        }}
+      />
+      {tab === "rosters" ? (
+        <RNView style={styles.fill}>{body}</RNView>
+      ) : (
+        <ScrollView key={tab} contentContainerStyle={styles.content}>
+          {body}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -937,7 +942,7 @@ const styles = StyleSheet.create({
   },
   watermark: { position: "absolute", top: -6, opacity: 0.18 },
   content: { paddingBottom: 32 },
-  fill: { flexGrow: 1 },
+  fill: { flex: 1 },
   card: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
