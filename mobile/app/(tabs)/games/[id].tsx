@@ -747,8 +747,8 @@ function Info({ game }: { game: V1Game }) {
 }
 
 export default function GameScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [tab, setTab] = useState<Tab>("rosters");
+  const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>();
+  const [tab, setTab] = useState<Tab>(initialTab === "goals" ? "goals" : "rosters");
   const muted = useThemeColor({}, "muted");
   const tint = useThemeColor({}, "tint");
 
