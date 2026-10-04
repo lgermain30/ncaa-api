@@ -14,40 +14,23 @@ const HIGHLIGHT_BG: Record<"favorite" | "watching", [string, string]> = {
 
 const LOGO = 34;
 
-/** Team name + rank on top, logo beneath, hugging the outer edge (CHN layout). Tap → team page. */
+/** Team name + rank on top, logo beneath, hugging the outer edge (CHN layout). */
 function Side({
   team,
-  game,
   home,
   bold,
 }: {
   team: V1Team;
-  game: V1Game;
   home: boolean;
   bold?: boolean;
 }) {
   const name = team.shortName || team.name;
-  const open = () =>
-    router.push({
-      pathname: "/games/team/[id]",
-      params: {
-        id: team.seoName || name,
-        sport: game.sport,
-        division: game.division,
-        seoName: team.seoName ?? "",
-        name,
-      },
-    });
   return (
-    <Pressable
-      onPress={open}
-      hitSlop={4}
-      accessibilityRole="link"
+    <RNView
       accessibilityLabel={`${name}${team.record ? `, ${team.record}` : ""}`}
-      style={({ pressed }) => [
+      style={[
         styles.side,
         home && styles.sideHome,
-        pressed && { opacity: 0.5 },
       ]}
     >
       <RNView style={[styles.nameLine, home && styles.nameLineHome]}>
@@ -66,7 +49,7 @@ function Side({
         fallback={team.char6 || name}
         size={LOGO}
       />
-    </Pressable>
+    </RNView>
   );
 }
 
@@ -113,7 +96,10 @@ export function GameRow({
   return (
     <Pressable
       onPress={() =>
-        router.push({ pathname: "/games/[id]", params: { id: game.id } })
+        router.push({
+          pathname: "/games/[id]",
+          params: { id: game.id, tab: state === "pre" ? "rosters" : "goals" },
+        })
       }
       accessibilityRole="button"
       style={({ pressed }) => [
@@ -123,7 +109,7 @@ export function GameRow({
         pressed && { opacity: 0.6 },
       ]}
     >
-      <Side team={game.away} game={game} home={false} bold={bold && !!highlight?.[0]} />
+      <Side team={game.away} home={false} bold={bold && !!highlight?.[0]} />
       <RNView style={styles.center}>
         {showScore ? (
           <RNView style={styles.scoreLine}>
@@ -155,7 +141,7 @@ export function GameRow({
           </Text>
         ) : null}
       </RNView>
-      <Side team={game.home} game={game} home bold={bold && !!highlight?.[1]} />
+      <Side team={game.home} home bold={bold && !!highlight?.[1]} />
     </Pressable>
   );
 }
