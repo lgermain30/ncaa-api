@@ -317,26 +317,35 @@ function RosterRow({
         <Text style={styles.rPos}>{p.position ?? ""}</Text>
         <Text style={[styles.rYear, { color: muted }]}>{p.year ?? ""}</Text>
       </RNView>
+      <RNView style={styles.rSize}>
+        <Text style={styles.rHt} numberOfLines={1}>
+          {fmtHeight(p.height)}
+        </Text>
+        <Text style={[styles.rWt, { color: muted }]} numberOfLines={1}>
+          {p.weight != null ? `${p.weight} lbs` : ""}
+        </Text>
+      </RNView>
       <RNView style={styles.rMain}>
         <Text style={styles.rName} numberOfLines={1}>
           {personName(p.name)}
         </Text>
         <Text style={[styles.rTown, { color: muted }]} numberOfLines={1}>
-          {p.hometown ?? ""}
-        </Text>
-      </RNView>
-      <RNView style={styles.rSize}>
-        <Text style={styles.rHt}>{p.height ?? ""}</Text>
-        <Text style={[styles.rWt, { color: muted }]}>
-          {p.weight != null ? String(p.weight) : ""}
+          {[p.hometown, p.highSchool].filter(Boolean).join(" · ")}
         </Text>
       </RNView>
     </Pressable>
   );
 }
 
+/** "5'10", "5-10", "5' 10''" → "5' 10\"" */
+function fmtHeight(h: string | null | undefined): string {
+  if (!h) return "";
+  const m = h.match(/(\d)\D+(\d{1,2})/);
+  return m ? `${m[1]}' ${m[2]}"` : h;
+}
+
 function heightWeight(p: V1RosterPlayer): string {
-  return [p.height, p.weight != null ? `${p.weight} lbs` : null]
+  return [fmtHeight(p.height) || null, p.weight != null ? `${p.weight} lbs` : null]
     .filter(Boolean)
     .join(" / ");
 }
@@ -924,7 +933,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
     fontVariant: ["tabular-nums"],
   },
-  rMeta: { width: 26, alignItems: "center" },
+  rMeta: { width: 28, alignItems: "flex-start" },
   rPos: { fontSize: 13, fontWeight: "700" },
   rYear: { fontSize: 11 },
   seasons: { paddingHorizontal: 8, paddingBottom: 6 },
@@ -938,9 +947,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     textTransform: "uppercase",
   },
-  rSize: { width: 40, alignItems: "flex-end" },
-  rHt: { fontSize: 12, fontWeight: "600" },
-  rWt: { fontSize: 11 },
+  rSize: { width: 54 },
+  rHt: { fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  rWt: { fontSize: 11, marginTop: 1 },
 
   grid: { flexDirection: "row" },
   gridFrozen: { width: NAME_W, borderRightWidth: StyleSheet.hairlineWidth },
