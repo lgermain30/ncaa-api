@@ -31,12 +31,18 @@ export function boxscoreIsEmpty(box: V1Boxscore, plays: V1Play[]): boolean {
 	return teamZero && playerZero;
 }
 
-/** True when the box has neither player lines nor any non-zero team stat. */
+/**
+ * True when the box carries no statistics at all: no player lines, or a
+ * roster-only box where every player and team line is zero (NCAA publishes
+ * these for games it never scored).
+ */
 export function boxscoreIsBlank(box: V1Boxscore): boolean {
 	return (
-		box.players.length === 0 &&
 		box.teamStats.every(
 			(t) => !t.goals && !t.shots && !t.groundBalls && !t.turnovers,
+		) &&
+		box.players.every(
+			(p) => !p.goals && !p.assists && !p.shots && !p.groundBalls && !p.saves,
 		)
 	);
 }
