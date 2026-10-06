@@ -319,38 +319,18 @@ const html = await res.text();
     return status(502, String(e));
   }
 })
-  .get("/official-standings", async ({ query, status, cache, cacheKey }) => {
+  .get("/official-standings", async ({ query, status, cache, cacheKey, set }) => {
     const season = typeof query.season === "string" ? query.season : defaultSeason();
+    // Scraping every conference site takes ~10s cold: serve the last good copy
+    // right away and refresh it in the background.
+    const stale = await cache.getStale(cacheKey);
+    if (stale) {
+      set.headers["X-CLN-Data-Age"] = String(stale.ageSeconds);
+      void refreshOfficialStandings(season, cache, cacheKey);
+      return stale.value;
+    }
     try {
-      const results = await Promise.all(
-        conferenceSources.map(async (conference) => {
-          const standingsUrl = conference.seasonUrls?.[season] || conference.standingsUrl;
-          let standings: unknown[];
-          try {
-            const res = await upstreamFetch(standingsUrl, { headers: { Accept: "text/html" } });
-            if (!res.ok) {
-              return null;
-            }
-            standings = parseConferenceStandings(conference.platform, await res.text());
-          } catch (err) {
-            log(`official-standings: ${conference.conference} failed: ${err}`);
-            return null;
-          }
-          return {
-            conference: conference.name || conference.conference,
-            slug: conference.conference,
-            logo: conference.logo || "",
-            platform: conference.platform,
-            standingsUrl,
-            season,
-            count: standings.length,
-            standings,
-          };
-        })
-      );
-      const available = results.filter((r) => r !== null);
-      cache.set(cacheKey, available);
-      return available;
+      return await refreshOfficialStandings(season, cache, cacheKey);
     } catch (e) {
       return status(502, String(e));
     }
@@ -949,11 +929,74 @@ void initStore().then(() => {
   if (process.env.ROSTER_BIO_WALK !== "false" && Bun.env.NODE_ENV !== "test") {
     startRosterBioWalk();
   }
+  if (Bun.env.NODE_ENV !== "test") {
+    startOfficialStandingsWarm();
+  }
 });
 
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// FUNCTIONS ////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+
+async function loadOfficialStandings(season: string) {
+  const results = await Promise.all(
+    conferenceSources.map(async (conference) => {
+      const standingsUrl = conference.seasonUrls?.[season] || conference.standingsUrl;
+      let standings: unknown[];
+      try {
+        const res = await upstreamFetch(standingsUrl, { headers: { Accept: "text/html" } });
+        if (!res.ok) {
+          return null;
+        }
+        standings = parseConferenceStandings(conference.platform, await res.text());
+      } catch (err) {
+        log(`official-standings: ${conference.conference} failed: ${err}`);
+        return null;
+      }
+      return {
+        conference: conference.name || conference.conference,
+        slug: conference.conference,
+        logo: conference.logo || "",
+        platform: conference.platform,
+        standingsUrl,
+        season,
+        count: standings.length,
+        standings,
+      };
+    })
+  );
+  return results.filter((r) => r !== null);
+}
+
+const officialStandingsInFlight = new Map<string, Promise<unknown>>();
+
+/** Rebuild one season's official standings, de-duplicating concurrent callers. */
+function refreshOfficialStandings(season: string, cache: TieredCache, cacheKey: string) {
+  const running = officialStandingsInFlight.get(cacheKey);
+  if (running) return running;
+  const p = loadOfficialStandings(season)
+    .then((available) => {
+      cache.set(cacheKey, available);
+      return available;
+    })
+    .finally(() => officialStandingsInFlight.delete(cacheKey));
+  officialStandingsInFlight.set(cacheKey, p);
+  return p;
+}
+
+const OFFICIAL_STANDINGS_WARM_MS = 20 * 60 * 1000;
+
+/** Keep the current season's official standings warm so no visitor waits on the scrape. */
+function startOfficialStandingsWarm() {
+  const warm = () => {
+    const season = defaultSeason();
+    refreshOfficialStandings(season, cache_30m, cacheKeyFor("/official-standings", { season })).catch((err) =>
+      log(`official-standings warm failed: ${err}`),
+    );
+  };
+  warm();
+  setInterval(warm, OFFICIAL_STANDINGS_WARM_MS);
+}
 
 /**
  * Check if this is a D1 football request that should use new endpoint

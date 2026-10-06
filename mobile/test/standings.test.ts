@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 
-import { fetchStandings } from '../lib/api.ts';
+import { applyOfficialExtras, fetchOfficialExtras, fetchStandings } from '../lib/api.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
@@ -64,7 +64,10 @@ test('men’s DI: lax.com is the base, official streak/conference record merged 
     assert.equal(path, '/standings/lacrosse-men/d1');
     return Response.json(JSON.stringify(lax));
   };
-  const [acc, asun] = await fetchStandings('lacrosse-men', 'd1', '2026');
+  const base = await fetchStandings('lacrosse-men', 'd1', '2026');
+  assert.equal(base[0].standings[0].conferenceRecord, '4-2');
+  assert.equal(base[0].standings[0].streak, '');
+  const [acc, asun] = applyOfficialExtras(base, await fetchOfficialExtras('2026'));
   assert.equal(acc.conference, 'Atlantic Coast');
   assert.deepEqual(acc.standings[0], {
     team: 'Notre Dame', conferenceRecord: '3-1', overallRecord: '13-3', overallPct: '',
@@ -83,7 +86,8 @@ test('men’s DI still loads when official standings are unavailable', async () 
       name: 'penn state', wins: '10', losses: '6', conf_wins: 5, conf_losses: 2,
     }] }]));
   };
-  const [big] = await fetchStandings('lacrosse-men', 'd1', '2026');
+  const base = await fetchStandings('lacrosse-men', 'd1', '2026');
+  const [big] = applyOfficialExtras(base, await fetchOfficialExtras('2026'));
   assert.equal(big.standings[0].team, 'Penn State');
   assert.equal(big.standings[0].streak, '');
 });
