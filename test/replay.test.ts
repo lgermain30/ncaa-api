@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { resetStore, upsertDetail, upsertGame } from "../src/store";
 import { resetEvents, subscribe } from "../src/v1/events";
 import { normalizePlays } from "../src/v1/normalize";
-import { boxscoreFromPlays, boxscoreIsEmpty } from "../src/v1/pbpbox";
+import {
+	boxscoreFromPlays,
+	boxscoreIsBlank,
+	boxscoreIsEmpty,
+	rosterFromPlays,
+} from "../src/v1/pbpbox";
 import {
 	periodStartMs,
 	playElapsedMs,
@@ -245,6 +250,70 @@ describe("empty NCAA box + duplicated PBP (older seasons)", () => {
 		};
 		const out = normalizePlays("1", raw as never);
 		expect(out.plays.map((p) => p.clock)).toEqual(["15:00", "14:59", "14:30"]);
+	});
+
+	it("dedupes plays repeated non-adjacently within a period (2022 feeds)", () => {
+		const play = (t: string, c: string, h = "0", v = "0") => ({
+			playText: t,
+			clock: c,
+			homeScore: h,
+			visitorScore: v,
+		});
+		const run = [
+			play("GOAL by A X.", "13:43", "1", "0"),
+			play("Shot by A Y WIDE", "12:00", "1", "0"),
+			play("GOAL by A Z.", "08:40", "2", "0"),
+		];
+		const raw = {
+			periods: [
+				{
+					periodNumber: 1,
+					playbyplayStats: [{ teamId: 1, plays: [...run, ...run] }],
+				},
+				{
+					periodNumber: 2,
+					playbyplayStats: [
+						{ teamId: 1, plays: [play("GOAL by A X.", "13:43", "3", "0")] },
+					],
+				},
+			],
+		};
+		const out = normalizePlays("1", raw as never);
+		expect(out.plays.filter((p) => p.type === "goal")).toHaveLength(3);
+		expect(out.plays).toHaveLength(4);
+	});
+
+	it("synthesizes player lines from the PBP when NCAA published none", () => {
+		const empty: V1Boxscore = { ...boxscore, players: [] };
+		const roster = rosterFromPlays(empty, plays.plays);
+		expect(roster.length).toBeGreaterThan(0);
+		for (const t of empty.teams) {
+			expect(roster.some((p) => p.teamId === t.teamId)).toBe(true);
+		}
+		const rebuilt = boxscoreFromPlays(
+			{ ...empty, players: roster },
+			plays.plays,
+			empty.status,
+			"x",
+			true,
+		);
+		for (const t of rebuilt.teamStats) {
+			const orig = boxscore.teamStats.find((x) => x.teamId === t.teamId);
+			expect(t.goals).toBe(orig?.goals ?? -1);
+		}
+		expect(boxscoreIsBlank(empty)).toBe(false);
+		expect(
+			boxscoreIsBlank({
+				...empty,
+				teamStats: empty.teamStats.map((t) => ({
+					...t,
+					goals: 0,
+					shots: 0,
+					groundBalls: 0,
+					turnovers: 0,
+				})),
+			}),
+		).toBe(true);
 	});
 
 	it("rebuilds an all-zero box from the play-by-play", () => {

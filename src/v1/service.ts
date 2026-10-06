@@ -26,7 +26,12 @@ import {
 	normalizeGame,
 	normalizePlays,
 } from "./normalize";
-import { boxscoreFromPlays, boxscoreIsEmpty } from "./pbpbox";
+import {
+	boxscoreFromPlays,
+	boxscoreIsBlank,
+	boxscoreIsEmpty,
+	rosterFromPlays,
+} from "./pbpbox";
 import {
 	replayActive,
 	replayBoard,
@@ -363,6 +368,13 @@ export async function refreshDetails(
 		if (!box && !teamStats && !pbp) return null;
 		const plays = normalizePlays(gameId, pbp);
 		let boxscore = normalizeBoxscore(gameId, box, teamStats, pbp);
+		const hasGoals = plays.plays.some((p) => p.type === "goal");
+		if (boxscore.players.length === 0 && hasGoals) {
+			boxscore = {
+				...boxscore,
+				players: rosterFromPlays(boxscore, plays.plays),
+			};
+		}
 		if (boxscoreIsEmpty(boxscore, plays.plays)) {
 			boxscore = boxscoreFromPlays(
 				boxscore,
@@ -464,7 +476,13 @@ export function getBoxscore(gameId: string) {
 			updatedAt: replayed.updatedAt,
 			stale: false,
 		});
-	return detail<V1Boxscore>(gameId, "boxscore");
+	return detail<V1Boxscore>(gameId, "boxscore").then((served) =>
+		served &&
+		served.data.status.state !== "live" &&
+		boxscoreIsBlank(served.data)
+			? null
+			: served,
+	);
 }
 
 export function getPlays(gameId: string) {
@@ -475,7 +493,13 @@ export function getPlays(gameId: string) {
 			updatedAt: replayed.updatedAt,
 			stale: false,
 		});
-	return detail<V1Plays>(gameId, "plays");
+	return detail<V1Plays>(gameId, "plays").then((served) =>
+		served &&
+		served.data.status.state !== "live" &&
+		served.data.plays.length === 0
+			? null
+			: served,
+	);
 }
 
 export async function getLive(): Promise<Served<V1Game[]>> {

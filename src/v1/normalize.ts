@@ -863,28 +863,31 @@ export function linescoreAddsUp(
 // ------------------------------------------------------------------- plays --
 
 /**
- * Older NCAA feeds repeat every play 2-4 times back to back; keep the first of
- * each run of identical consecutive rows.
+ * Older NCAA feeds repeat plays — 2-4 times back to back (2023-), or the same
+ * run again a few rows later (2022). Keep the first copy of each distinct
+ * play within a period.
  */
 export function dedupePlayByPlay(
 	pbp: RawPlayByPlay | null,
 ): RawPlayByPlay | null {
 	if (!pbp?.periods) return pbp;
-	let prev = "";
 	return {
 		...pbp,
-		periods: pbp.periods.map((period) => ({
-			...period,
-			playbyplayStats: (period.playbyplayStats ?? []).map((stat) => ({
-				...stat,
-				plays: (stat.plays ?? []).filter((play) => {
-					const key = `${period.periodNumber}|${stat.teamId}|${str(play.clock || stat.clock)}|${play.homeScore}|${play.visitorScore}|${str(play.playText).trim()}`;
-					if (key === prev) return false;
-					prev = key;
-					return true;
-				}),
-			})),
-		})),
+		periods: pbp.periods.map((period) => {
+			const seen = new Set<string>();
+			return {
+				...period,
+				playbyplayStats: (period.playbyplayStats ?? []).map((stat) => ({
+					...stat,
+					plays: (stat.plays ?? []).filter((play) => {
+						const key = `${stat.teamId}|${str(play.clock || stat.clock)}|${play.homeScore}|${play.visitorScore}|${str(play.playText).trim()}`;
+						if (seen.has(key)) return false;
+						seen.add(key);
+						return true;
+					}),
+				})),
+			};
+		}),
 	};
 }
 

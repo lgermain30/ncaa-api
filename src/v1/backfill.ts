@@ -95,20 +95,14 @@ function bump(season: number, key: string, by = 1) {
 	row[key] = (row[key] ?? 0) + by;
 }
 
-/** Consecutive identical plays mean the stored PBP predates deduping. */
+/** Repeated plays mean the stored PBP predates deduping. */
 function hasDuplicatePlays(plays: V1Plays | null) {
 	if (!plays) return false;
-	const ps = plays.plays;
-	for (let i = 1; i < ps.length; i++) {
-		const a = ps[i - 1];
-		const b = ps[i];
-		if (
-			a.text === b.text &&
-			a.clock === b.clock &&
-			a.period === b.period &&
-			a.teamId === b.teamId
-		)
-			return true;
+	const seen = new Set<string>();
+	for (const p of plays.plays) {
+		const key = `${p.period}|${p.teamId}|${p.clock}|${p.homeScore}|${p.awayScore}|${p.text}`;
+		if (seen.has(key)) return true;
+		seen.add(key);
 	}
 	return false;
 }
@@ -127,7 +121,10 @@ async function hasDetails(gameId: string) {
 		return false;
 	const plays = await getDetail<V1Plays>(gameId, "plays");
 	if (hasDuplicatePlays(plays?.data ?? null)) return false;
-	return !boxscoreIsEmpty(box.data, plays?.data.plays ?? []);
+	const ps = plays?.data.plays ?? [];
+	if (box.data.players.length === 0 && ps.some((p) => p.type === "goal"))
+		return false;
+	return !boxscoreIsEmpty(box.data, ps);
 }
 
 async function alreadyStored(sport: string, division: string, date: string) {

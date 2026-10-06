@@ -31,6 +31,125 @@ export function boxscoreIsEmpty(box: V1Boxscore, plays: V1Play[]): boolean {
 	return teamZero && playerZero;
 }
 
+/** True when the box has neither player lines nor any non-zero team stat. */
+export function boxscoreIsBlank(box: V1Boxscore): boolean {
+	return (
+		box.players.length === 0 &&
+		box.teamStats.every(
+			(t) => !t.goals && !t.shots && !t.groundBalls && !t.turnovers,
+		)
+	);
+}
+
+function displayName(name: string): string {
+	const comma = name.indexOf(",");
+	if (comma < 0) return name.trim();
+	return `${name.slice(comma + 1).trim()} ${name.slice(0, comma).trim()}`;
+}
+
+/**
+ * Player lines synthesized from the names that appear in the play-by-play,
+ * for games where NCAA published no player box at all. Only plays whose
+ * actor's team is unambiguous contribute a name.
+ */
+export function rosterFromPlays(
+	box: V1Boxscore,
+	plays: V1Play[],
+): V1PlayerLine[] {
+	const teamIds = box.teams.map((t) => t.teamId);
+	const other = (teamId: string) => teamIds.find((t) => t !== teamId) ?? null;
+	const seen = new Map<string, V1PlayerLine>();
+	const add = (
+		teamId: string | null,
+		raw: string | undefined,
+		goalie = false,
+	) => {
+		if (!teamId || !raw) return;
+		const name = displayName(raw.trim().replace(/\.$/, ""));
+		if (!name || /^team$/i.test(name)) return;
+		const key = `${teamId}|${nameKey(name)}`;
+		const cur = seen.get(key);
+		if (cur) {
+			if (goalie) cur.isGoalie = true;
+			return;
+		}
+		const parts = name.split(" ");
+		seen.set(key, {
+			teamId,
+			name,
+			firstName: parts[0] ?? "",
+			lastName: parts.slice(1).join(" "),
+			number: null,
+			position: goalie ? "G" : "",
+			starter: false,
+			played: true,
+			goals: 0,
+			assists: 0,
+			points: 0,
+			shots: 0,
+			shotsOnGoal: 0,
+			groundBalls: 0,
+			turnovers: 0,
+			causedTurnovers: 0,
+			drawControls: 0,
+			faceoffsWon: null,
+			faceoffsTaken: null,
+			saves: goalie ? 0 : null,
+			goalsAllowed: goalie ? 0 : null,
+			isGoalie: goalie,
+			penalties: null,
+		});
+	};
+	for (const play of plays) {
+		const text = play.text.trim();
+		const team = play.teamId;
+		const goalie = text.match(GOALIE_RE);
+		if (goalie) {
+			add(team, goalie[1], true);
+			continue;
+		}
+		const otherTeam = team ? other(team) : null;
+		const rules: [RegExp, (m: RegExpMatchArray) => void][] = [
+			[
+				GOAL_RE,
+				(m) => {
+					add(team, m[1]);
+					add(team, m[2]);
+				},
+			],
+			[
+				SAVE_RE,
+				(m) => {
+					add(team, m[1]);
+					add(otherTeam, m[2], true);
+				},
+			],
+			[SHOT_RE, (m) => add(team, m[1])],
+			[
+				TURNOVER_RE,
+				(m) => {
+					add(team, m[1]);
+					add(otherTeam, m[2]);
+				},
+			],
+			[PENALTY_RE, (m) => add(team, m[1])],
+			[DRAW_RE, (m) => add(team, m[1])],
+		];
+		const hit = rules.find(([re]) => re.test(text));
+		if (hit) {
+			const m = text.match(hit[0]);
+			if (m) hit[1](m);
+			continue;
+		}
+		for (const gb of text.matchAll(GB_RE)) add(team, gb[1]);
+	}
+	return [...seen.values()].sort(
+		(a, b) =>
+			teamIds.indexOf(a.teamId) - teamIds.indexOf(b.teamId) ||
+			a.lastName.localeCompare(b.lastName),
+	);
+}
+
 /**
  * Rebuild a partial box score from the plays released so far, keyed to the
  * roster of the stored final box (so names, numbers and positions match).
