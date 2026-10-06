@@ -9,6 +9,8 @@ import type { V1Game } from "./v1/types";
  *   game_details  (game_id, kind) -> jsonb   kind = boxscore | plays
  *   news_posts    CLN WordPress posts pushed by the cln-teams plugin
  *   roster_bios   key -> jsonb  player height/weight/HS scraped from school sites
+ *   lax_seasons   key -> jsonb  past-season team pages (lax.com) kept as our own
+ *                 copy once their results agree with the NCAA games we store
  */
 
 export type DetailKind = "boxscore" | "plays";
@@ -35,6 +37,7 @@ const memGames = new Map<string, { game: V1Game; updatedAt: string }>();
 const memDetails = new Map<string, StoredDetail>();
 const memNews = new Map<number, StoredNewsPost>();
 const memBios = new Map<string, StoredDetail>();
+const memLax = new Map<string, StoredDetail>();
 
 export interface StoredNewsPost {
 	id: number;
@@ -81,6 +84,11 @@ const SCHEMA = [
 		data jsonb NOT NULL,
 		updated_at timestamptz NOT NULL DEFAULT now()
 	)`,
+	`CREATE TABLE IF NOT EXISTS lax_seasons (
+		key text PRIMARY KEY,
+		data jsonb NOT NULL,
+		updated_at timestamptz NOT NULL DEFAULT now()
+	)`,
 ];
 
 /** Connects and applies the schema once; safe to call repeatedly. */
@@ -118,6 +126,7 @@ export function resetStore() {
 	memDetails.clear();
 	memNews.clear();
 	memBios.clear();
+	memLax.clear();
 	sql = null;
 	ready = null;
 	storeStats.backend = "memory";
@@ -470,34 +479,59 @@ export async function getDetail<T = unknown>(
 	);
 }
 
-export async function upsertBio(key: string, data: unknown): Promise<void> {
+type KvTable = "roster_bios" | "lax_seasons";
+const memKv: Record<KvTable, Map<string, StoredDetail>> = {
+	roster_bios: memBios,
+	lax_seasons: memLax,
+};
+
+async function upsertKv(
+	table: KvTable,
+	key: string,
+	data: unknown,
+): Promise<void> {
 	await initStore();
 	const updatedAt = new Date().toISOString();
 	storeStats.writes++;
 	if (!sql) {
-		memBios.set(key, { data, updatedAt });
+		memKv[table].set(key, { data, updatedAt });
 		return;
 	}
+	const json = JSON.stringify(data);
 	try {
-		await sql`
-			INSERT INTO roster_bios (key, data, updated_at)
-			VALUES (${key}, ${JSON.stringify(data)}::text::jsonb, ${updatedAt})
-			ON CONFLICT (key) DO UPDATE SET
-				data = EXCLUDED.data,
-				updated_at = EXCLUDED.updated_at`;
+		if (table === "roster_bios")
+			await sql`
+				INSERT INTO roster_bios (key, data, updated_at)
+				VALUES (${key}, ${json}::text::jsonb, ${updatedAt})
+				ON CONFLICT (key) DO UPDATE SET
+					data = EXCLUDED.data,
+					updated_at = EXCLUDED.updated_at`;
+		else
+			await sql`
+				INSERT INTO lax_seasons (key, data, updated_at)
+				VALUES (${key}, ${json}::text::jsonb, ${updatedAt})
+				ON CONFLICT (key) DO UPDATE SET
+					data = EXCLUDED.data,
+					updated_at = EXCLUDED.updated_at`;
 	} catch (err) {
 		recordError(err);
 	}
 }
 
-export async function getBio<T = unknown>(
+async function getKv<T>(
+	table: KvTable,
 	key: string,
 ): Promise<StoredDetail<T> | null> {
 	await initStore();
 	if (sql) {
 		try {
-			const rows = await sql<{ data: T; updated_at: string | Date }[]>`
-				SELECT data, updated_at FROM roster_bios WHERE key = ${key}`;
+			type Row = { data: T; updated_at: string | Date };
+			const rows =
+				table === "roster_bios"
+					? await sql<Row[]>`
+						SELECT data, updated_at FROM roster_bios WHERE key = ${key}`
+					: await sql<Row[]>`
+						SELECT data, updated_at FROM lax_seasons WHERE key = ${key}`;
 			const row = rows[0];
 			if (row) {
 				return {
@@ -510,8 +544,17 @@ export async function getBio<T = unknown>(
 		}
 		return null;
 	}
-	return (memBios.get(key) as StoredDetail<T> | undefined) ?? null;
+	return (memKv[table].get(key) as StoredDetail<T> | undefined) ?? null;
 }
+
+export const upsertBio = (key: string, data: unknown) =>
+	upsertKv("roster_bios", key, data);
+export const getBio = <T = unknown>(key: string) =>
+	getKv<T>("roster_bios", key);
+export const upsertLaxSeason = (key: string, data: unknown) =>
+	upsertKv("lax_seasons", key, data);
+export const getLaxSeason = <T = unknown>(key: string) =>
+	getKv<T>("lax_seasons", key);
 
 export async function upsertNewsPosts(posts: StoredNewsPost[]): Promise<void> {
 	await initStore();
