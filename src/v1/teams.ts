@@ -855,9 +855,7 @@ export function verifySchedule(
 	if (!seoName) return out;
 	for (const g of schedule) {
 		if (!g.final || !g.score) continue;
-		const match = (gamesByDate.get(g.date) ?? []).find(
-			(x) => x.home.seoName === seoName || x.away.seoName === seoName,
-		);
+		const match = findNcaaGame(g, seoName, gamesByDate);
 		if (!match) {
 			out.unmatched++;
 			continue;
@@ -865,6 +863,7 @@ export function verifySchedule(
 		const us = match.home.seoName === seoName ? match.home : match.away;
 		const them = us === match.home ? match.away : match.home;
 		if (us.score === null || them.score === null) continue;
+		if (us.score === 0 && them.score === 0) continue;
 		out.checked++;
 		if (us.score === g.score.us && them.score === g.score.them) out.agreed++;
 		else
@@ -879,6 +878,43 @@ export function verifySchedule(
 	return out;
 }
 
+/**
+ * lax.com dates can sit a day off NCAA's (older seasons were entered in a
+ * different timezone), so when the opponent is known we also look at the
+ * neighbouring days and require the opponent to match.
+ */
+function findNcaaGame(
+	g: V1TeamGame,
+	seoName: string,
+	gamesByDate: Map<string, V1Game[]>,
+): V1Game | undefined {
+	const opp = g.opponent.seoName;
+	const sameDay = (gamesByDate.get(g.date) ?? []).find((x) =>
+		opp
+			? (x.home.seoName === seoName && x.away.seoName === opp) ||
+				(x.away.seoName === seoName && x.home.seoName === opp)
+			: x.home.seoName === seoName || x.away.seoName === seoName,
+	);
+	if (sameDay || !opp) return sameDay;
+	for (const date of adjacentDates(g.date))
+		for (const x of gamesByDate.get(date) ?? [])
+			if (
+				(x.home.seoName === seoName && x.away.seoName === opp) ||
+				(x.away.seoName === seoName && x.home.seoName === opp)
+			)
+				return x;
+	return undefined;
+}
+
+export function adjacentDates(date: string): string[] {
+	const d = new Date(`${date}T12:00:00Z`);
+	return [-1, 1].map((off) => {
+		const n = new Date(d);
+		n.setUTCDate(d.getUTCDate() + off);
+		return n.toISOString().slice(0, 10);
+	});
+}
+
 const snapshotKey = (
 	sport: Sport,
 	division: Division,
@@ -891,7 +927,9 @@ async function verifyAgainstStore(
 ): Promise<ScheduleVerification> {
 	const dates = [
 		...new Set(
-			team.schedule.filter((g) => g.final && g.score).map((g) => g.date),
+			team.schedule
+				.filter((g) => g.final && g.score)
+				.flatMap((g) => [g.date, ...adjacentDates(g.date)]),
 		),
 	];
 	const byDate = new Map<string, V1Game[]>();
