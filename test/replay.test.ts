@@ -316,6 +316,30 @@ describe("empty NCAA box + duplicated PBP (older seasons)", () => {
 		).toBe(true);
 	});
 
+	it("treats a roster-only box with all-zero lines as blank", () => {
+		const rosterOnly: V1Boxscore = {
+			...boxscore,
+			teamStats: boxscore.teamStats.map((t) => ({
+				...t,
+				goals: 0,
+				shots: 0,
+				groundBalls: 0,
+				turnovers: 0,
+			})),
+			players: boxscore.players.map((p) => ({
+				...p,
+				goals: 0,
+				assists: 0,
+				shots: 0,
+				groundBalls: 0,
+				saves: null,
+			})),
+		};
+		expect(rosterOnly.players.length).toBeGreaterThan(0);
+		expect(boxscoreIsBlank(rosterOnly)).toBe(true);
+		expect(boxscoreIsBlank(boxscore)).toBe(false);
+	});
+
 	it("rebuilds an all-zero box from the play-by-play", () => {
 		const zero: V1Boxscore = {
 			...boxscore,
