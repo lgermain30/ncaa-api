@@ -135,9 +135,9 @@ function Board({
       {rows.slice(0, expanded ? EXPANDED : COLLAPSED).map((r, i) => (
         <Pressable
           key={`${r.player_id ?? r.team_id}-${i}`}
-          disabled={mode !== 'players'}
+          disabled={mode !== 'players' || !expanded}
           onPress={() => onPlayer(r)}
-          accessibilityRole={mode === 'players' ? 'button' : undefined}
+          accessibilityRole={mode === 'players' && expanded ? 'button' : undefined}
           style={[styles.row, { backgroundColor: i % 2 ? bg : card, borderBottomColor: border }]}
         >
           <Text style={styles.rank}>{i + 1}</Text>
