@@ -867,6 +867,30 @@ export function linescoreAddsUp(
  * run again a few rows later (2022). Keep the first copy of each distinct
  * play within a period.
  */
+/**
+ * Identity of a play for de-duplication. NCAA's 2022 feeds repeat rows with
+ * the team abbreviation spelled differently ("SACREDHEART" / "SACREDH"),
+ * entities encoded differently or an assist re-credited, so the text only
+ * counts for non-goal plays, and then without the team token.
+ */
+export function playIdentity(
+	teamId: unknown,
+	clock: string,
+	home: unknown,
+	away: unknown,
+	text: string,
+): string {
+	const type = classifyPlay(text);
+	const base = `${teamId}|${clock}|${home}|${away}|${type}`;
+	if (type === "goal") return base;
+	const body = text
+		.replace(/&#?\w+;/g, "")
+		.replace(/\bby\s+\S+\s+/gi, "by ")
+		.replace(/[^a-z0-9]/gi, "")
+		.toLowerCase();
+	return `${base}|${body}`;
+}
+
 export function dedupePlayByPlay(
 	pbp: RawPlayByPlay | null,
 ): RawPlayByPlay | null {
@@ -880,7 +904,13 @@ export function dedupePlayByPlay(
 				playbyplayStats: (period.playbyplayStats ?? []).map((stat) => ({
 					...stat,
 					plays: (stat.plays ?? []).filter((play) => {
-						const key = `${stat.teamId}|${str(play.clock || stat.clock)}|${play.homeScore}|${play.visitorScore}|${str(play.playText).trim()}`;
+						const key = playIdentity(
+							stat.teamId,
+							str(play.clock || stat.clock),
+							play.homeScore,
+							play.visitorScore,
+							str(play.playText),
+						);
 						if (seen.has(key)) return false;
 						seen.add(key);
 						return true;

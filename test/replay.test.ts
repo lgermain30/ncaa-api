@@ -3,6 +3,7 @@ import { resetStore, upsertDetail, upsertGame } from "../src/store";
 import { resetEvents, subscribe } from "../src/v1/events";
 import { normalizePlays } from "../src/v1/normalize";
 import {
+	boxscoreDisagrees,
 	boxscoreFromPlays,
 	boxscoreIsBlank,
 	boxscoreIsEmpty,
@@ -281,6 +282,81 @@ describe("empty NCAA box + duplicated PBP (older seasons)", () => {
 		const out = normalizePlays("1", raw as never);
 		expect(out.plays.filter((p) => p.type === "goal")).toHaveLength(3);
 		expect(out.plays).toHaveLength(4);
+	});
+
+	it("dedupes repeats that only differ by team abbreviation, entities or assist", () => {
+		const play = (t: string, c: string, h: string, v: string) => ({
+			playText: t,
+			clock: c,
+			homeScore: h,
+			visitorScore: v,
+		});
+		const raw = {
+			periods: [
+				{
+					periodNumber: 1,
+					playbyplayStats: [
+						{
+							teamId: 1,
+							plays: [
+								play(
+									"GOAL by SACREDHEART Morgan O&#39;Reilly, Assist by A.",
+									"04:09",
+									"1",
+									"0",
+								),
+								play(
+									"GOAL by SACREDH Morgan O'Reilly, Assist by B.",
+									"04:09",
+									"1",
+									"0",
+								),
+								play("Shot by SACREDHEART Jake Garb WIDE", "03:00", "1", "0"),
+								play("Shot by SACREDH Jake Garb WIDE", "03:00", "1", "0"),
+								play("Shot by SACREDH Sal Miccio WIDE", "03:00", "1", "0"),
+								play("GOAL by SACREDH Jake Garb.", "01:00", "2", "0"),
+							],
+						},
+					],
+				},
+			],
+		};
+		const out = normalizePlays("1", raw as never);
+		expect(out.plays.filter((p) => p.type === "goal")).toHaveLength(2);
+		expect(out.plays.filter((p) => p.type === "shot")).toHaveLength(2);
+	});
+
+	it("flags a final whose box disagrees with the score the PBP confirms", () => {
+		const game = {
+			status: { state: "final" },
+			home: { id: "H", score: 2 },
+			away: { id: "A", score: 1 },
+		};
+		const plays = [
+			{ type: "goal", teamId: "H" },
+			{ type: "goal", teamId: "H" },
+			{ type: "goal", teamId: "A" },
+		] as never;
+		const box = (hGoals: number, aGoals: number) =>
+			({
+				teamStats: [
+					{ teamId: "H", goals: hGoals },
+					{ teamId: "A", goals: aGoals },
+				],
+				players: [
+					{ teamId: "H", goals: hGoals },
+					{ teamId: "A", goals: aGoals },
+				],
+			}) as never;
+		expect(boxscoreDisagrees(box(2, 1), plays, game as never)).toBe(false);
+		expect(boxscoreDisagrees(box(4, 2), plays, game as never)).toBe(true);
+		expect(boxscoreDisagrees(box(1, 0), plays, game as never)).toBe(true);
+		expect(
+			boxscoreDisagrees(box(4, 2), plays, {
+				...game,
+				status: { state: "live" },
+			} as never),
+		).toBe(false);
 	});
 
 	it("synthesizes player lines from the PBP when NCAA published none", () => {

@@ -1,6 +1,7 @@
-import { getDetail, listGames } from "../store";
+import { getDetail, getGame, listGames } from "../store";
 import { UpstreamError } from "../upstream";
-import { boxscoreIsEmpty } from "./pbpbox";
+import { playIdentity } from "./normalize";
+import { boxscoreDisagrees, boxscoreIsEmpty } from "./pbpbox";
 import {
 	LACROSSE_DIVISIONS,
 	LACROSSE_SPORTS,
@@ -100,7 +101,7 @@ function hasDuplicatePlays(plays: V1Plays | null) {
 	if (!plays) return false;
 	const seen = new Set<string>();
 	for (const p of plays.plays) {
-		const key = `${p.period}|${p.teamId}|${p.clock}|${p.homeScore}|${p.awayScore}|${p.text}`;
+		const key = `${p.period}|${playIdentity(p.teamId, p.clock, p.homeScore, p.awayScore, p.text)}`;
 		if (seen.has(key)) return true;
 		seen.add(key);
 	}
@@ -124,7 +125,9 @@ async function hasDetails(gameId: string) {
 	const ps = plays?.data.plays ?? [];
 	if (box.data.players.length === 0 && ps.some((p) => p.type === "goal"))
 		return false;
-	return !boxscoreIsEmpty(box.data, ps);
+	if (boxscoreIsEmpty(box.data, ps)) return false;
+	const game = await getGame(gameId);
+	return !(game && boxscoreDisagrees(box.data, ps, game.game));
 }
 
 async function alreadyStored(sport: string, division: string, date: string) {

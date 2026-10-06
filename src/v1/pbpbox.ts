@@ -1,5 +1,11 @@
 import { nameKey } from "./normalize";
-import type { V1Boxscore, V1Play, V1PlayerLine, V1TeamLine } from "./types";
+import type {
+	V1Boxscore,
+	V1Game,
+	V1Play,
+	V1PlayerLine,
+	V1TeamLine,
+} from "./types";
 
 const GOAL_RE =
 	/^GOAL by \S+ (.+?)(?: \(.*?\))?(?:, Assist by (.+?))?(?:, goal number .*)?\.?$/i;
@@ -29,6 +35,41 @@ export function boxscoreIsEmpty(box: V1Boxscore, plays: V1Play[]): boolean {
 		(p) => !p.goals && !p.assists && !p.shots && !p.groundBalls,
 	);
 	return teamZero && playerZero;
+}
+
+/**
+ * True for a final whose NCAA box score disagrees with the final score while
+ * the (deduped) play-by-play agrees with it — NCAA's 2022 feeds carry boxes
+ * that are doubled or stop part-way through the game. Such a box is rebuilt
+ * from the plays.
+ */
+export function boxscoreDisagrees(
+	box: V1Boxscore,
+	plays: V1Play[],
+	game: Pick<V1Game, "home" | "away" | "status">,
+): boolean {
+	if (game.status.state !== "final") return false;
+	if (!game.home.id || !game.away.id) return false;
+	const final: Record<string, number | null> = {
+		[game.home.id]: game.home.score,
+		[game.away.id]: game.away.score,
+	};
+	if (Object.values(final).some((s) => s === null)) return false;
+	const pbp = new Map<string, number>();
+	for (const p of plays)
+		if (p.type === "goal" && p.teamId)
+			pbp.set(p.teamId, (pbp.get(p.teamId) ?? 0) + 1);
+	if (pbp.size === 0) return false;
+	for (const id of Object.keys(final))
+		if ((pbp.get(id) ?? 0) !== final[id]) return false;
+	const players = new Map<string, number>();
+	for (const p of box.players)
+		players.set(p.teamId, (players.get(p.teamId) ?? 0) + p.goals);
+	return Object.keys(final).some(
+		(id) =>
+			(box.teamStats.find((t) => t.teamId === id)?.goals ?? final[id]) !==
+				final[id] || (players.get(id) ?? 0) !== final[id],
+	);
 }
 
 /**

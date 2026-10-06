@@ -27,6 +27,7 @@ import {
 	normalizePlays,
 } from "./normalize";
 import {
+	boxscoreDisagrees,
 	boxscoreFromPlays,
 	boxscoreIsBlank,
 	boxscoreIsEmpty,
@@ -375,7 +376,11 @@ export async function refreshDetails(
 				players: rosterFromPlays(boxscore, plays.plays),
 			};
 		}
-		if (boxscoreIsEmpty(boxscore, plays.plays)) {
+		const stored = await getGame(gameId);
+		if (
+			boxscoreIsEmpty(boxscore, plays.plays) ||
+			(stored && boxscoreDisagrees(boxscore, plays.plays, stored.game))
+		) {
 			boxscore = boxscoreFromPlays(
 				boxscore,
 				plays.plays,
@@ -389,7 +394,6 @@ export async function refreshDetails(
 			upsertDetail(gameId, "plays", plays),
 			repairLinescore(gameId, plays),
 		]);
-		const stored = await getGame(gameId);
 		if (stored) publishDetails(stored.game, ["boxscore", "plays"]);
 		return { boxscore, plays };
 	} finally {
