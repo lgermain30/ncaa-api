@@ -78,6 +78,46 @@ describe("boxscoreFromPlays", () => {
 		expect(rebuilt.teamStats.every((t) => (t.faceoffsWon ?? 0) > 0)).toBe(true);
 	});
 
+	it("matches scorers behind multi-word team prefixes and adds unknown scorers", () => {
+		const goal = (text: string, clock: string) => ({
+			id: `x-${clock}`,
+			tags: [],
+			text,
+			type: "goal" as const,
+			clock,
+			assist: null,
+			period: 1,
+			scorer: null,
+			teamId: "43861",
+			awayScore: 0,
+			homeScore: 1,
+			periodDisplay: "1st",
+		});
+		const rebuilt = boxscoreFromPlays(
+			boxscore,
+			[
+				goal("GOAL by NOTRE DAME Luke Miller.", "09:00"),
+				goal("GOAL by NOTRE DAME Miller, Luke, Assist by Yago, Josh.", "08:00"),
+				goal("GOAL by ND Nobody Jane, Assist by Nobody Joe.", "07:00"),
+			] as never,
+			boxscore.status,
+			"x",
+			true,
+		);
+		const miller = rebuilt.players.find((p) => p.name === "LUKE MILLER");
+		expect(miller?.goals).toBe(2);
+		expect(rebuilt.players.find((p) => p.name === "JOSH YAGO")?.assists).toBe(
+			1,
+		);
+		const added = rebuilt.players.find((p) => p.name === "Nobody Jane");
+		expect(added?.teamId).toBe("43861");
+		expect(added?.goals).toBe(1);
+		expect(rebuilt.players.find((p) => p.name === "Nobody Joe")?.assists).toBe(
+			1,
+		);
+		expect(rebuilt.teamStats.find((t) => t.teamId === "43861")?.goals).toBe(3);
+	});
+
 	it("credits goals whose text carries (FPGOAL) {free position shot} tags", () => {
 		const goal = (text: string, clock: string) => ({
 			id: `x-${clock}`,
