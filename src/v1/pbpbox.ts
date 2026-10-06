@@ -96,6 +96,62 @@ function displayName(name: string): string {
 	return `${name.slice(comma + 1).trim()} ${name.slice(0, comma).trim()}`;
 }
 
+/** Uppercase tokens of both team names ("PALM BEACH ATL." → PALM, BEACH, ATL). */
+function teamWords(box: Pick<V1Boxscore, "teams">): Set<string> {
+	const words = new Set<string>();
+	for (const t of box.teams)
+		for (const w of `${t.name} ${t.shortName}`.toUpperCase().split(/\s+/)) {
+			const clean = w.replace(/[^A-Z&]/g, "");
+			if (clean) words.add(clean);
+		}
+	return words;
+}
+
+/**
+ * NCAA play text is "GOAL by <TEAM> <player>" where <TEAM> may be several
+ * words ("PALM BEACH ATL."); the regexes only skip the first. Drop further
+ * leading all-caps tokens that belong to a team name, keeping ≥2 for the player.
+ */
+function stripTeamWords(name: string, words: Set<string>): string {
+	const parts = name.trim().split(/\s+/);
+	while (parts.length > 2) {
+		const w = parts[0];
+		const clean = w.replace(/[^A-Z&]/g, "");
+		if (w !== w.toUpperCase() || w.includes(",") || !words.has(clean)) break;
+		parts.shift();
+	}
+	return parts.join(" ");
+}
+
+function newLine(teamId: string, name: string, goalie: boolean): V1PlayerLine {
+	const parts = name.split(" ");
+	return {
+		teamId,
+		name,
+		firstName: parts[0] ?? "",
+		lastName: parts.slice(1).join(" "),
+		number: null,
+		position: goalie ? "G" : "",
+		starter: false,
+		played: true,
+		goals: 0,
+		assists: 0,
+		points: 0,
+		shots: 0,
+		shotsOnGoal: 0,
+		groundBalls: 0,
+		turnovers: 0,
+		causedTurnovers: 0,
+		drawControls: 0,
+		faceoffsWon: null,
+		faceoffsTaken: null,
+		saves: goalie ? 0 : null,
+		goalsAllowed: goalie ? 0 : null,
+		isGoalie: goalie,
+		penalties: null,
+	};
+}
+
 /**
  * Player lines synthesized from the names that appear in the play-by-play,
  * for games where NCAA published no player box at all. Only plays whose
@@ -108,13 +164,16 @@ export function rosterFromPlays(
 	const teamIds = box.teams.map((t) => t.teamId);
 	const other = (teamId: string) => teamIds.find((t) => t !== teamId) ?? null;
 	const seen = new Map<string, V1PlayerLine>();
+	const words = teamWords(box);
 	const add = (
 		teamId: string | null,
 		raw: string | undefined,
 		goalie = false,
 	) => {
 		if (!teamId || !raw) return;
-		const name = displayName(raw.trim().replace(/\.$/, ""));
+		const name = displayName(
+			stripTeamWords(raw.trim().replace(/\.$/, ""), words),
+		);
 		if (!name || /^team$/i.test(name)) return;
 		const key = `${teamId}|${nameKey(name)}`;
 		const cur = seen.get(key);
@@ -122,32 +181,7 @@ export function rosterFromPlays(
 			if (goalie) cur.isGoalie = true;
 			return;
 		}
-		const parts = name.split(" ");
-		seen.set(key, {
-			teamId,
-			name,
-			firstName: parts[0] ?? "",
-			lastName: parts.slice(1).join(" "),
-			number: null,
-			position: goalie ? "G" : "",
-			starter: false,
-			played: true,
-			goals: 0,
-			assists: 0,
-			points: 0,
-			shots: 0,
-			shotsOnGoal: 0,
-			groundBalls: 0,
-			turnovers: 0,
-			causedTurnovers: 0,
-			drawControls: 0,
-			faceoffsWon: null,
-			faceoffsTaken: null,
-			saves: goalie ? 0 : null,
-			goalsAllowed: goalie ? 0 : null,
-			isGoalie: goalie,
-			penalties: null,
-		});
+		seen.set(key, newLine(teamId, name, goalie));
 	};
 	for (const play of plays) {
 		const text = play.text.trim();
@@ -234,7 +268,8 @@ export function boxscoreFromPlays(
 	for (const p of players) byKey.set(`${p.teamId}|${nameKey(p.name)}`, p);
 	const teamIds = final.teams.map((t) => t.teamId);
 	const other = (teamId: string) => teamIds.find((t) => t !== teamId) ?? "";
-	const find = (teamId: string | null, name: string) => {
+	const words = teamWords(final);
+	const lookup = (teamId: string | null, name: string) => {
 		const key = nameKey(name);
 		if (teamId) {
 			const hit = byKey.get(`${teamId}|${key}`);
@@ -245,6 +280,21 @@ export function boxscoreFromPlays(
 			if (hit) return hit;
 		}
 		return null;
+	};
+	const find = (teamId: string | null, name: string) =>
+		lookup(teamId, name) ?? lookup(teamId, stripTeamWords(name, words));
+	/** Like find, but when rebuilding everything an unknown scorer gets a new line. */
+	const findOrAdd = (teamId: string | null, name: string) => {
+		const hit = find(teamId, name);
+		if (hit || !everything || !teamId) return hit;
+		const clean = displayName(
+			stripTeamWords(name.trim().replace(/\.$/, ""), words),
+		);
+		if (!clean || /^team$/i.test(clean)) return null;
+		const line = newLine(teamId, clean, false);
+		players.push(line);
+		byKey.set(`${teamId}|${nameKey(clean)}`, line);
+		return line;
 	};
 	const isGoalie = (p: V1PlayerLine) =>
 		p.isGoalie || /^(g|gk|goal)/i.test(p.position);
@@ -301,7 +351,7 @@ export function boxscoreFromPlays(
 			case "goal": {
 				const m = text.replace(ANNOTATION_RE, "").match(GOAL_RE);
 				if (!m) break;
-				const scorer = touch(find(team, m[1]));
+				const scorer = touch(findOrAdd(team, m[1]));
 				if (scorer) {
 					scorer.goals++;
 					scorer.shots++;
@@ -309,7 +359,7 @@ export function boxscoreFromPlays(
 					scorer.points++;
 				}
 				if (m[2]) {
-					const a = touch(find(team, m[2]));
+					const a = touch(findOrAdd(team, m[2]));
 					if (a) {
 						a.assists++;
 						a.points++;
