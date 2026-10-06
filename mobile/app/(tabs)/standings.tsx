@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
 import { BoardHeader } from '@/components/BoardHeader';
@@ -6,7 +6,7 @@ import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { conferenceName } from '@/lib/conferences';
 import { useV1 } from '@/hooks/useV1';
-import { fetchStandings, seasonFor, todayEt } from '@/lib/api';
+import { applyOfficialExtras, fetchOfficialExtras, fetchStandings, seasonFor, todayEt, type OfficialExtras } from '@/lib/api';
 import type { ConferenceStandings, Division, Sport, StandingsRow, V1Envelope } from '@/lib/types';
 
 interface Col {
@@ -44,7 +44,7 @@ export default function StandingsScreen() {
   const [sport, setSport] = useState<Sport>('lacrosse-men');
   const [division, setDivision] = useState<Division>('d1');
   const season = seasonFor(todayEt());
-  const { data, error, loading, refresh } = useV1<ConferenceStandings[]>(
+  const { data: base, error, loading, refresh } = useV1<ConferenceStandings[]>(
     `standings/${sport}/${division}/${season}`,
     useCallback(
       async (signal: AbortSignal): Promise<V1Envelope<ConferenceStandings[]>> => ({
@@ -53,6 +53,23 @@ export default function StandingsScreen() {
       }),
       [sport, division, season],
     ),
+  );
+
+  // Official streaks/conference records are scraped and slow; overlay them once they arrive
+  // instead of holding up the table.
+  const wantExtras = sport === 'lacrosse-men' && division === 'd1';
+  const [extras, setExtras] = useState<OfficialExtras | null>(null);
+  useEffect(() => {
+    if (!wantExtras) return;
+    const ctrl = new AbortController();
+    fetchOfficialExtras(season, ctrl.signal).then((m) => {
+      if (!ctrl.signal.aborted) setExtras(m);
+    });
+    return () => ctrl.abort();
+  }, [wantExtras, season]);
+  const data = useMemo(
+    () => (base && wantExtras && extras ? applyOfficialExtras(base, extras) : base),
+    [base, wantExtras, extras],
   );
 
   const [selected, setSelected] = useState<string | null>(null);

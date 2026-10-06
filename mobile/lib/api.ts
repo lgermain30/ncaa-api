@@ -105,12 +105,14 @@ function teamKey(name: string): string {
     .replace(/[^a-z0-9]/g, '');
 }
 
+export type OfficialExtras = Map<string, { streak: string; conferenceRecord: string }>;
+
 /** Streak (and official conference record) per team, from conference-published standings. Best effort. */
-async function fetchOfficialExtras(
+export async function fetchOfficialExtras(
   season: string,
   signal?: AbortSignal,
-): Promise<Map<string, { streak: string; conferenceRecord: string }>> {
-  const out = new Map<string, { streak: string; conferenceRecord: string }>();
+): Promise<OfficialExtras> {
+  const out: OfficialExtras = new Map();
   try {
     const res = await fetch(`${API_BASE}/official-standings?season=${season}`, { signal });
     if (!res.ok) return out;
@@ -133,11 +135,7 @@ export async function fetchStandings(
   season: string,
   signal?: AbortSignal,
 ): Promise<ConferenceStandings[]> {
-  const official = sport === 'lacrosse-men' && division === 'd1';
-  const [res, extras] = await Promise.all([
-    fetch(`${API_BASE}/standings/${sport}/${division}?season=${season}`, { signal }),
-    official ? fetchOfficialExtras(season, signal) : Promise.resolve(new Map<string, { streak: string; conferenceRecord: string }>()),
-  ]);
+  const res = await fetch(`${API_BASE}/standings/${sport}/${division}?season=${season}`, { signal });
   if (!res.ok) throw new ApiError(res.status, `${res.status} standings`);
   const body: unknown = await res.json();
 
@@ -150,17 +148,16 @@ export async function fetchStandings(
     count: c.conf_leaderboard.length,
     standings: c.conf_leaderboard.map((r) => {
       const name = schoolName(r.name);
-      const extra = extras.get(teamKey(name));
       return {
         team: name,
-        conferenceRecord: extra?.conferenceRecord ?? `${r.conf_wins}-${r.conf_losses}`,
+        conferenceRecord: `${r.conf_wins}-${r.conf_losses}`,
         overallRecord: `${r.wins}-${r.losses}`,
         overallPct: '',
         home: '',
         away: '',
         neutral: '',
         goalsForAgainst: r.goals_for != null && r.goals_against != null ? `${r.goals_for}-${r.goals_against}` : '',
-        streak: extra?.streak ?? '',
+        streak: '',
       };
     }),
   }));
@@ -238,4 +235,16 @@ export function addDays(date: string, n: number): string {
 /** Lacrosse season year for a date: Jan–Jul games belong to that calendar year. */
 export function seasonFor(date: string): string {
   return date.slice(0, 4);
+}
+
+/** Overlay official conference records + streaks (men's D1 only) onto lax.com standings. */
+export function applyOfficialExtras(data: ConferenceStandings[], extras: OfficialExtras): ConferenceStandings[] {
+  if (!extras.size) return data;
+  return data.map((c) => ({
+    ...c,
+    standings: c.standings.map((r) => {
+      const extra = extras.get(teamKey(r.team));
+      return extra ? { ...r, conferenceRecord: extra.conferenceRecord, streak: extra.streak } : r;
+    }),
+  }));
 }
