@@ -9,7 +9,7 @@ import {
 	refreshDetails,
 	serviceStats,
 } from "./service";
-import type { V1Boxscore, V1Plays } from "./types";
+import type { V1Boxscore, V1Game, V1Plays } from "./types";
 
 /*
  * Historical backfill: walk every day of a season window for every lacrosse
@@ -151,14 +151,17 @@ async function backfillDay(
 				board: `${sport}/${division}`,
 			};
 			try {
+				let games: V1Game[];
 				if (opts.skipStored && (await alreadyStored(sport, division, date))) {
 					backfillProgress.boardsSkipped++;
-					continue;
+					if (!opts.details) continue;
+					games = (await listGames(sport, division, date)).map((g) => g.game);
+				} else {
+					games = await refreshBoard(sport, division, date);
+					backfillProgress.gamesSeen += games.length;
+					bump(season, `${sport}/${division}`, games.length);
+					if (!opts.details) continue;
 				}
-				const games = await refreshBoard(sport, division, date);
-				backfillProgress.gamesSeen += games.length;
-				bump(season, `${sport}/${division}`, games.length);
-				if (!opts.details) continue;
 				for (const game of games) {
 					if (game.status.state !== "final") continue;
 					if (await hasDetails(game.id)) continue;
