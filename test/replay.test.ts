@@ -96,7 +96,7 @@ describe("boxscoreFromPlays", () => {
 		const rebuilt = boxscoreFromPlays(
 			boxscore,
 			[
-				goal("GOAL by NOTRE DAME Luke Miller.", "09:00"),
+				goal("GOAL by   NOTRE DAME Luke Miller.", "09:00"),
 				goal("GOAL by NOTRE DAME Miller, Luke, Assist by Yago, Josh.", "08:00"),
 				goal("GOAL by ND Nobody Jane, Assist by Nobody Joe.", "07:00"),
 			] as never,

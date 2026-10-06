@@ -184,7 +184,7 @@ export function rosterFromPlays(
 		seen.set(key, newLine(teamId, name, goalie));
 	};
 	for (const play of plays) {
-		const text = play.text.trim();
+		const text = play.text.replace(/\s+/g, " ").trim();
 		const team = play.teamId;
 		const goalie = text.match(GOALIE_RE);
 		if (goalie) {
@@ -310,7 +310,7 @@ export function boxscoreFromPlays(
 	};
 
 	for (const play of plays) {
-		const text = play.text.trim();
+		const text = play.text.replace(/\s+/g, " ").trim();
 		const team = play.teamId;
 		const goalie = text.match(GOALIE_RE);
 		if (goalie) {
