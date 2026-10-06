@@ -9,6 +9,8 @@ import type {
 
 const GOAL_RE =
 	/^GOAL by \S+ (.+?)(?: \(.*?\))?(?:, Assist by (.+?))?(?:, goal number .*)?\.?$/i;
+/** "(FPGOAL) {free position shot}", "(MAN-UP)", "(FIRST GOAL)" tags NCAA appends to goal text. */
+const ANNOTATION_RE = /\s*(?:\([^)]*\)|\{[^}]*\})/g;
 const SAVE_RE = /^Shot by \S+ (.+?),\s*SAVE (?:by )?(.+?)\s*$/i;
 const SHOT_RE =
 	/^Shot by \S+ (.+?)(?: (?:WIDE|HIGH|HIT POST|BLOCKED|HIT CROSSBAR).*)?$/i;
@@ -297,7 +299,7 @@ export function boxscoreFromPlays(
 		}
 		switch (play.type) {
 			case "goal": {
-				const m = text.match(GOAL_RE);
+				const m = text.replace(ANNOTATION_RE, "").match(GOAL_RE);
 				if (!m) break;
 				const scorer = touch(find(team, m[1]));
 				if (scorer) {
@@ -400,9 +402,15 @@ export function boxscoreFromPlays(
 		const sum = (f: (p: V1PlayerLine) => number | null) =>
 			mine.reduce((n, p) => n + (f(p) ?? 0), 0);
 		const c = clears.get(line.teamId);
+		const pbpGoals = plays.filter(
+			(p) => p.type === "goal" && p.teamId === line.teamId,
+		).length;
 		return {
 			...line,
-			goals: sum((p) => p.goals),
+			goals: Math.max(
+				sum((p) => p.goals),
+				pbpGoals,
+			),
 			assists: sum((p) => p.assists),
 			shots: sum((p) => p.shots),
 			shotsOnGoal: sum((p) => p.shotsOnGoal),
