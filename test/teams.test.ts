@@ -10,10 +10,15 @@ import {
 } from "../src/v1/teams";
 import type { V1Game } from "../src/v1/types";
 
-const laxGame = (date: string, us: number, them: number): V1TeamGame => ({
+const laxGame = (
+	date: string,
+	us: number,
+	them: number,
+	opp: string | null = null,
+): V1TeamGame => ({
 	date,
 	time: null,
-	opponent: { id: null, name: "Opp", seoName: null, rank: null },
+	opponent: { id: null, name: "Opp", seoName: opp, rank: null },
 	home: true,
 	final: true,
 	score: { us, them },
@@ -124,5 +129,36 @@ describe("v1 teams", () => {
 		expect(
 			verifySchedule([laxGame("2017-03-04", 12, 9)], null, byDate).verified,
 		).toBe(false);
+	});
+
+	test("verifySchedule tolerates a one-day lax.com date shift and ignores 0-0 finals", () => {
+		const byDate = new Map<string, V1Game[]>([
+			[
+				"2019-03-02",
+				[ncaaGame("2019-03-02", ["cornell", 17], ["albany-ny", 16])],
+			],
+			["2021-03-13", [ncaaGame("2021-03-13", ["delaware", 0], ["drexel", 0])]],
+		]);
+		const shifted = verifySchedule(
+			[laxGame("2019-03-03", 16, 17, "cornell")],
+			"albany-ny",
+			byDate,
+		);
+		expect(shifted.checked).toBe(1);
+		expect(shifted.verified).toBe(true);
+		// unknown opponent: exact date only
+		const noOpp = verifySchedule(
+			[laxGame("2019-03-03", 16, 17)],
+			"albany-ny",
+			byDate,
+		);
+		expect(noOpp.unmatched).toBe(1);
+		const zero = verifySchedule(
+			[laxGame("2021-03-13", 19, 12, "drexel")],
+			"delaware",
+			byDate,
+		);
+		expect(zero.checked).toBe(0);
+		expect(zero.verified).toBe(false);
 	});
 });
