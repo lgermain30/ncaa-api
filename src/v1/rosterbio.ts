@@ -46,8 +46,8 @@ export const rosterBioStats = {
 	lastError: null as string | null,
 };
 
-export function bioKey(sport: Sport, teamId: string) {
-	return `${sport}:${teamId}`;
+export function bioKey(sport: Sport, teamId: string, season?: string) {
+	return season ? `${sport}:${teamId}:${season}` : `${sport}:${teamId}`;
 }
 
 export function hostOf(website: string | null): string | null {
@@ -221,13 +221,19 @@ export function parseRosterHtml(html: string) {
 	return null;
 }
 
-/** Fetch and parse a school's roster page; null when the site isn't Sidearm. */
+/**
+ * Fetch and parse a school's roster page; null when the site isn't Sidearm.
+ * With `season`, the archived `/roster/<season>` page is used and only kept
+ * when the page itself says it is that season (Sidearm serves the current
+ * roster for unknown seasons).
+ */
 export async function fetchRosterBio(
 	host: string,
 	sport: Sport,
+	season?: string,
 ): Promise<StoredRosterBio | null> {
 	for (const path of PATHS[sport]) {
-		const url = `https://${host}/sports/${path}/roster`;
+		const url = `https://${host}/sports/${path}/roster${season ? `/${season}` : ""}`;
 		let res: Response;
 		try {
 			res = await upstreamFetch(url, {
@@ -250,6 +256,7 @@ export async function fetchRosterBio(
 			return null;
 		}
 		rosterBioStats.parsed++;
+		if (season && parsed.season !== season) return null;
 		return { host, ...parsed };
 	}
 	return null;
@@ -266,12 +273,17 @@ export async function getRosterBio(
 	sport: Sport,
 	teamId: string,
 	website: string | null,
+	season?: string,
 ): Promise<StoredRosterBio | null> {
-	const key = bioKey(sport, teamId);
+	const key = bioKey(sport, teamId, season);
 	const stored = await getBio<StoredRosterBio | null>(key);
+	// A past season's roster never changes: once parsed it is kept for good,
+	// and only a miss (null) is retried after REFRESH_MS.
 	const fresh =
-		stored && Date.now() - new Date(stored.updatedAt).getTime() < REFRESH_MS;
-	if (!fresh) void refreshRosterBio(sport, teamId, website);
+		stored &&
+		((season && stored.data) ||
+			Date.now() - new Date(stored.updatedAt).getTime() < REFRESH_MS);
+	if (!fresh) void refreshRosterBio(sport, teamId, website, season);
 	return stored?.data ?? null;
 }
 
@@ -279,13 +291,14 @@ export function refreshRosterBio(
 	sport: Sport,
 	teamId: string,
 	website: string | null,
+	season?: string,
 ): Promise<void> {
-	const key = bioKey(sport, teamId);
+	const key = bioKey(sport, teamId, season);
 	const running = inflight.get(key);
 	if (running) return running;
 	const host = hostOf(website);
 	const job = (async () => {
-		const bio = host ? await fetchRosterBio(host, sport) : null;
+		const bio = host ? await fetchRosterBio(host, sport, season) : null;
 		// Store nulls too so unsupported sites aren't re-hit on every page view.
 		await upsertBio(key, bio);
 	})().finally(() => inflight.delete(key));

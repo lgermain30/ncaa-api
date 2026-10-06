@@ -818,18 +818,20 @@ export async function getTeam(
 			},
 		};
 	}
+	const seasonBio = await getRosterBio(sport, id, team.website, season);
 	return {
 		...served,
 		data: {
 			...team,
 			roster: team.roster.map((p) => {
-				const b = matchBio(bio, p);
+				const b = matchBio(seasonBio, p) ?? matchBio(bio, p);
 				return b
 					? {
 							...p,
 							height: b.height,
 							weight: b.weight,
 							highSchool: b.highSchool,
+							hometown: p.hometown ?? b.hometown,
 						}
 					: p;
 			}),

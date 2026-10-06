@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+	bioKey,
 	hostOf,
 	matchBio,
 	normalizeHeight,
@@ -45,6 +46,11 @@ describe("roster bios", () => {
 			hostOf("http://www.goduke.com/SportSelect.dbml?DB_OEM_ID=4200"),
 		).toBe("goduke.com");
 		expect(hostOf(null)).toBeNull();
+	});
+
+	it("keys past-season bios separately from the current roster", () => {
+		expect(bioKey("lacrosse-men", "1")).toBe("lacrosse-men:1");
+		expect(bioKey("lacrosse-men", "1", "2021")).toBe("lacrosse-men:1:2021");
 	});
 
 	it("matches by jersey number, then by name", () => {
