@@ -1,8 +1,15 @@
 import { TieredCache } from "../cache";
-import { listBoardTeams, type StoredTeamIdentity } from "../store";
+import {
+	getLaxSeason,
+	listBoardTeams,
+	listGames,
+	type StoredTeamIdentity,
+	upsertLaxSeason,
+} from "../store";
 import { upstreamJson } from "../upstream";
 import { getRosterBio, matchBio, type StoredRosterBio } from "./rosterbio";
 import type { Served } from "./service";
+import type { V1Game } from "./types";
 
 /*
  * Team directory, season schedule/results and rosters. NCAA publishes none of
@@ -94,6 +101,38 @@ export interface V1TeamDetail {
 	rosterSource: "school" | "lax";
 	/** roster year when it comes from the school site and differs from `season` */
 	rosterSeason: string | null;
+	/** where this season page came from and whether its results matched our NCAA games */
+	provenance: TeamProvenance | null;
+}
+
+export interface TeamProvenance {
+	source: "lax.com" | "cln-store";
+	/** results agreed with every stored NCAA final we could line up */
+	verified: boolean;
+	checked: number;
+	disagreed: number;
+	fetchedAt: string;
+}
+
+export interface ScheduleVerification {
+	/** finals we could line up with a stored NCAA game */
+	checked: number;
+	agreed: number;
+	disagreed: {
+		date: string;
+		opponent: string;
+		lax: { us: number; them: number };
+		ncaa: { us: number; them: number };
+	}[];
+	/** finals with no stored NCAA game that day (NCAA never listed it, or name mismatch) */
+	unmatched: number;
+	verified: boolean;
+}
+
+interface LaxSeasonSnapshot {
+	team: V1TeamDetail;
+	fetchedAt: string;
+	verification: ScheduleVerification;
 }
 
 /* lax.com payload shapes (strings for most numbers) */
@@ -796,13 +835,86 @@ function nameKey(name: string): string | null {
 	return `${parts[0][0]}|${parts[parts.length - 1]}`;
 }
 
+/**
+ * Compare a lax.com season schedule with the NCAA games we store for those
+ * days. A season is verified only when every final we can line up agrees;
+ * games NCAA never listed are counted but don't block verification.
+ */
+export function verifySchedule(
+	schedule: V1TeamGame[],
+	seoName: string | null,
+	gamesByDate: Map<string, V1Game[]>,
+): ScheduleVerification {
+	const out: ScheduleVerification = {
+		checked: 0,
+		agreed: 0,
+		disagreed: [],
+		unmatched: 0,
+		verified: false,
+	};
+	if (!seoName) return out;
+	for (const g of schedule) {
+		if (!g.final || !g.score) continue;
+		const match = (gamesByDate.get(g.date) ?? []).find(
+			(x) => x.home.seoName === seoName || x.away.seoName === seoName,
+		);
+		if (!match) {
+			out.unmatched++;
+			continue;
+		}
+		const us = match.home.seoName === seoName ? match.home : match.away;
+		const them = us === match.home ? match.away : match.home;
+		if (us.score === null || them.score === null) continue;
+		out.checked++;
+		if (us.score === g.score.us && them.score === g.score.them) out.agreed++;
+		else
+			out.disagreed.push({
+				date: g.date,
+				opponent: g.opponent.name,
+				lax: g.score,
+				ncaa: { us: us.score, them: them.score },
+			});
+	}
+	out.verified = out.checked > 0 && out.disagreed.length === 0;
+	return out;
+}
+
+const snapshotKey = (
+	sport: Sport,
+	division: Division,
+	id: string,
+	season: string,
+) => `${laxDivision(sport, division)}:${id}:${season}`;
+
+async function verifyAgainstStore(
+	team: V1TeamDetail,
+): Promise<ScheduleVerification> {
+	const dates = [
+		...new Set(
+			team.schedule.filter((g) => g.final && g.score).map((g) => g.date),
+		),
+	];
+	const byDate = new Map<string, V1Game[]>();
+	for (const date of dates) {
+		const rows = await listGames(team.sport, team.division, date);
+		byDate.set(
+			date,
+			rows.map((r) => r.game),
+		);
+	}
+	return verifySchedule(team.schedule, team.seoName, byDate);
+}
+
 export async function getTeam(
 	sport: Sport,
 	division: Division,
 	id: string,
 	season = defaultTeamSeason(),
 ): Promise<Served<V1TeamDetail | null>> {
-	const served = await getTeamRaw(sport, division, id, season);
+	const served =
+		season < defaultTeamSeason()
+			? await getPastTeam(sport, division, id, season)
+			: await getTeamRaw(sport, division, id, season);
 	const team = served.data;
 	if (!team) return served;
 	const bio = await getRosterBio(sport, id, team.website);
@@ -835,6 +947,67 @@ export async function getTeam(
 						}
 					: p;
 			}),
+		},
+	};
+}
+
+/**
+ * Past seasons: serve our own verified copy when we have one; otherwise fetch
+ * lax.com, check its results against our stored NCAA games and keep the copy
+ * (verified or not) so history survives if lax.com goes away. An unverified
+ * copy is only served when lax.com itself is unreachable.
+ */
+async function getPastTeam(
+	sport: Sport,
+	division: Division,
+	id: string,
+	season: string,
+): Promise<Served<V1TeamDetail | null>> {
+	const key = snapshotKey(sport, division, id, season);
+	const stored = await getLaxSeason<LaxSeasonSnapshot>(key);
+	const fromStore = (snap: LaxSeasonSnapshot, updatedAt: string) => ({
+		data: {
+			...snap.team,
+			provenance: {
+				source: "cln-store" as const,
+				verified: snap.verification.verified,
+				checked: snap.verification.checked,
+				disagreed: snap.verification.disagreed.length,
+				fetchedAt: snap.fetchedAt,
+			},
+		},
+		updatedAt,
+		stale: false,
+	});
+	if (stored?.data.verification.verified)
+		return fromStore(stored.data, stored.updatedAt);
+	let served: Served<V1TeamDetail | null>;
+	try {
+		served = await getTeamRaw(sport, division, id, season);
+	} catch (err) {
+		if (stored) return fromStore(stored.data, stored.updatedAt);
+		throw err;
+	}
+	const team = served.data;
+	if (!team || served.stale) return served;
+	const verification = await verifyAgainstStore(team);
+	const fetchedAt = new Date().toISOString();
+	await upsertLaxSeason(key, {
+		team,
+		fetchedAt,
+		verification,
+	} satisfies LaxSeasonSnapshot);
+	return {
+		...served,
+		data: {
+			...team,
+			provenance: {
+				source: "lax.com",
+				verified: verification.verified,
+				checked: verification.checked,
+				disagreed: verification.disagreed.length,
+				fetchedAt,
+			},
 		},
 	};
 }
@@ -877,6 +1050,7 @@ function getTeamRaw(
 				website: t.website || null,
 				rosterSource: "lax",
 				rosterSeason: null,
+				provenance: null,
 				seasons: t.years ?? [],
 				schedule: (raw?.schedule ?? []).map((g) => {
 					const final = String(g.is_final) === "1";

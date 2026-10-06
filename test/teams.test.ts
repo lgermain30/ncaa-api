@@ -5,7 +5,32 @@ import {
 	playerName,
 	positionCode,
 	titleCase,
+	type V1TeamGame,
+	verifySchedule,
 } from "../src/v1/teams";
+import type { V1Game } from "../src/v1/types";
+
+const laxGame = (date: string, us: number, them: number): V1TeamGame => ({
+	date,
+	time: null,
+	opponent: { id: null, name: "Opp", seoName: null, rank: null },
+	home: true,
+	final: true,
+	score: { us, them },
+	result: us > them ? "W" : "L",
+	playoff: null,
+});
+const ncaaGame = (
+	date: string,
+	home: [string, number | null],
+	away: [string, number | null],
+) =>
+	({
+		id: `${date}-${home[0]}`,
+		date,
+		home: { seoName: home[0], score: home[1] },
+		away: { seoName: away[0], score: away[1] },
+	}) as unknown as V1Game;
 
 describe("v1 teams", () => {
 	test("laxDivision maps women to 4-6", () => {
@@ -54,5 +79,50 @@ describe("v1 teams", () => {
 		// strict key first so Boston College never lands on Boston University
 		expect(matchKeys("boston-college")[0]).toBe("bostoncollege");
 		expect(matchKeys("penn")).not.toContain("pennstate");
+	});
+
+	test("verifySchedule agrees, flags disagreements, skips unmatched", () => {
+		const byDate = new Map<string, V1Game[]>([
+			[
+				"2017-03-04",
+				[ncaaGame("2017-03-04", ["denver", 12], ["marquette", 9])],
+			],
+			["2017-03-11", [ncaaGame("2017-03-11", ["duke", 10], ["denver", 11])]],
+			[
+				"2017-03-18",
+				[ncaaGame("2017-03-18", ["denver", null], ["ohio-st", null])],
+			],
+		]);
+		const ok = verifySchedule(
+			[
+				laxGame("2017-03-04", 12, 9),
+				laxGame("2017-03-11", 11, 10),
+				laxGame("2017-03-18", 9, 8),
+				laxGame("2017-03-25", 7, 6),
+			],
+			"denver",
+			byDate,
+		);
+		expect(ok.checked).toBe(2);
+		expect(ok.agreed).toBe(2);
+		expect(ok.unmatched).toBe(1);
+		expect(ok.verified).toBe(true);
+
+		const bad = verifySchedule(
+			[laxGame("2017-03-04", 13, 9)],
+			"denver",
+			byDate,
+		);
+		expect(bad.verified).toBe(false);
+		expect(bad.disagreed[0]).toEqual({
+			date: "2017-03-04",
+			opponent: "Opp",
+			lax: { us: 13, them: 9 },
+			ncaa: { us: 12, them: 9 },
+		});
+
+		expect(
+			verifySchedule([laxGame("2017-03-04", 12, 9)], null, byDate).verified,
+		).toBe(false);
 	});
 });
