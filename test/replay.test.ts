@@ -78,6 +78,43 @@ describe("boxscoreFromPlays", () => {
 		expect(rebuilt.teamStats.every((t) => (t.faceoffsWon ?? 0) > 0)).toBe(true);
 	});
 
+	it("credits goals whose text carries (FPGOAL) {free position shot} tags", () => {
+		const goal = (text: string, clock: string) => ({
+			id: `x-${clock}`,
+			tags: [],
+			text,
+			type: "goal" as const,
+			clock,
+			assist: null,
+			period: 1,
+			scorer: null,
+			teamId: "43861",
+			awayScore: 0,
+			homeScore: 1,
+			periodDisplay: "1st",
+		});
+		const rebuilt = boxscoreFromPlays(
+			boxscore,
+			[
+				goal(
+					"GOAL by SIENA Miller, Luke (FIRST GOAL) (FPGOAL) {free position shot}, goal number 2 for season.",
+					"07:18",
+				),
+				goal(
+					"GOAL by SIENA MILLER,Luke (MAN-UP) (FPGOAL) {free position shot}.",
+					"05:00",
+				),
+				goal("GOAL by SIENA Nobody, Jane {free position shot}.", "03:00"),
+			] as never,
+			boxscore.status,
+			"x",
+			true,
+		);
+		const miller = rebuilt.players.find((p) => p.name === "LUKE MILLER");
+		expect(miller?.goals).toBe(2);
+		expect(rebuilt.teamStats.find((t) => t.teamId === "43861")?.goals).toBe(3);
+	});
+
 	it("is empty before any play", () => {
 		const b = boxscoreFromPlays(boxscore, [], boxscore.status, "x");
 		expect(b.players.every((p) => p.goals === 0 && !p.played)).toBe(true);
