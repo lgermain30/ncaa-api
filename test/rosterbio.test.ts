@@ -87,6 +87,12 @@ describe("roster bios", () => {
 		};
 		expect(matchBio(bio, { number: "7", name: "A. Smith" })?.weight).toBe(140);
 		expect(matchBio(bio, { number: "7", name: "Bob Jones" })).toBeNull();
+		expect(
+			matchBio(
+				{ ...bio, players: [bio.players[0]] },
+				{ number: "7", name: "Alexander Mabbett" },
+			),
+		).toBeNull();
 		expect(matchBio(bio, { number: "99", name: "Jose Nunez" })?.weight).toBe(
 			160,
 		);

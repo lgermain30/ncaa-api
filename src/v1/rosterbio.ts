@@ -303,7 +303,7 @@ const lastKey = (s: string) =>
 		.split(" ")
 		.filter(Boolean);
 
-/** Match a lax.com roster row to a bio by jersey number, else by name. */
+/** Match a lax.com roster row to a bio by name; the jersey number only breaks ties. */
 export function matchBio(
 	bio: StoredRosterBio | null,
 	player: { number: string | null; name: string },
@@ -316,7 +316,6 @@ export function matchBio(
 	const byNumber = num
 		? bio.players.filter((p) => p.number && String(Number(p.number)) === num)
 		: [];
-	if (byNumber.length === 1) return byNumber[0];
 	const pool = byNumber.length ? byNumber : bio.players;
 	const byName = pool.filter((p) => {
 		const bp = lastKey(p.name);
