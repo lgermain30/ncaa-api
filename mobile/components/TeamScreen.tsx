@@ -76,7 +76,7 @@ function playerStatRows(p: V1RosterPlayer) {
   return rows;
 }
 
-function PlayerSheet({
+export function PlayerSheet({
   p,
   team,
   onClose,

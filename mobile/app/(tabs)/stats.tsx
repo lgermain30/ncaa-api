@@ -1,19 +1,22 @@
-import { type ReactNode, useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
 import { personName, schoolName } from '@/lib/names';
 import { BoardHeader } from '@/components/BoardHeader';
 import { Chips } from '@/components/Chips';
+import { PlayerSheet } from '@/components/TeamScreen';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { useV1 } from '@/hooks/useV1';
-import { fetchLeaders, fetchTeamStats, seasonFor, todayEt } from '@/lib/api';
+import { fetchLeaders, fetchTeam, fetchTeamStats, seasonFor, todayEt } from '@/lib/api';
 import type {
   Division,
   LeaderBoards,
   LeaderRow,
   Sport,
   V1Envelope,
+  V1RosterPlayer,
+  V1TeamDetail,
   V1TeamSeasonStats,
   V1TeamStatTotals,
 } from '@/lib/types';
@@ -114,6 +117,7 @@ function Board({
   mode,
   expanded,
   onToggle,
+  onPlayer,
 }: {
   title: string;
   col: string;
@@ -121,6 +125,7 @@ function Board({
   mode: Mode;
   expanded: boolean;
   onToggle: () => void;
+  onPlayer: (r: LeaderRow) => void;
 }) {
   const card = useThemeColor({}, 'card');
   const border = useThemeColor({}, 'border');
@@ -128,8 +133,11 @@ function Board({
   return (
     <Band title={title} expanded={expanded} onToggle={onToggle}>
       {rows.slice(0, expanded ? EXPANDED : COLLAPSED).map((r, i) => (
-        <RNView
+        <Pressable
           key={`${r.player_id ?? r.team_id}-${i}`}
+          disabled={mode !== 'players'}
+          onPress={() => onPlayer(r)}
+          accessibilityRole={mode === 'players' ? 'button' : undefined}
           style={[styles.row, { backgroundColor: i % 2 ? bg : card, borderBottomColor: border }]}
         >
           <Text style={styles.rank}>{i + 1}</Text>
@@ -142,10 +150,20 @@ function Board({
             </Text>
           ) : null}
           <Text style={styles.val} numberOfLines={1}>{r[col] ?? '–'}</Text>
-        </RNView>
+        </Pressable>
       ))}
     </Band>
   );
+}
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
+
+/** Match a leader row to the team's roster: by lax player id, else by name. */
+function findPlayer(team: V1TeamDetail, r: LeaderRow): V1RosterPlayer | null {
+  const byId = r.player_id ? team.roster.find((p) => p.id === r.player_id) : undefined;
+  if (byId) return byId;
+  const want = norm(personName(r.name ?? ''));
+  return team.roster.find((p) => norm(personName(p.name)) === want) ?? null;
 }
 
 function BoxBoard({
@@ -195,6 +213,26 @@ export default function StatsScreen() {
   const [open, setOpen] = useState<string | null>(null);
   const toggle = (key: string) => setOpen((cur) => (cur === key ? null : key));
   const season = seasonFor(todayEt());
+  const [pick, setPick] = useState<LeaderRow | null>(null);
+  const [sheet, setSheet] = useState<{ player: V1RosterPlayer; team: V1TeamDetail } | null>(null);
+
+  useEffect(() => {
+    if (!pick) return;
+    const ac = new AbortController();
+    fetchTeam(sport, division, pick.url || pick.team_name, season, ac.signal)
+      .then((env) => {
+        const player = findPlayer(env.data, pick);
+        if (player) setSheet({ player, team: env.data });
+        else setPick(null);
+      })
+      .catch(() => setPick(null));
+    return () => ac.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pick]);
+  const closeSheet = () => {
+    setSheet(null);
+    setPick(null);
+  };
 
   const q = useV1<LeaderBoards>(
     `leaders/${sport}/${division}/${season}`,
@@ -249,6 +287,7 @@ export default function StatsScreen() {
                   mode={b.mode}
                   expanded={open === b.title}
                   onToggle={() => toggle(b.title)}
+                  onPlayer={setPick}
                 />
               ) : null;
             })
@@ -267,12 +306,19 @@ export default function StatsScreen() {
           : null}
         {q.data ? <Text style={[styles.note, { color: muted }]}>{season} season leaders</Text> : null}
       </ScrollView>
+      {pick && !sheet ? (
+        <RNView style={styles.loadingOverlay} pointerEvents="none">
+          <ActivityIndicator color={brand.navy} />
+        </RNView>
+      ) : null}
+      {sheet ? <PlayerSheet p={sheet.player} team={sheet.team} onClose={closeSheet} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 32 },
   note: { fontSize: 12, textAlign: 'center', marginVertical: 8 },
   board: { borderBottomWidth: StyleSheet.hairlineWidth },
