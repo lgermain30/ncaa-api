@@ -454,10 +454,13 @@ export function rosterUrls(host: string, sport: Sport, season?: string) {
 		urls.push(`https://${host}/sports/${short}/${academicYear(season)}/roster`);
 	} else {
 		const now = currentRosterSeason();
+		const prev = String(Number(now) - 1);
 		urls.push(`https://${host}/sports/${short}/${academicYear(now)}/roster`);
-		urls.push(
-			`https://${host}/sports/${short}/${academicYear(String(Number(now) - 1))}/roster`,
-		);
+		urls.push(`https://${host}/sports/${short}/${academicYear(prev)}/roster`);
+		// Many schools open the new academic year with a coaches-only roster
+		// page; the previous season's archived roster still names the players.
+		for (const path of PATHS[sport])
+			urls.push(`https://${host}/sports/${path}/roster/${prev}`);
 	}
 	return urls;
 }

@@ -167,6 +167,11 @@ describe("roster bios: other platforms", () => {
 			"https://example.edu/sports/mlax/roster/season/2024-25/",
 		);
 		expect(urls).toContain("https://example.edu/sports/mlax/2024-25/roster");
+		const current = rosterUrls("example.edu", "lacrosse-women");
+		expect(current[0]).toBe(
+			"https://example.edu/sports/womens-lacrosse/roster",
+		);
+		expect(current.at(-1)).toMatch(/\/sports\/lacrosse\/roster\/\d{4}$/);
 	});
 
 	it("retries misses sooner than hits", () => {
