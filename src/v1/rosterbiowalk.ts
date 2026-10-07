@@ -1,5 +1,5 @@
 import { getBio } from "../store";
-import { bioKey, REFRESH_MS, refreshRosterBio } from "./rosterbio";
+import { bioIsFresh, bioKey, refreshRosterBio } from "./rosterbio";
 import { type Division, getTeam, getTeams, type Sport } from "./teams";
 
 /*
@@ -36,11 +36,7 @@ export async function walkRosterBios(): Promise<void> {
 				for (const t of teams) {
 					rosterBioWalk.teams++;
 					const stored = await getBio(bioKey(sport, t.id));
-					if (
-						stored &&
-						Date.now() - new Date(stored.updatedAt).getTime() < REFRESH_MS
-					)
-						continue;
+					if (bioIsFresh(stored)) continue;
 					try {
 						const { data: team } = await getTeam(sport, division, t.id);
 						if (team) await refreshRosterBio(sport, t.id, team.website);

@@ -26,13 +26,30 @@ export interface BioPlayer {
 
 export interface StoredRosterBio {
 	host: string;
-	source: "sidearm_classic" | "sidearm_nuxt";
+	source:
+		| "sidearm_classic"
+		| "sidearm_nuxt"
+		| "sidearm_vue"
+		| "wmt_nuxt"
+		| "presto";
 	/** roster year the school page is showing (e.g. "2027"), when detectable */
 	season: string | null;
 	players: BioPlayer[];
 }
 
 export const REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
+/** A miss (site unsupported / unreachable) is retried sooner than a hit. */
+export const MISS_REFRESH_MS = 24 * 60 * 60 * 1000;
+
+export function bioIsFresh(
+	stored: { data: unknown; updatedAt: string } | null,
+	season?: string,
+): boolean {
+	if (!stored) return false;
+	if (season && stored.data) return true;
+	const age = Date.now() - new Date(stored.updatedAt).getTime();
+	return age < (stored.data ? REFRESH_MS : MISS_REFRESH_MS);
+}
 const PATHS: Record<Sport, string[]> = {
 	"lacrosse-men": ["mens-lacrosse", "mlax", "mens-lax", "lacrosse"],
 	"lacrosse-women": ["womens-lacrosse", "wlax", "womens-lax", "lacrosse"],
@@ -144,7 +161,9 @@ function numOf(arr: Devalue, v: unknown): number | null {
 	return null;
 }
 
-export function parseSidearmNuxt(html: string): BioPlayer[] | null {
+export function parseSidearmNuxt(
+	html: string,
+): { players: BioPlayer[]; wmt: boolean } | null {
 	const m = html.match(
 		/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/,
 	);
@@ -158,38 +177,175 @@ export function parseSidearmNuxt(html: string): BioPlayer[] | null {
 	if (!Array.isArray(arr)) return null;
 	const players: BioPlayer[] = [];
 	const seen = new Set<string>();
+	let wmt = false;
 	for (const item of arr) {
 		if (!item || typeof item !== "object" || Array.isArray(item)) continue;
 		const o = item as Record<string, unknown>;
-		if (!("heightFeet" in o) || !("lastName" in o) || !("jerseyNumber" in o))
-			continue;
+		const sidearm = "heightFeet" in o && "lastName" in o && "jerseyNumber" in o;
+		const w = "height_feet" in o && "last_name" in o && "jersey_number" in o;
+		if (!sidearm && !w) continue;
+		if (w) wmt = true;
 		const name = clean(
-			`${strOf(arr, o.firstName) ?? ""} ${strOf(arr, o.lastName) ?? ""}`,
+			`${strOf(arr, w ? o.first_name : o.firstName) ?? ""} ${strOf(arr, w ? o.last_name : o.lastName) ?? ""}`,
 		);
 		if (!name) continue;
-		const number = strOf(arr, o.jerseyNumber);
+		const rawNum = deref(arr, w ? o.jersey_number : o.jerseyNumber);
+		const number =
+			typeof rawNum === "number" ? String(rawNum) : strOf(arr, rawNum);
 		const key = `${number ?? ""}|${name}`;
 		if (seen.has(key)) continue;
 		seen.add(key);
-		const feet = numOf(arr, o.heightFeet);
-		const inches = numOf(arr, o.heightInches);
+		const feet = numOf(arr, w ? o.height_feet : o.heightFeet);
+		const inches = numOf(arr, w ? o.height_inches : o.heightInches);
 		players.push({
 			number,
 			name,
-			position: strOf(arr, o.positionShort),
-			year: strOf(arr, o.academicYearShort),
+			position: w
+				? objStr(arr, o.player_position, ["abbreviation", "name"])
+				: strOf(arr, o.positionShort),
+			year: w ? null : strOf(arr, o.academicYearShort),
 			hometown: strOf(arr, o.hometown),
 			height: feet ? `${feet}'${inches ?? 0}"` : null,
 			weight: normalizeWeight(numOf(arr, o.weight)),
-			highSchool: strOf(arr, o.highSchool),
+			highSchool: strOf(arr, w ? o.high_school : o.highSchool),
+		});
+	}
+	if (wmt) {
+		// WMT lists the player object and its roster entry (which carries the
+		// class level) separately; attach years by name.
+		for (const item of arr) {
+			if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+			const o = item as Record<string, unknown>;
+			if (!("player_id" in o) || !("class_level" in o)) continue;
+			const pl = deref(arr, o.player) as Record<string, unknown> | undefined;
+			if (!pl || typeof pl !== "object") continue;
+			const name = clean(
+				`${strOf(arr, pl.first_name) ?? ""} ${strOf(arr, pl.last_name) ?? ""}`,
+			);
+			const yr = objStr(arr, o.class_level, ["abbreviation", "name"]);
+			const p = players.find((x) => x.name === name && !x.year);
+			if (p && yr) p.year = yr;
+		}
+	}
+	return players.length ? { players, wmt } : null;
+}
+
+function objStr(arr: Devalue, v: unknown, keys: string[]): string | null {
+	const o = deref(arr, v);
+	if (!o || typeof o !== "object" || Array.isArray(o)) return null;
+	for (const k of keys) {
+		const s = strOf(arr, (o as Record<string, unknown>)[k]);
+		if (s) return s;
+	}
+	return null;
+}
+
+interface VuePlayer {
+	first_name?: string | null;
+	last_name?: string | null;
+	jersey_number?: string | number | null;
+	position_short?: string | null;
+	position_long?: string | null;
+	academic_year_short?: string | null;
+	hometown?: string | null;
+	highschool?: string | null;
+	height_feet?: number | null;
+	height_inches?: number | null;
+	weight?: number | string | null;
+}
+
+/**
+ * Sidearm's Vue list template renders client-side from a `"players":[…]`
+ * JSON blob embedded in the page script.
+ */
+export function parseSidearmVue(html: string): BioPlayer[] | null {
+	if (!html.includes("sidearm-roster-list")) return null;
+	const start = html.indexOf('"players":[');
+	if (start < 0) return null;
+	const from = start + '"players":'.length;
+	let depth = 0;
+	let end = -1;
+	let inStr = false;
+	for (let i = from; i < html.length; i++) {
+		const c = html[i];
+		if (inStr) {
+			if (c === "\\") i++;
+			else if (c === '"') inStr = false;
+			continue;
+		}
+		if (c === '"') inStr = true;
+		else if (c === "[") depth++;
+		else if (c === "]" && --depth === 0) {
+			end = i + 1;
+			break;
+		}
+	}
+	if (end < 0) return null;
+	let arr: unknown;
+	try {
+		arr = JSON.parse(html.slice(from, end));
+	} catch {
+		return null;
+	}
+	if (!Array.isArray(arr)) return null;
+	const players: BioPlayer[] = [];
+	for (const raw of arr as VuePlayer[]) {
+		if (!raw || typeof raw !== "object" || !("height_feet" in raw)) continue;
+		const name = clean(`${raw.first_name ?? ""} ${raw.last_name ?? ""}`);
+		if (!name) continue;
+		const feet = Number(raw.height_feet) || null;
+		players.push({
+			number: raw.jersey_number != null ? String(raw.jersey_number) : null,
+			name,
+			position: clean(raw.position_short ?? raw.position_long) || null,
+			year: clean(raw.academic_year_short) || null,
+			hometown: clean(raw.hometown) || null,
+			height: feet ? `${feet}'${Number(raw.height_inches) || 0}"` : null,
+			weight: normalizeWeight(raw.weight),
+			highSchool: clean(raw.highschool) || null,
 		});
 	}
 	return players.length ? players : null;
 }
 
+/** PrestoSports roster table: `<td data-field="height">…5-10</td>` rows. */
+export function parsePresto(html: string): BioPlayer[] | null {
+	if (!/prestosports|data-field="hometown"/i.test(html)) return null;
+	const $ = cheerio.load(html);
+	const rows = $(
+		'tr:has([data-field="first_name: :last_name"]), tr:has(th[data-field*="last_name"])',
+	);
+	if (!rows.length) return null;
+	const players: BioPlayer[] = [];
+	rows.each((_, el) => {
+		const row = $(el);
+		const cell = (field: string) => {
+			const td = row.find(`[data-field="${field}"]`).first().clone();
+			td.find(".label").remove();
+			return clean(td.text());
+		};
+		const name = clean(row.find('[data-field*="last_name"] a').first().text());
+		if (!name) return;
+		players.push({
+			number: cell("number") || null,
+			name,
+			position: cell("position").replace(/\.$/, "") || null,
+			year: cell("year").replace(/\.$/, "") || null,
+			hometown: cell("hometown") || null,
+			height: normalizeHeight(cell("height")),
+			weight: normalizeWeight(cell("weight")),
+			highSchool: cell("highschool") || null,
+		});
+	});
+	return players.length ? players : null;
+}
+
 /** Roster year from the page title ("2027 Men's Lacrosse Roster") or the Sidearm season object. */
 export function parseRosterSeason(html: string): string | null {
-	const title = html.match(/<title>[^<]*?\b(20\d\d)\b[^<]*<\/title>/);
+	const t = html.match(/<title>([^<]*)<\/title>/)?.[1] ?? "";
+	const academic = t.match(/\b(20\d\d)-(\d\d)\b/);
+	if (academic) return `${academic[1].slice(0, 2)}${academic[2]}`;
+	const title = t.match(/\b(20\d\d)\b/);
 	if (title) return title[1];
 	const m = html.match(
 		/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/,
@@ -217,7 +373,16 @@ export function parseRosterHtml(html: string) {
 	if (classic)
 		return { source: "sidearm_classic" as const, season, players: classic };
 	const nuxt = parseSidearmNuxt(html);
-	if (nuxt) return { source: "sidearm_nuxt" as const, season, players: nuxt };
+	if (nuxt)
+		return {
+			source: nuxt.wmt ? ("wmt_nuxt" as const) : ("sidearm_nuxt" as const),
+			season,
+			players: nuxt.players,
+		};
+	const vue = parseSidearmVue(html);
+	if (vue) return { source: "sidearm_vue" as const, season, players: vue };
+	const presto = parsePresto(html);
+	if (presto) return { source: "presto" as const, season, players: presto };
 	return null;
 }
 
@@ -232,8 +397,8 @@ export async function fetchRosterBio(
 	sport: Sport,
 	season?: string,
 ): Promise<StoredRosterBio | null> {
-	for (const path of PATHS[sport]) {
-		const url = `https://${host}/sports/${path}/roster${season ? `/${season}` : ""}`;
+	const resolved = await resolveHost(host);
+	for (const url of rosterUrls(resolved, sport, season)) {
 		let res: Response;
 		try {
 			res = await upstreamFetch(url, {
@@ -245,21 +410,89 @@ export async function fetchRosterBio(
 			rosterBioStats.errors++;
 			rosterBioStats.lastError =
 				err instanceof Error ? err.message : String(err);
-			return null;
+			continue;
 		}
 		rosterBioStats.fetched++;
-		if (res.status === 404) continue;
-		if (!res.ok) return null;
+		if (!res.ok) continue;
 		const parsed = parseRosterHtml(await res.text());
 		if (!parsed) {
 			rosterBioStats.unsupported++;
-			return null;
+			continue;
 		}
+		if (season && parsed.season !== season) continue;
 		rosterBioStats.parsed++;
-		if (season && parsed.season !== season) return null;
-		return { host, ...parsed };
+		return { host: resolved, ...parsed };
 	}
 	return null;
+}
+
+/** Spring season "2026" is academic year "2025-26". */
+const academicYear = (season: string) =>
+	`${Number(season) - 1}-${season.slice(2)}`;
+
+/** Roster season a school site shows today: next spring once the fall term starts. */
+export function currentRosterSeason(now = new Date()): string {
+	return String(now.getUTCFullYear() + (now.getUTCMonth() >= 6 ? 1 : 0));
+}
+
+/**
+ * Candidate roster URLs across the platforms schools use: Sidearm (and WMT)
+ * at /sports/<code>/roster[/<season>], Presto at /sports/<code>/<yyyy-yy>/roster.
+ */
+export function rosterUrls(host: string, sport: Sport, season?: string) {
+	const urls: string[] = [];
+	for (const path of PATHS[sport]) {
+		urls.push(
+			`https://${host}/sports/${path}/roster${season ? `/${season}` : ""}`,
+		);
+	}
+	const short = PATHS[sport][1];
+	if (season) {
+		urls.push(
+			`https://${host}/sports/${short}/roster/season/${academicYear(season)}/`,
+		);
+		urls.push(`https://${host}/sports/${short}/${academicYear(season)}/roster`);
+	} else {
+		const now = currentRosterSeason();
+		urls.push(`https://${host}/sports/${short}/${academicYear(now)}/roster`);
+		urls.push(
+			`https://${host}/sports/${short}/${academicYear(String(Number(now) - 1))}/roster`,
+		);
+	}
+	return urls;
+}
+
+const hostCache = new Map<string, string>();
+
+/**
+ * lax.com's team links often point at a school's old domain
+ * (suathletics.com → cuse.com). Follow the redirect once and remember it.
+ */
+export async function resolveHost(host: string): Promise<string> {
+	const hit = hostCache.get(host);
+	if (hit) return hit;
+	let resolved = host;
+	try {
+		const res = await upstreamFetch(`https://${host}/`, {
+			retries: 0,
+			timeoutMs: 10000,
+			headers: { Accept: "text/html,*/*;q=0.8" },
+		});
+		const h = hostOf(res.url);
+		if (h) resolved = h;
+	} catch {
+		try {
+			const res = await upstreamFetch(`http://${host}/`, {
+				retries: 0,
+				timeoutMs: 10000,
+				headers: { Accept: "text/html,*/*;q=0.8" },
+			});
+			const h = hostOf(res.url);
+			if (h) resolved = h;
+		} catch {}
+	}
+	hostCache.set(host, resolved);
+	return resolved;
 }
 
 const inflight = new Map<string, Promise<void>>();
@@ -279,11 +512,8 @@ export async function getRosterBio(
 	const stored = await getBio<StoredRosterBio | null>(key);
 	// A past season's roster never changes: once parsed it is kept for good,
 	// and only a miss (null) is retried after REFRESH_MS.
-	const fresh =
-		stored &&
-		((season && stored.data) ||
-			Date.now() - new Date(stored.updatedAt).getTime() < REFRESH_MS);
-	if (!fresh) void refreshRosterBio(sport, teamId, website, season);
+	if (!bioIsFresh(stored, season))
+		void refreshRosterBio(sport, teamId, website, season);
 	return stored?.data ?? null;
 }
 
