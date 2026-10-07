@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
+	bioIsFresh,
 	bioKey,
 	hostOf,
 	matchBio,
 	normalizeHeight,
 	parseRosterHtml,
+	rosterUrls,
 } from "../src/v1/rosterbio";
 
 const read = (name: string) =>
@@ -103,5 +105,79 @@ describe("roster bios", () => {
 			160,
 		);
 		expect(matchBio(null, { number: "1", name: "x" })).toBeNull();
+	});
+});
+
+describe("roster bios: other platforms", () => {
+	it("parses PrestoSports roster tables", async () => {
+		const parsed = parseRosterHtml(await read("roster-presto.html"));
+		expect(parsed?.source).toBe("presto");
+		expect(parsed?.season).toBe("2026");
+		const spears = parsed?.players.find((p) => p.name === "Jack Spears");
+		expect(spears).toMatchObject({
+			number: "0",
+			position: "Att",
+			year: "Jr",
+			height: `5'10"`,
+			weight: 155,
+			hometown: "Elkridge, Md.",
+			highSchool: "Mount St. Joseph's HS",
+		});
+	});
+
+	it("parses WMT Nuxt rosters (snake_case payload, academic-year title)", async () => {
+		const parsed = parseRosterHtml(await read("roster-wmt-nuxt.html"));
+		expect(parsed?.source).toBe("wmt_nuxt");
+		expect(parsed?.season).toBe("2027");
+		const meredith = parsed?.players.find((p) => p.name === "Michael Meredith");
+		expect(meredith).toMatchObject({
+			number: "36",
+			height: `6'2"`,
+			weight: 205,
+			hometown: "Towson, Md.",
+			highSchool: "Boys' Latin",
+			position: "Defense",
+			year: "3rd Year",
+		});
+	});
+
+	it("parses Sidearm Vue list rosters from the embedded players JSON", async () => {
+		const parsed = parseRosterHtml(await read("roster-sidearm-vue.html"));
+		expect(parsed?.source).toBe("sidearm_vue");
+		expect(parsed?.season).toBe("2027");
+		expect(parsed?.players.length).toBe(27);
+		expect(parsed?.players[0]).toMatchObject({
+			number: "1",
+			name: "Emily Barnette",
+			position: "A",
+			year: "So.",
+			height: `5'8"`,
+			weight: null,
+			hometown: "Jacksonville, Fla.",
+			highSchool: "Bartram Trail",
+		});
+	});
+
+	it("tries Sidearm, WMT and Presto roster URLs for a season", () => {
+		const urls = rosterUrls("example.edu", "lacrosse-men", "2025");
+		expect(urls).toContain(
+			"https://example.edu/sports/mens-lacrosse/roster/2025",
+		);
+		expect(urls).toContain(
+			"https://example.edu/sports/mlax/roster/season/2024-25/",
+		);
+		expect(urls).toContain("https://example.edu/sports/mlax/2024-25/roster");
+		const current = rosterUrls("example.edu", "lacrosse-women");
+		expect(current[0]).toBe(
+			"https://example.edu/sports/womens-lacrosse/roster",
+		);
+		expect(current[current.length - 1]).toMatch(/\/sports\/lacrosse\/roster\/\d{4}$/);
+	});
+
+	it("retries misses sooner than hits", () => {
+		const old = new Date(Date.now() - 2 * 24 * 3600e3).toISOString();
+		expect(bioIsFresh({ data: null, updatedAt: old })).toBe(false);
+		expect(bioIsFresh({ data: { x: 1 }, updatedAt: old })).toBe(true);
+		expect(bioIsFresh(null)).toBe(false);
 	});
 });

@@ -8,6 +8,7 @@ import {
 	upsertLaxSeason,
 } from "../store";
 import { upstreamJson } from "../upstream";
+import { formatHometown } from "./hometown";
 import { getRosterBio, matchBio, type StoredRosterBio } from "./rosterbio";
 import type { Served } from "./service";
 import type { V1Game } from "./types";
@@ -719,8 +720,30 @@ const EMPTY_STATS: V1RosterPlayer["stats"] = {
 	shotsFaced: 0,
 };
 
-const classYear = (y: string | null) =>
-	y ? y.replace(/\.$/, "").replace(/^(\w)/, (c) => c.toUpperCase()) : null;
+const CLASS_YEARS: Record<string, string> = {
+	freshman: "Fr",
+	sophomore: "So",
+	junior: "Jr",
+	senior: "Sr",
+	graduate: "Gr",
+	"graduate student": "Gr",
+	"redshirt freshman": "R-Fr",
+	"redshirt sophomore": "R-So",
+	"redshirt junior": "R-Jr",
+	"redshirt senior": "R-Sr",
+	"1st year": "Fr",
+	"2nd year": "So",
+	"3rd year": "Jr",
+	"4th year": "Sr",
+	"5th year": "Gr",
+};
+
+const classYear = (y: string | null) => {
+	if (!y) return null;
+	const long = CLASS_YEARS[y.trim().toLowerCase()];
+	if (long) return long;
+	return y.replace(/\.$/, "").replace(/^(\w)/, (c) => c.toUpperCase());
+};
 
 const POSITION_CODES: Record<string, string> = {
 	attack: "A",
@@ -793,7 +816,7 @@ function schoolRoster(
 				name: sp.name,
 				position: positionCode(sp.position) ?? lp?.position ?? null,
 				year: classYear(sp.year) ?? lp?.year ?? null,
-				hometown: sp.hometown ?? lp?.hometown ?? null,
+				hometown: formatHometown(sp.hometown ?? lp?.hometown),
 				height: sp.height,
 				weight: sp.weight,
 				highSchool: sp.highSchool,
@@ -992,9 +1015,9 @@ async function withRosterBio(
 						height: b.height,
 						weight: b.weight,
 						highSchool: b.highSchool,
-						hometown: p.hometown ?? b.hometown,
+						hometown: formatHometown(p.hometown ?? b.hometown),
 					}
-				: p;
+				: { ...p, hometown: formatHometown(p.hometown) };
 		}),
 	};
 }
@@ -1212,7 +1235,9 @@ function getTeamRaw(
 						year: p.year
 							? p.year.charAt(0).toUpperCase() + p.year.slice(1)
 							: null,
-						hometown: [p.town, p.state].filter(Boolean).join(", ") || null,
+						hometown: formatHometown(
+							[p.town, p.state].filter(Boolean).join(", "),
+						),
 						height: null,
 						weight: null,
 						highSchool: null,
