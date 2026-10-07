@@ -7,6 +7,7 @@ import {
 	boxscoreFromPlays,
 	boxscoreIsBlank,
 	boxscoreIsEmpty,
+	hasTeamPrefixedLines,
 	rosterFromPlays,
 } from "../src/v1/pbpbox";
 import {
@@ -116,6 +117,49 @@ describe("boxscoreFromPlays", () => {
 			1,
 		);
 		expect(rebuilt.teamStats.find((t) => t.teamId === "43861")?.goals).toBe(3);
+	});
+
+	it("strips NCAA's truncated team names (NORTH CA → North Carolina)", () => {
+		const play = (text: string, clock: string, type: string) => ({
+			id: `x-${clock}`,
+			tags: [],
+			text,
+			type,
+			clock,
+			assist: null,
+			period: 1,
+			scorer: null,
+			teamId: "43861",
+			awayScore: 0,
+			homeScore: 1,
+			periodDisplay: "1st",
+		});
+		const rebuilt = boxscoreFromPlays(
+			boxscore,
+			[
+				play("GOAL by NOTRE DA Luke Miller.", "09:00", "goal"),
+				play("Shot by NOTRE DA Luke Miller WIDE", "08:00", "shot"),
+			] as never,
+			boxscore.status,
+			"x",
+			true,
+		);
+		const miller = rebuilt.players.find((p) => p.name === "LUKE MILLER");
+		expect(miller?.goals).toBe(1);
+		expect(miller?.played).toBe(true);
+		expect(rebuilt.players.some((p) => p.name.includes("DA Luke"))).toBe(false);
+		expect(hasTeamPrefixedLines(rebuilt)).toBe(false);
+		const ghost = {
+			...miller!,
+			name: "DA Luke Miller",
+			number: null,
+		};
+		expect(
+			hasTeamPrefixedLines({
+				...rebuilt,
+				players: [...rebuilt.players, ghost],
+			}),
+		).toBe(true);
 	});
 
 	it("credits goals whose text carries (FPGOAL) {free position shot} tags", () => {

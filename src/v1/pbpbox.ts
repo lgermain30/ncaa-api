@@ -117,10 +117,32 @@ function stripTeamWords(name: string, words: Set<string>): string {
 	while (parts.length > 2) {
 		const w = parts[0];
 		const clean = w.replace(/[^A-Z&]/g, "");
-		if (w !== w.toUpperCase() || w.includes(",") || !words.has(clean)) break;
+		if (w !== w.toUpperCase() || w.includes(",") || !isTeamWord(clean, words))
+			break;
 		parts.shift();
 	}
 	return parts.join(" ");
+}
+
+/** A team-name word, or NCAA's truncation of one ("NORTH CA" for North Carolina). */
+function isTeamWord(clean: string, words: Set<string>): boolean {
+	if (words.has(clean)) return true;
+	if (clean.length < 2) return false;
+	for (const w of words)
+		if (w.length > clean.length && w.startsWith(clean)) return true;
+	return false;
+}
+
+/**
+ * Lines added while rebuilding from plays whose name still carries a team
+ * word ("CA Dominic Pietramala") — a box built before the prefix was
+ * recognised, so it needs rebuilding.
+ */
+export function hasTeamPrefixedLines(box: V1Boxscore): boolean {
+	const words = teamWords(box);
+	return box.players.some(
+		(p) => p.number === null && stripTeamWords(p.name, words) !== p.name.trim(),
+	);
 }
 
 function newLine(teamId: string, name: string, goalie: boolean): V1PlayerLine {
