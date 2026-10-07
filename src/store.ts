@@ -414,6 +414,114 @@ export async function aggregateTeamTotals(
 	return [...acc.values()];
 }
 
+export interface StoredPlayerGameLine {
+	gameId: string;
+	name: string;
+	firstName: string | null;
+	lastName: string | null;
+	number: number | null;
+	played: boolean;
+	starter: boolean;
+}
+
+/**
+ * One row per player per stored final box score for a team (by NCAA seoName)
+ * in a season, plus how many box scores there were — the basis for games
+ * played / started, which lax.com doesn't publish.
+ */
+export async function listPlayerGameLines(
+	sport: string,
+	division: string,
+	season: string,
+	seoName: string,
+): Promise<{ games: number; lines: StoredPlayerGameLine[] }> {
+	await initStore();
+	const from = `${season}-01-01`;
+	const to = `${season}-12-31`;
+	if (sql) {
+		try {
+			const rows = await sql<
+				{ id: string; team_id: string | null; players: unknown }[]
+			>`
+				SELECT g.id,
+					CASE WHEN g.data->'home'->>'seoName' = ${seoName}
+						THEN g.data->'home'->>'id' ELSE g.data->'away'->>'id' END AS team_id,
+					d.data->'players' AS players
+				FROM games g
+				JOIN game_details d ON d.game_id = g.id AND d.kind = 'boxscore'
+				WHERE g.sport = ${sport} AND g.division = ${division}
+					AND g.game_date BETWEEN ${from} AND ${to}
+					AND g.state = 'final'
+					AND (g.data->'home'->>'seoName' = ${seoName}
+						OR g.data->'away'->>'seoName' = ${seoName})`;
+			return playerGameLines(
+				rows.map((r) => ({
+					gameId: r.id,
+					teamId: r.team_id,
+					players: parseJson(r.players) as PlayerLineLike[] | null,
+				})),
+			);
+		} catch (err) {
+			recordError(err);
+		}
+	}
+	const boxes: {
+		gameId: string;
+		teamId: string | null;
+		players: PlayerLineLike[] | null;
+	}[] = [];
+	for (const { game } of memGames.values()) {
+		if (game.sport !== sport || game.division !== division) continue;
+		if (game.date < from || game.date > to) continue;
+		if (game.status.state !== "final") continue;
+		const team = [game.home, game.away].find((t) => t.seoName === seoName);
+		if (!team) continue;
+		const box = memDetails.get(`${game.id}:boxscore`)?.data as
+			| { players?: PlayerLineLike[] }
+			| undefined;
+		if (!box) continue;
+		boxes.push({
+			gameId: game.id,
+			teamId: team.id,
+			players: box.players ?? null,
+		});
+	}
+	return playerGameLines(boxes);
+}
+
+interface PlayerLineLike {
+	teamId: string;
+	name: string;
+	firstName?: string | null;
+	lastName?: string | null;
+	number?: number | null;
+	played?: boolean | null;
+	starter?: boolean | null;
+}
+
+function playerGameLines(
+	boxes: {
+		gameId: string;
+		teamId: string | null;
+		players: PlayerLineLike[] | null;
+	}[],
+): { games: number; lines: StoredPlayerGameLine[] } {
+	const lines: StoredPlayerGameLine[] = [];
+	for (const b of boxes)
+		for (const p of b.players ?? [])
+			if (p.teamId === b.teamId)
+				lines.push({
+					gameId: b.gameId,
+					name: p.name,
+					firstName: p.firstName || null,
+					lastName: p.lastName || null,
+					number: p.number ?? null,
+					played: p.played !== false,
+					starter: p.starter === true,
+				});
+	return { games: boxes.length, lines };
+}
+
 interface TeamLineLike {
 	teamId: string;
 	shots?: number | null;

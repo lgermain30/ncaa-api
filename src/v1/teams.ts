@@ -3,6 +3,7 @@ import {
 	getLaxSeason,
 	listBoardTeams,
 	listGames,
+	listPlayerGameLines,
 	type StoredTeamIdentity,
 	upsertLaxSeason,
 } from "../store";
@@ -67,6 +68,9 @@ export interface V1RosterPlayer {
 	/** pounds, null when unpublished */
 	weight: number | null;
 	highSchool: string | null;
+	/** From the NCAA box scores we store; null when we hold none for the season or can't match the player */
+	gamesPlayed: number | null;
+	gamesStarted: number | null;
 	stats: {
 		goals: number;
 		assists: number;
@@ -793,6 +797,8 @@ function schoolRoster(
 				height: sp.height,
 				weight: sp.weight,
 				highSchool: sp.highSchool,
+				gamesPlayed: null,
+				gamesStarted: null,
 				stats: lp?.stats ?? EMPTY_STATS,
 			};
 		})
@@ -955,37 +961,120 @@ export async function getTeam(
 			: await getTeamRaw(sport, division, id, season);
 	const team = served.data;
 	if (!team) return served;
+	const withBio = await withRosterBio(team, id, season);
+	return { ...served, data: await withGamesPlayed(withBio) };
+}
+
+async function withRosterBio(
+	team: V1TeamDetail,
+	id: string,
+	season: string,
+): Promise<V1TeamDetail> {
+	const { sport } = team;
 	const bio = await getRosterBio(sport, id, team.website);
-	if (!bio?.players.length) return served;
+	if (!bio?.players.length) return team;
 	if (season === defaultTeamSeason()) {
 		return {
-			...served,
-			data: {
-				...team,
-				roster: schoolRoster(bio, team.roster),
-				rosterSource: "school",
-				rosterSeason: bio.season && bio.season !== season ? bio.season : null,
-			},
+			...team,
+			roster: schoolRoster(bio, team.roster),
+			rosterSource: "school",
+			rosterSeason: bio.season && bio.season !== season ? bio.season : null,
 		};
 	}
 	const seasonBio = await getRosterBio(sport, id, team.website, season);
 	return {
-		...served,
-		data: {
-			...team,
-			roster: team.roster.map((p) => {
-				const b = matchBio(seasonBio, p) ?? matchBio(bio, p);
-				return b
-					? {
-							...p,
-							height: b.height,
-							weight: b.weight,
-							highSchool: b.highSchool,
-							hometown: p.hometown ?? b.hometown,
-						}
-					: p;
-			}),
-		},
+		...team,
+		roster: team.roster.map((p) => {
+			const b = matchBio(seasonBio, p) ?? matchBio(bio, p);
+			return b
+				? {
+						...p,
+						height: b.height,
+						weight: b.weight,
+						highSchool: b.highSchool,
+						hometown: p.hometown ?? b.hometown,
+					}
+				: p;
+		}),
+	};
+}
+
+const gamesCache = new TieredCache("player-games", 15 * 60 * 1000);
+
+type GamesCount = { played: number; started: number };
+type TeamGames = {
+	games: number;
+	players: [string, number | null, GamesCount][];
+};
+
+async function teamGames(team: V1TeamDetail): Promise<TeamGames | null> {
+	if (!team.seoName) return null;
+	const key = `${team.sport}:${team.division}:${team.season}:${team.seoName}`;
+	const hit = (gamesCache.get(key) ?? (await gamesCache.getShared(key))) as
+		| TeamGames
+		| undefined;
+	if (hit) return hit;
+	const { games, lines } = await listPlayerGameLines(
+		team.sport,
+		team.division,
+		team.season,
+		team.seoName,
+	);
+	const byPlayer = new Map<string, [string, number | null, GamesCount]>();
+	for (const l of lines) {
+		const name =
+			l.firstName && l.lastName ? `${l.firstName} ${l.lastName}` : l.name;
+		const k = nameKey(name);
+		if (!k) continue;
+		const id = `${k}#${l.number ?? ""}`;
+		const row = byPlayer.get(id) ?? [k, l.number, { played: 0, started: 0 }];
+		if (l.played) row[2].played++;
+		if (l.starter) row[2].started++;
+		byPlayer.set(id, row);
+	}
+	const data = { games, players: [...byPlayer.values()] };
+	gamesCache.set(key, data);
+	return data;
+}
+
+/**
+ * Games played / started per player from the season's stored NCAA box scores,
+ * matched by last name + first initial (jersey number breaks ties). A player
+ * with stats but no matching box line stays null rather than showing 0.
+ */
+export async function withGamesPlayed(
+	team: V1TeamDetail,
+): Promise<V1TeamDetail> {
+	const tg = await teamGames(team);
+	if (!tg?.games) return team;
+	return {
+		...team,
+		roster: team.roster.map((p) => {
+			const k = nameKey(p.name);
+			let rows = tg.players.filter(([pk]) => pk === k);
+			const namesakes = team.roster.filter((o) => nameKey(o.name) === k);
+			if (namesakes.length > 1) {
+				const n = Number(p.number);
+				rows = p.number ? rows.filter(([, num]) => num === n) : [];
+			}
+			if (rows.length) {
+				const played = rows.reduce((t, [, , g]) => t + g.played, 0);
+				const started = rows.reduce((t, [, , g]) => t + g.started, 0);
+				return { ...p, gamesPlayed: played, gamesStarted: started };
+			}
+			const s = p.stats;
+			const hasStats =
+				s.goals +
+					s.assists +
+					s.shots +
+					s.groundBalls +
+					s.saves +
+					s.faceoffsTaken >
+				0;
+			return hasStats
+				? { ...p, gamesPlayed: null, gamesStarted: null }
+				: { ...p, gamesPlayed: 0, gamesStarted: 0 };
+		}),
 	};
 }
 
@@ -1127,6 +1216,8 @@ function getTeamRaw(
 						height: null,
 						weight: null,
 						highSchool: null,
+						gamesPlayed: null,
+						gamesStarted: null,
 						stats: {
 							goals: num(p.goals),
 							assists: num(p.assists),
