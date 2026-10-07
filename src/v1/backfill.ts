@@ -1,7 +1,11 @@
 import { getDetail, getGame, listGames } from "../store";
 import { UpstreamError } from "../upstream";
 import { playIdentity } from "./normalize";
-import { boxscoreDisagrees, boxscoreIsEmpty } from "./pbpbox";
+import {
+	boxscoreDisagrees,
+	boxscoreIsEmpty,
+	hasTeamPrefixedLines,
+} from "./pbpbox";
 import {
 	LACROSSE_DIVISIONS,
 	LACROSSE_SPORTS,
@@ -126,6 +130,7 @@ async function hasDetails(gameId: string) {
 	if (box.data.players.length === 0 && ps.some((p) => p.type === "goal"))
 		return false;
 	if (boxscoreIsEmpty(box.data, ps)) return false;
+	if (hasTeamPrefixedLines(box.data)) return false;
 	const game = await getGame(gameId);
 	return !(game && boxscoreDisagrees(box.data, ps, game.game));
 }
