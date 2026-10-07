@@ -55,6 +55,10 @@ function playerStatRows(p: V1RosterPlayer) {
   const s = p.stats;
   const goalie = p.position === "G" || s.shotsFaced > 0;
   const rows: [string, string | number][] = [];
+  if (p.gamesPlayed != null) {
+    rows.push(["Games Played", p.gamesPlayed]);
+    if (p.gamesStarted != null) rows.push(["Games Started", p.gamesStarted]);
+  }
   if (goalie) {
     rows.push(["Saves", s.saves], ["Shots Faced", s.shotsFaced]);
     rows.push(["Save Percentage", pct(s.saves, s.shotsFaced)]);

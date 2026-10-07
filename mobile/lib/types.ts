@@ -311,6 +311,9 @@ export interface V1RosterPlayer {
   height: string | null;
   weight: number | null;
   highSchool: string | null;
+  /** from stored NCAA box scores; null/absent when unknown */
+  gamesPlayed?: number | null;
+  gamesStarted?: number | null;
   stats: {
     goals: number;
     assists: number;

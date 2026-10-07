@@ -5,9 +5,13 @@ import {
 	playerName,
 	positionCode,
 	titleCase,
+	type V1RosterPlayer,
+	type V1TeamDetail,
 	type V1TeamGame,
 	verifySchedule,
+	withGamesPlayed,
 } from "../src/v1/teams";
+import { resetStore, upsertDetail, upsertGame } from "../src/store";
 import type { V1Game } from "../src/v1/types";
 
 const laxGame = (
@@ -160,5 +164,108 @@ describe("v1 teams", () => {
 		);
 		expect(zero.checked).toBe(0);
 		expect(zero.verified).toBe(false);
+	});
+});
+
+describe("games played from stored box scores", () => {
+	const game = (id: string, state = "final") =>
+		({
+			id,
+			sport: "lacrosse-men",
+			division: "d1",
+			date: "2026-03-0" + id,
+			status: { state },
+			home: { id: "457", seoName: "north-carolina", name: "UNC" },
+			away: { id: "999", seoName: "duke", name: "Duke" },
+		}) as unknown as V1Game;
+	const line = (
+		name: string,
+		number: number,
+		starter: boolean,
+		teamId = "457",
+	) => {
+		const [firstName, lastName] = name.split(" ");
+		return {
+			teamId,
+			name: name.toUpperCase(),
+			firstName,
+			lastName,
+			number,
+			starter,
+			played: true,
+		};
+	};
+	const player = (name: string, number: string, goals = 0) =>
+		({
+			id: name,
+			number,
+			name,
+			gamesPlayed: null,
+			gamesStarted: null,
+			stats: {
+				goals,
+				assists: 0,
+				shots: 0,
+				groundBalls: 0,
+				turnovers: 0,
+				causedTurnovers: 0,
+				faceoffsWon: 0,
+				faceoffsTaken: 0,
+				saves: 0,
+				shotsFaced: 0,
+			},
+		}) as unknown as V1RosterPlayer;
+
+	test("counts finals for the team's own players, matched by name", async () => {
+		resetStore();
+		for (const id of ["1", "2", "3"]) await upsertGame(game(id));
+		await upsertGame(game("4", "live"));
+		const box = (players: ReturnType<typeof line>[]) => ({
+			updatedAt: new Date().toISOString(),
+			players,
+		});
+		await upsertDetail(
+			"1",
+			"boxscore",
+			box([
+				line("Dominic Pietramala", 77, true),
+				line("Nick Pietramala", 66, false),
+				line("Dominic Pietramala", 77, true, "999"),
+			]),
+		);
+		await upsertDetail(
+			"2",
+			"boxscore",
+			box([{ ...line("Dominic Pietramala", 77, true), played: false }]),
+		);
+		await upsertDetail(
+			"3",
+			"boxscore",
+			box([line("Dominic Pietramala", 77, false)]),
+		);
+		await upsertDetail(
+			"4",
+			"boxscore",
+			box([line("Dominic Pietramala", 77, true)]),
+		);
+		const team = {
+			sport: "lacrosse-men",
+			division: "d1",
+			season: "2026",
+			seoName: "north-carolina",
+			roster: [
+				player("Dominic Pietramala", "77", 55),
+				player("Nick Pietramala", "66"),
+				player("Sam Newcomer", "99"),
+				player("Pat Unmatched", "5", 3),
+			],
+		} as unknown as V1TeamDetail;
+		const r = (await withGamesPlayed(team)).roster;
+		expect([r[0].gamesPlayed, r[0].gamesStarted]).toEqual([3, 2]);
+		expect([r[1].gamesPlayed, r[1].gamesStarted]).toEqual([1, 0]);
+		expect(r[2].gamesPlayed).toBe(0);
+		expect(r[3].gamesPlayed).toBeNull();
+		const none = await withGamesPlayed({ ...team, season: "2019" });
+		expect(none.roster[0].gamesPlayed).toBeNull();
 	});
 });
