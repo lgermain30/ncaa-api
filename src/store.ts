@@ -516,7 +516,8 @@ function playerGameLines(
 					firstName: p.firstName || null,
 					lastName: p.lastName || null,
 					number: p.number ?? null,
-					played: p.played !== false,
+					// some stored boxes flag a starter as not participating
+					played: p.played !== false || p.starter === true,
 					starter: p.starter === true,
 				});
 	return { games: boxes.length, lines };

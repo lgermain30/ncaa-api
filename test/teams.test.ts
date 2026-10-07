@@ -236,7 +236,7 @@ describe("games played from stored box scores", () => {
 		await upsertDetail(
 			"2",
 			"boxscore",
-			box([line("Dominic Pietramala", 77, true)]),
+			box([{ ...line("Dominic Pietramala", 77, true), played: false }]),
 		);
 		await upsertDetail(
 			"3",
