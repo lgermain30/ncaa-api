@@ -7,6 +7,7 @@ import {
   View as RNView,
 } from "react-native";
 
+import { Chips } from "@/components/Chips";
 import { Segmented } from "@/components/Segmented";
 import { TeamLogo } from "@/components/TeamLogo";
 import { Text, View, useThemeColor } from "@/components/Themed";
@@ -658,49 +659,70 @@ function Goals({ plays, game }: { plays: V1Plays; game: V1Game }) {
   );
 }
 
+const periodChip = (period: number) =>
+  period <= 4
+    ? ["1st", "2nd", "3rd", "4th"][period - 1]
+    : period === 5
+      ? "OT"
+      : `${period - 4}OT`;
+
+/**
+ * Play-by-play, one period at a time, latest play first. Period chips run
+ * 1st → 4th → OT; finals open on the 1st, live games follow the current period
+ * until the user picks one.
+ */
 function Plays({ plays }: { plays: V1Plays }) {
   const muted = useThemeColor({}, "muted");
-  const border = useThemeColor({}, "border");
   const team = (id: string | null) =>
     plays.teams.find((t) => t.teamId === id)?.shortName ?? "";
-  const ordered = useMemo(() => [...plays.plays].reverse(), [plays.plays]);
+  const periods = useMemo(
+    () => [...new Set(plays.plays.map((p) => p.period))].sort((a, b) => a - b),
+    [plays.plays],
+  );
+  const live = plays.status.state === "live";
+  const latest = periods[periods.length - 1];
+  const [picked, setPicked] = useState<number | null>(null);
+  const period =
+    picked !== null && periods.includes(picked)
+      ? picked
+      : live
+        ? latest
+        : periods[0];
+  const ordered = useMemo(
+    () => plays.plays.filter((p) => p.period === period).reverse(),
+    [plays.plays, period],
+  );
   return (
     <Card title="Play-by-play">
+      {periods.length > 1 ? (
+        <RNView style={styles.periodChips}>
+          <Chips
+            options={periods.map((n) => ({ key: String(n), label: periodChip(n) }))}
+            value={String(period)}
+            onChange={(k) => setPicked(Number(k))}
+          />
+        </RNView>
+      ) : null}
       {ordered.length === 0 ? (
         <Text style={[styles.note, { color: muted }]}>No plays yet.</Text>
       ) : null}
-      {ordered.map((p, i) => {
-        const showPeriod = i === 0 || p.period !== ordered[i - 1].period;
+      {ordered.map((p) => {
         const goal = p.type === "goal";
         return (
-          <RNView key={p.id}>
-            {showPeriod ? (
-              <Text
-                style={[
-                  styles.periodHead,
-                  { color: muted, borderBottomColor: border },
-                ]}
-              >
-                {p.periodDisplay}
+          <RNView key={p.id} style={styles.playRow}>
+            <Text style={[styles.playClock, { color: muted }]}>{p.clock}</Text>
+            <RNView style={{ flex: 1 }}>
+              <Text style={[styles.playText, goal && { fontWeight: "700" }]}>
+                {goal ? "GOAL " : ""}
+                {team(p.teamId) ? `${team(p.teamId)}: ` : ""}
+                {p.text}
               </Text>
-            ) : null}
-            <RNView style={styles.playRow}>
-              <Text style={[styles.playClock, { color: muted }]}>
-                {p.clock}
-              </Text>
-              <RNView style={{ flex: 1 }}>
-                <Text style={[styles.playText, goal && { fontWeight: "700" }]}>
-                  {goal ? "GOAL " : ""}
-                  {team(p.teamId) ? `${team(p.teamId)}: ` : ""}
-                  {p.text}
+              {goal && p.homeScore !== null ? (
+                <Text style={[styles.note, { color: muted }]}>
+                  {p.awayScore} – {p.homeScore}
+                  {p.tags.length ? ` · ${p.tags.join(", ")}` : ""}
                 </Text>
-                {goal && p.homeScore !== null ? (
-                  <Text style={[styles.note, { color: muted }]}>
-                    {p.awayScore} – {p.homeScore}
-                    {p.tags.length ? ` · ${p.tags.join(", ")}` : ""}
-                  </Text>
-                ) : null}
-              </RNView>
+              ) : null}
             </RNView>
           </RNView>
         );
@@ -1046,14 +1068,7 @@ const styles = StyleSheet.create({
   },
   gCellWide: { width: 52 },
   swipeHint: { fontSize: 11, textAlign: "right", marginTop: 6 },
-  periodHead: {
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 10,
-    marginBottom: 4,
-    paddingBottom: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+  periodChips: { marginBottom: 8 },
   playRow: { flexDirection: "row", gap: 10, paddingVertical: 4 },
   playClock: {
     width: 44,
