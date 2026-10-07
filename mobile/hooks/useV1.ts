@@ -20,6 +20,34 @@ interface Result<T> {
   error: string | null;
 }
 
+const RETRY_DELAYS_MS = [1000, 3000, 8000];
+
+/** Network-level failures (no response at all) are retried; HTTP errors are not. */
+function isTransient(err: unknown): boolean {
+  return err instanceof TypeError || (err instanceof Error && /network|fetch failed|timed out/i.test(err.message));
+}
+
+const sleep = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const t = setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => {
+      clearTimeout(t);
+      resolve();
+    });
+  });
+
+async function loadWithRetry<T>(load: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await load();
+    } catch (err) {
+      if (signal.aborted || attempt >= RETRY_DELAYS_MS.length || !isTransient(err)) throw err;
+      await sleep(RETRY_DELAYS_MS[attempt], signal);
+      if (signal.aborted) throw err;
+    }
+  }
+}
+
 /**
  * Loads a resource, re-fetches on demand and (optionally) on an interval.
  * `key` identifies the resource: results from a different key are never shown,
@@ -37,8 +65,7 @@ export function useV1<T>(
 
   useEffect(() => {
     const ctrl = new AbortController();
-    loadRef
-      .current(ctrl.signal)
+    loadWithRetry(() => loadRef.current(ctrl.signal), ctrl.signal)
       .then((env) => {
         setResult({ key, data: env.data, updatedAt: env.meta.updatedAt, stale: env.meta.stale, error: null });
       })
