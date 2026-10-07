@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, View as RNView } from 'react
 
 import { Text, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
-import { REMINDER_OPTIONS, updateSettings, useSettings, type Settings } from '@/lib/settings';
+import { REMINDER_OPTIONS, TEXT_SIZE_OPTIONS, updateSettings, useSettings, type Settings } from '@/lib/settings';
 
 type BoolKey = {
   [K in keyof Settings]: Settings[K] extends boolean ? K : never;
@@ -50,6 +50,24 @@ export default function SettingsScreen() {
         {IN_APP.map((item, i) => (
           <Row key={item.key} item={item} i={i} />
         ))}
+        <RNView style={[styles.row, rowBorder, styles.reminderRow]}>
+          <Text style={styles.label}>Text Size</Text>
+          <RNView style={styles.chips}>
+            {TEXT_SIZE_OPTIONS.map((o) => {
+              const on = s.textSize === o.value;
+              return (
+                <Pressable
+                  key={o.value}
+                  onPress={() => updateSettings({ textSize: o.value })}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  style={[styles.chip, { borderColor: border }, on && styles.chipOn]}>
+                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{o.label}</Text>
+                </Pressable>
+              );
+            })}
+          </RNView>
+        </RNView>
       </RNView>
 
       <Text style={[styles.heading, { color: muted }]}>ALERTS & REMINDERS</Text>

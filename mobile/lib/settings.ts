@@ -2,8 +2,19 @@ import { useEffect, useState } from 'react';
 
 import { kv } from './kv';
 
+export type TextSize = 'normal' | 'large' | 'xlarge';
+
+export const TEXT_SIZE_OPTIONS: { label: string; value: TextSize; scale: number }[] = [
+  { label: 'Normal', value: 'normal', scale: 1 },
+  { label: 'Large', value: 'large', scale: 1.15 },
+  { label: 'Extra Large', value: 'xlarge', scale: 1.3 },
+];
+
+export const textScale = (size: TextSize) => TEXT_SIZE_OPTIONS.find((o) => o.value === size)?.scale ?? 1;
+
 export interface Settings {
   boldColors: boolean;
+  textSize: TextSize;
   inAppGoalAlerts: boolean;
   watchedGoals: boolean;
   watchedFinal: boolean;
@@ -15,6 +26,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   boldColors: false,
+  textSize: 'normal',
   inAppGoalAlerts: true,
   watchedGoals: false,
   watchedFinal: false,

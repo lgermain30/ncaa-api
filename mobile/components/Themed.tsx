@@ -2,11 +2,12 @@
  * Learn more about Light and Dark modes:
  * https://docs.expo.io/guides/color-schemes/
  */
-import { Text as DefaultText, View as DefaultView } from "react-native";
+import { StyleSheet, Text as DefaultText, View as DefaultView } from "react-native";
 
 import { useColorScheme } from "./useColorScheme";
 
 import Colors from "@/constants/Colors";
+import { textScale, useSettings } from "@/lib/settings";
 
 type ThemeProps = {
   lightColor?: string;
@@ -33,11 +34,21 @@ export function useThemeColor(
 export function Text(props: TextProps) {
   const { style, lightColor, darkColor, ...otherProps } = props;
   const color = useThemeColor({ light: lightColor, dark: darkColor }, "text");
+  const scale = textScale(useSettings().textSize);
+  const flat = StyleSheet.flatten(style) ?? {};
+  const scaled =
+    scale === 1
+      ? flat
+      : {
+          ...flat,
+          fontSize: Math.round((flat.fontSize ?? 14) * scale),
+          ...(flat.lineHeight ? { lineHeight: Math.round(flat.lineHeight * scale) } : {}),
+        };
 
   return (
     <DefaultText
       maxFontSizeMultiplier={1.2}
-      style={[{ color }, style]}
+      style={[{ color }, scaled]}
       {...otherProps}
     />
   );
