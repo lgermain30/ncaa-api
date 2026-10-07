@@ -171,7 +171,7 @@ describe("roster bios: other platforms", () => {
 		expect(current[0]).toBe(
 			"https://example.edu/sports/womens-lacrosse/roster",
 		);
-		expect(current.at(-1)).toMatch(/\/sports\/lacrosse\/roster\/\d{4}$/);
+		expect(current[current.length - 1]).toMatch(/\/sports\/lacrosse\/roster\/\d{4}$/);
 	});
 
 	it("retries misses sooner than hits", () => {
