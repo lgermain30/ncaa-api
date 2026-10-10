@@ -22,6 +22,8 @@ export interface BioPlayer {
 	height: string | null;
 	weight: number | null;
 	highSchool: string | null;
+	/** last school before this one (Sidearm "Previous School"); transfers differ from highSchool */
+	previousSchool: string | null;
 }
 
 export interface StoredRosterBio {
@@ -46,10 +48,18 @@ export function bioIsFresh(
 	season?: string,
 ): boolean {
 	if (!stored) return false;
+	if (stored.data && !hasPreviousSchoolField(stored.data)) return false;
 	if (season && stored.data) return true;
 	const age = Date.now() - new Date(stored.updatedAt).getTime();
 	return age < (stored.data ? REFRESH_MS : MISS_REFRESH_MS);
 }
+/** Bios stored before `previousSchool` was parsed are refetched once. */
+function hasPreviousSchoolField(data: unknown): boolean {
+	const players = (data as { players?: unknown[] }).players;
+	if (!Array.isArray(players) || !players.length) return true;
+	return "previousSchool" in (players[0] as object);
+}
+
 const PATHS: Record<Sport, string[]> = {
 	"lacrosse-men": ["mens-lacrosse", "mlax", "mens-lax", "lacrosse"],
 	"lacrosse-women": ["womens-lacrosse", "wlax", "womens-lax", "lacrosse"],
@@ -133,6 +143,10 @@ export function parseSidearmClassic(html: string): BioPlayer[] | null {
 			highSchool:
 				clean(node.find(".sidearm-roster-player-highschool").first().text()) ||
 				null,
+			previousSchool:
+				clean(
+					node.find(".sidearm-roster-player-previous-school").first().text(),
+				) || null,
 		});
 	});
 	return players.length ? players : null;
@@ -208,6 +222,7 @@ export function parseSidearmNuxt(
 			height: feet ? `${feet}'${inches ?? 0}"` : null,
 			weight: normalizeWeight(numOf(arr, o.weight)),
 			highSchool: strOf(arr, w ? o.high_school : o.highSchool),
+			previousSchool: strOf(arr, w ? o.previous_school : o.previousSchool),
 		});
 	}
 	if (wmt) {
@@ -249,6 +264,7 @@ interface VuePlayer {
 	academic_year_short?: string | null;
 	hometown?: string | null;
 	highschool?: string | null;
+	previous_school?: string | null;
 	height_feet?: number | null;
 	height_inches?: number | null;
 	weight?: number | string | null;
@@ -303,6 +319,7 @@ export function parseSidearmVue(html: string): BioPlayer[] | null {
 			height: feet ? `${feet}'${Number(raw.height_inches) || 0}"` : null,
 			weight: normalizeWeight(raw.weight),
 			highSchool: clean(raw.highschool) || null,
+			previousSchool: clean(raw.previous_school) || null,
 		});
 	}
 	return players.length ? players : null;
@@ -335,6 +352,7 @@ export function parsePresto(html: string): BioPlayer[] | null {
 			height: normalizeHeight(cell("height")),
 			weight: normalizeWeight(cell("weight")),
 			highSchool: cell("highschool") || null,
+			previousSchool: cell("previous_school") || null,
 		});
 	});
 	return players.length ? players : null;
