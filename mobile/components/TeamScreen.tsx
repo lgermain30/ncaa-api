@@ -128,7 +128,7 @@ export function PlayerSheet({
             <RNView style={styles.bioCol}>
               <Text style={styles.bioLine}>{team.name}</Text>
               <Text style={styles.bioLine}>{p.hometown ?? ""}</Text>
-              <Text style={styles.bioLine}>{p.highSchool ?? ""}</Text>
+              <Text style={styles.bioLine}>{lastSchool(p) ?? ""}</Text>
             </RNView>
             <RNView style={styles.bioCol}>
               <Text style={styles.bioLine}>
@@ -334,7 +334,7 @@ function RosterRow({
           {personName(p.name)}
         </Text>
         <Text style={[styles.rTown, { color: muted }]} numberOfLines={1}>
-          {[p.hometown, p.highSchool].filter(Boolean).join(" · ")}
+          {[p.hometown, lastSchool(p)].filter(Boolean).join(" · ")}
         </Text>
       </RNView>
     </Pressable>
@@ -342,6 +342,11 @@ function RosterRow({
 }
 
 /** "5'10", "5-10", "5' 10''" → "5' 10\"" */
+/** A transfer's last school is the one they came from, not their high school. */
+function lastSchool(p: V1RosterPlayer): string | null {
+  return p.previousSchool || p.highSchool || null;
+}
+
 function fmtHeight(h: string | null | undefined): string {
   if (!h) return "";
   const m = h.match(/(\d)\D+(\d{1,2})/);

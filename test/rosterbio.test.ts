@@ -36,6 +36,22 @@ describe("roster bios", () => {
 		});
 	});
 
+	it("keeps a transfer's previous school separate from the high school", async () => {
+		const nuxt = parseRosterHtml(await read("roster-sidearm-nuxt.html"));
+		expect(nuxt?.players.find((p) => p.name.endsWith("Colsey"))).toMatchObject({
+			highSchool: "Ridgefield",
+			previousSchool: "Virginia",
+		});
+		const wmt = parseRosterHtml(await read("roster-wmt-nuxt.html"));
+		expect(
+			wmt?.players.find((p) => p.name.endsWith("Meredith"))?.previousSchool,
+		).toBe("Jacksonville");
+		const vue = parseRosterHtml(await read("roster-sidearm-vue.html"));
+		expect(vue?.players.some((p) => p.previousSchool === "Florida State")).toBe(
+			true,
+		);
+	});
+
 	it("returns null for non-Sidearm pages", () => {
 		expect(parseRosterHtml("<html><body><p>hi</p></body></html>")).toBeNull();
 	});
@@ -67,6 +83,7 @@ describe("roster bios", () => {
 					height: `6'0"`,
 					weight: 180,
 					highSchool: null,
+					previousSchool: null,
 					position: null,
 					year: null,
 					hometown: null,
@@ -77,6 +94,7 @@ describe("roster bios", () => {
 					height: `5'6"`,
 					weight: 140,
 					highSchool: null,
+					previousSchool: null,
 					position: null,
 					year: null,
 					hometown: null,
@@ -87,6 +105,7 @@ describe("roster bios", () => {
 					height: `5'9"`,
 					weight: 160,
 					highSchool: null,
+					previousSchool: null,
 					position: null,
 					year: null,
 					hometown: null,
@@ -171,7 +190,9 @@ describe("roster bios: other platforms", () => {
 		expect(current[0]).toBe(
 			"https://example.edu/sports/womens-lacrosse/roster",
 		);
-		expect(current[current.length - 1]).toMatch(/\/sports\/lacrosse\/roster\/\d{4}$/);
+		expect(current[current.length - 1]).toMatch(
+			/\/sports\/lacrosse\/roster\/\d{4}$/,
+		);
 	});
 
 	it("retries misses sooner than hits", () => {
@@ -179,5 +200,22 @@ describe("roster bios: other platforms", () => {
 		expect(bioIsFresh({ data: null, updatedAt: old })).toBe(false);
 		expect(bioIsFresh({ data: { x: 1 }, updatedAt: old })).toBe(true);
 		expect(bioIsFresh(null)).toBe(false);
+	});
+
+	it("refetches bios stored before previousSchool was parsed", () => {
+		const now = new Date().toISOString();
+		const player = { name: "A B", highSchool: "X" };
+		expect(bioIsFresh({ data: { players: [player] }, updatedAt: now })).toBe(
+			false,
+		);
+		expect(
+			bioIsFresh(
+				{
+					data: { players: [{ ...player, previousSchool: null }] },
+					updatedAt: now,
+				},
+				"2025",
+			),
+		).toBe(true);
 	});
 });

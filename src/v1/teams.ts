@@ -69,6 +69,8 @@ export interface V1RosterPlayer {
 	/** pounds, null when unpublished */
 	weight: number | null;
 	highSchool: string | null;
+	/** school the player last played for before this one (transfers), when the school site lists one */
+	previousSchool: string | null;
 	/** From the NCAA box scores we store; null when we hold none for the season or can't match the player */
 	gamesPlayed: number | null;
 	gamesStarted: number | null;
@@ -820,6 +822,7 @@ function schoolRoster(
 				height: sp.height,
 				weight: sp.weight,
 				highSchool: sp.highSchool,
+				previousSchool: sp.previousSchool ?? null,
 				gamesPlayed: null,
 				gamesStarted: null,
 				stats: lp?.stats ?? EMPTY_STATS,
@@ -1015,6 +1018,7 @@ async function withRosterBio(
 						height: b.height,
 						weight: b.weight,
 						highSchool: b.highSchool,
+						previousSchool: b.previousSchool ?? null,
 						hometown: formatHometown(p.hometown ?? b.hometown),
 					}
 				: { ...p, hometown: formatHometown(p.hometown) };
@@ -1241,6 +1245,7 @@ function getTeamRaw(
 						height: null,
 						weight: null,
 						highSchool: null,
+						previousSchool: null,
 						gamesPlayed: null,
 						gamesStarted: null,
 						stats: {
