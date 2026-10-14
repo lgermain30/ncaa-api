@@ -60,7 +60,7 @@ function hasPreviousSchoolField(data: unknown): boolean {
 	return "previousSchool" in (players[0] as object);
 }
 
-const PATHS: Record<Sport, string[]> = {
+export const PATHS: Record<Sport, string[]> = {
 	"lacrosse-men": ["mens-lacrosse", "mlax", "mens-lax", "lacrosse"],
 	"lacrosse-women": ["womens-lacrosse", "wlax", "womens-lax", "lacrosse"],
 };

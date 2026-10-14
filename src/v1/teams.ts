@@ -10,6 +10,7 @@ import {
 import { upstreamJson } from "../upstream";
 import { formatHometown } from "./hometown";
 import { getRosterBio, matchBio, type StoredRosterBio } from "./rosterbio";
+import { getSchoolStats, type StoredSchoolStats } from "./schoolstats";
 import type { Served } from "./service";
 import type { V1Game } from "./types";
 
@@ -108,6 +109,8 @@ export interface V1TeamDetail {
 	rosterSource: "school" | "lax";
 	/** roster year when it comes from the school site and differs from `season` */
 	rosterSeason: string | null;
+	/** "school" when season totals come from the school's official stats page */
+	statsSource?: "school" | "lax";
 	/** where this season page came from and whether its results matched our NCAA games */
 	provenance: TeamProvenance | null;
 }
@@ -838,10 +841,10 @@ function schoolRoster(
  * initial (rosters roll over between seasons, so a jersey number alone must
  * never match), jersey number breaking ties between siblings/namesakes.
  */
-function sameNamePlayer(
-	lax: V1RosterPlayer[],
+function sameNamePlayer<T extends { number: string | null; name: string }>(
+	lax: T[],
 	sp: { number: string | null; name: string },
-): V1RosterPlayer | undefined {
+): T | undefined {
 	const key = nameKey(sp.name);
 	if (!key) return undefined;
 	const byName = lax.filter((p) => nameKey(p.name) === key);
@@ -988,7 +991,9 @@ export async function getTeam(
 	const team = served.data;
 	if (!team) return served;
 	const withBio = await withRosterBio(team, id, season);
-	return { ...served, data: await withGamesPlayed(withBio) };
+	const withGames = await withGamesPlayed(withBio);
+	const official = await getSchoolStats(team.sport, id, team.website, season);
+	return { ...served, data: withSchoolStats(withGames, official) };
 }
 
 async function withRosterBio(
@@ -1062,6 +1067,30 @@ async function teamGames(team: V1TeamDetail): Promise<TeamGames | null> {
 	const data = { games, players: [...byPlayer.values()] };
 	gamesCache.set(key, data);
 	return data;
+}
+
+/**
+ * Overlay the school's official season totals (and GP-GS) on the roster.
+ * Players the school page doesn't list keep their lax.com / NCAA numbers.
+ */
+export function withSchoolStats(
+	team: V1TeamDetail,
+	official: StoredSchoolStats | null,
+): V1TeamDetail {
+	if (!official?.players.length) return team;
+	let matched = 0;
+	const roster = team.roster.map((p) => {
+		const line = sameNamePlayer(official.players, p);
+		if (!line) return p;
+		matched++;
+		return {
+			...p,
+			gamesPlayed: line.gamesPlayed ?? p.gamesPlayed,
+			gamesStarted: line.gamesStarted ?? p.gamesStarted,
+			stats: line.stats,
+		};
+	});
+	return matched ? { ...team, roster, statsSource: "school" } : team;
 }
 
 /**
