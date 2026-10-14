@@ -1,10 +1,17 @@
 import { getBio } from "../store";
 import { bioIsFresh, bioKey, refreshRosterBio } from "./rosterbio";
-import { type Division, getTeam, getTeams, type Sport } from "./teams";
+import { refreshSchoolStats, statsAreFresh, statsKey } from "./schoolstats";
+import {
+	type Division,
+	defaultTeamSeason,
+	getTeam,
+	getTeams,
+	type Sport,
+} from "./teams";
 
 /*
  * Low-rate background walk over every team on every board, refreshing bios
- * that are missing or older than REFRESH_MS. One team every PACE_MS so school
+ * and official season stats that are missing or stale. One team every PACE_MS so school
  * sites (and lax.com) see a trickle, never a burst; live polling is untouched.
  */
 
@@ -35,11 +42,19 @@ export async function walkRosterBios(): Promise<void> {
 				const { data: teams } = await getTeams(sport, division);
 				for (const t of teams) {
 					rosterBioWalk.teams++;
-					const stored = await getBio(bioKey(sport, t.id));
-					if (bioIsFresh(stored)) continue;
+					const season = defaultTeamSeason();
+					const bioFresh = bioIsFresh(await getBio(bioKey(sport, t.id)));
+					const statsFresh = statsAreFresh(
+						await getBio(statsKey(sport, t.id, season)),
+						season,
+					);
+					if (bioFresh && statsFresh) continue;
 					try {
 						const { data: team } = await getTeam(sport, division, t.id);
-						if (team) await refreshRosterBio(sport, t.id, team.website);
+						if (team && !bioFresh)
+							await refreshRosterBio(sport, t.id, team.website);
+						if (team && !statsFresh)
+							await refreshSchoolStats(sport, t.id, team.website, season);
 						rosterBioWalk.refreshed++;
 					} catch (err) {
 						rosterBioWalk.lastError =
