@@ -151,7 +151,7 @@ export async function fetchStandings(
       const name = schoolName(r.name);
       return {
         team: name,
-        teamId: r.url,
+        ...(r.url ? { teamId: r.url } : {}),
         conferenceRecord: `${r.conf_wins}-${r.conf_losses}`,
         overallRecord: `${r.wins}-${r.losses}`,
         overallPct: '',

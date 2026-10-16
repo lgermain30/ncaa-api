@@ -84,16 +84,19 @@ export function PlayerSheet({
   p,
   team,
   onClose,
+  statRows,
 }: {
   p: V1RosterPlayer | null;
   team: V1TeamDetail;
   onClose: () => void;
+  /** Rows to show instead of the roster line's stats (players no longer on the roster). */
+  statRows?: [string, string | number][];
 }) {
   const muted = useThemeColor({}, "muted");
   const border = useThemeColor({}, "border");
   const card = useThemeColor({}, "card");
   const bg = useThemeColor({}, "background");
-  const rows = p ? playerStatRows(p) : [];
+  const rows = statRows ?? (p ? playerStatRows(p) : []);
   return (
     <Modal
       visible={!!p}
