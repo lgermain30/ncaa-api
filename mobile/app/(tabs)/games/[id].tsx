@@ -624,11 +624,11 @@ function Goals({ plays, game }: { plays: V1Plays; game: V1Game }) {
               </RNView>
             ) : null}
             <RNView style={styles.goalRow}>
-              <TeamLogo
-                seoName={t?.seoName}
-                fallback={t?.char6 ?? "?"}
-                size={30}
-              />
+              <RNView style={styles.goalLogo}>
+                {t && t === game.away ? (
+                  <TeamLogo seoName={t.seoName} fallback={t.char6} size={30} />
+                ) : null}
+              </RNView>
               <RNView style={{ flex: 1 }}>
                 <Text style={styles.goalScorer}>
                   {p.clock} {scorer}
@@ -650,6 +650,11 @@ function Goals({ plays, game }: { plays: V1Plays; game: V1Game }) {
                   {"  "}
                   {p.assist ? titleCase(firstLast(p.assist)) : "Unassisted"}
                 </Text>
+              </RNView>
+              <RNView style={styles.goalLogo}>
+                {t && t === game.home ? (
+                  <TeamLogo seoName={t.seoName} fallback={t.char6} size={30} />
+                ) : null}
               </RNView>
             </RNView>
           </RNView>
@@ -1014,6 +1019,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
+  goalLogo: { width: 30, alignItems: "center" },
   goalScorer: { fontSize: 15, fontWeight: "800" },
   goalAssist: { fontSize: 12, marginTop: 1 },
   record: { fontSize: 12 },

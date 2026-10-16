@@ -84,6 +84,7 @@ export const fetchTeam = (sport: Sport, division: Division, id: string, season?:
 
 interface LaxStandingsTeam {
   name: string;
+  url?: string;
   wins: string;
   losses: string;
   conf_wins: number;
@@ -150,6 +151,7 @@ export async function fetchStandings(
       const name = schoolName(r.name);
       return {
         team: name,
+        ...(r.url ? { teamId: r.url } : {}),
         conferenceRecord: `${r.conf_wins}-${r.conf_losses}`,
         overallRecord: `${r.wins}-${r.losses}`,
         overallPct: '',
@@ -238,6 +240,19 @@ export function seasonFor(date: string): string {
 }
 
 /** Overlay official conference records + streaks (men's D1 only) onto lax.com standings. */
+/** The conference whose table lists `team` (matched by lax.com id, then by name). */
+export function conferenceOf(
+  data: ConferenceStandings[],
+  team: { id: string; name: string },
+): ConferenceStandings | null {
+  const key = teamKey(team.name);
+  return (
+    data.find((c) => c.standings.some((r) => r.teamId === team.id)) ??
+    data.find((c) => c.standings.some((r) => teamKey(r.team) === key)) ??
+    null
+  );
+}
+
 export function applyOfficialExtras(data: ConferenceStandings[], extras: OfficialExtras): ConferenceStandings[] {
   if (!extras.size) return data;
   return data.map((c) => ({

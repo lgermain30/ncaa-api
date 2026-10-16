@@ -166,6 +166,49 @@ function findPlayer(team: V1TeamDetail, r: LeaderRow): V1RosterPlayer | null {
   return team.roster.find((p) => norm(personName(p.name)) === want) ?? null;
 }
 
+/** Season columns we can show for a player from the leader boards alone, in sheet order. */
+const LEADER_STATS: { label: string; board: string; value: (r: LeaderRow) => string | undefined }[] = [
+  { label: 'Saves', board: 'saves', value: (r) => r.shots_saved },
+  { label: 'Shots Faced', board: 'saves', value: (r) => r.shots_faced },
+  { label: 'Goals', board: 'goals', value: (r) => r.goals },
+  { label: 'Assists', board: 'assists', value: (r) => r.assists },
+  { label: 'Points', board: 'points', value: (r) => r.points },
+  { label: 'Shots', board: 'shots', value: (r) => r.shots },
+  { label: 'Ground Balls', board: 'ground_balls', value: (r) => r.ground_balls },
+  { label: 'Turnovers', board: 'turnovers', value: (r) => r.turnovers },
+  { label: 'Caused Turnovers', board: 'caused_turnovers', value: (r) => r.caused_turnovers },
+  { label: 'Faceoffs (W-T)', board: 'faceoffs', value: (r) => (r.faceoffs_won ? `${r.faceoffs_won}-${r.faceoffs_taken ?? ''}` : undefined) },
+  { label: 'Draw Controls', board: 'draws', value: (r) => r.draws },
+];
+
+/**
+ * Sheet for a leader who isn't on the team's current roster (e.g. a graduated senior in the
+ * off-season): name plus whatever season totals the leader boards list for them.
+ */
+function leaderOnlyPlayer(boards: LeaderBoards, r: LeaderRow): { player: V1RosterPlayer; rows: [string, string][] } {
+  const same = (x: LeaderRow) =>
+    r.player_id ? x.player_id === r.player_id : x.url === r.url && norm(x.name ?? '') === norm(r.name ?? '');
+  const rows: [string, string][] = [];
+  for (const st of LEADER_STATS) {
+    const hit = boards[st.board]?.find(same);
+    const v = hit ? st.value(hit) : undefined;
+    if (v != null && v !== '') rows.push([st.label, String(v)]);
+  }
+  const player: V1RosterPlayer = {
+    id: r.player_id ?? `leader-${r.name}`,
+    number: null,
+    name: r.name ?? '',
+    position: null,
+    year: null,
+    hometown: null,
+    height: null,
+    weight: null,
+    highSchool: null,
+    stats: { goals: 0, assists: 0, shots: 0, groundBalls: 0, turnovers: 0, causedTurnovers: 0, faceoffsWon: 0, faceoffsTaken: 0, saves: 0, shotsFaced: 0 },
+  };
+  return { player, rows };
+}
+
 function BoxBoard({
   title,
   stat,
@@ -214,21 +257,8 @@ export default function StatsScreen() {
   const toggle = (key: string) => setOpen((cur) => (cur === key ? null : key));
   const season = seasonFor(todayEt());
   const [pick, setPick] = useState<LeaderRow | null>(null);
-  const [sheet, setSheet] = useState<{ player: V1RosterPlayer; team: V1TeamDetail } | null>(null);
+  const [sheet, setSheet] = useState<{ player: V1RosterPlayer; team: V1TeamDetail; rows?: [string, string][] } | null>(null);
 
-  useEffect(() => {
-    if (!pick) return;
-    const ac = new AbortController();
-    fetchTeam(sport, division, pick.url || pick.team_name, season, ac.signal)
-      .then((env) => {
-        const player = findPlayer(env.data, pick);
-        if (player) setSheet({ player, team: env.data });
-        else setPick(null);
-      })
-      .catch(() => setPick(null));
-    return () => ac.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pick]);
   const closeSheet = () => {
     setSheet(null);
     setPick(null);
@@ -244,6 +274,20 @@ export default function StatsScreen() {
       [sport, division, season],
     ),
   );
+
+  useEffect(() => {
+    if (!pick) return;
+    const ac = new AbortController();
+    fetchTeam(sport, division, pick.url || pick.team_name, season, ac.signal)
+      .then((env) => {
+        const player = findPlayer(env.data, pick);
+        if (player) setSheet({ player, team: env.data });
+        else setSheet({ ...leaderOnlyPlayer(q.data ?? {}, pick), team: env.data });
+      })
+      .catch(() => setPick(null));
+    return () => ac.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pick]);
 
   const teamQ = useV1<V1TeamSeasonStats[]>(
     `team-stats/${sport}/${division}/${season}`,
@@ -311,7 +355,7 @@ export default function StatsScreen() {
           <ActivityIndicator color={brand.navy} />
         </RNView>
       ) : null}
-      {sheet ? <PlayerSheet p={sheet.player} team={sheet.team} onClose={closeSheet} /> : null}
+      {sheet ? <PlayerSheet p={sheet.player} team={sheet.team} statRows={sheet.rows} onClose={closeSheet} /> : null}
     </View>
   );
 }

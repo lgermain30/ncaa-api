@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 
-import { applyOfficialExtras, fetchOfficialExtras, fetchStandings } from '../lib/api.ts';
+import { applyOfficialExtras, conferenceOf, fetchOfficialExtras, fetchStandings } from '../lib/api.ts';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
@@ -90,4 +90,15 @@ test('men’s DI still loads when official standings are unavailable', async () 
   const [big] = applyOfficialExtras(base, await fetchOfficialExtras('2026'));
   assert.equal(big.standings[0].team, 'Penn State');
   assert.equal(big.standings[0].streak, '');
+});
+
+test('conferenceOf finds the conference listing a team by id, then by name', () => {
+  const row = (team: string, teamId?: string) => ({
+    team, teamId, conferenceRecord: '', overallRecord: '', overallPct: '', home: '', away: '', neutral: '', goalsForAgainst: '', streak: '',
+  });
+  const conf = (slug: string, rows: ReturnType<typeof row>[]) => ({ conference: slug, slug, logo: '', season: '2026', count: rows.length, standings: rows });
+  const data = [conf('acc', [row('North Carolina', 'north-carolina')]), conf('big-ten', [row('Maryland', 'maryland'), row('Penn State')])];
+  assert.equal(conferenceOf(data, { id: 'maryland', name: 'Maryland' })?.slug, 'big-ten');
+  assert.equal(conferenceOf(data, { id: 'penn-st', name: 'Penn State' })?.slug, 'big-ten');
+  assert.equal(conferenceOf(data, { id: 'nope', name: 'Nowhere' }), null);
 });
