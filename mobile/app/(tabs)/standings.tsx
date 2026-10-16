@@ -5,8 +5,9 @@ import { BoardHeader } from '@/components/BoardHeader';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { conferenceName } from '@/lib/conferences';
+import { favoriteFor, homeBoard, useFollows } from '@/lib/favorites';
 import { useV1 } from '@/hooks/useV1';
-import { applyOfficialExtras, fetchOfficialExtras, fetchStandings, seasonFor, todayEt, type OfficialExtras } from '@/lib/api';
+import { applyOfficialExtras, conferenceOf, fetchOfficialExtras, fetchStandings, seasonFor, todayEt, type OfficialExtras } from '@/lib/api';
 import type { ConferenceStandings, Division, Sport, StandingsRow, V1Envelope } from '@/lib/types';
 
 interface Col {
@@ -41,8 +42,10 @@ export default function StandingsScreen() {
   const card = useThemeColor({}, 'card');
   const border = useThemeColor({}, 'border');
   const text = useThemeColor({}, 'text');
-  const [sport, setSport] = useState<Sport>('lacrosse-men');
-  const [division, setDivision] = useState<Division>('d1');
+  const follows = useFollows();
+  const [home] = useState(() => homeBoard(follows));
+  const [sport, setSport] = useState<Sport>(home.sport);
+  const [division, setDivision] = useState<Division>(home.division);
   const season = seasonFor(todayEt());
   const { data: base, error, loading, refresh } = useV1<ConferenceStandings[]>(
     `standings/${sport}/${division}/${season}`,
@@ -72,11 +75,16 @@ export default function StandingsScreen() {
     [base, wantExtras, extras],
   );
 
-  const [selected, setSelected] = useState<string | null>(null);
+  // Each board opens on the favorite team's conference when it has one there.
+  const board = `${sport}/${division}`;
+  const [picked, setPicked] = useState<{ board: string; slug: string } | null>(null);
+  const selected = picked?.board === board ? picked.slug : null;
+  const fav = favoriteFor(follows, sport);
   const conf = useMemo(() => {
     if (!data?.length) return null;
-    return data.find((c) => c.slug === selected) ?? data[0];
-  }, [data, selected]);
+    const favConf = fav && fav.division === division ? conferenceOf(data, fav) : null;
+    return data.find((c) => c.slug === selected) ?? favConf ?? data[0];
+  }, [data, selected, fav, division]);
   const cols = useMemo(
     () => (conf?.standings.some((r) => r.streak) ? [...COLS, STREAK_COL] : COLS),
     [conf],
@@ -97,7 +105,7 @@ export default function StandingsScreen() {
           return (
             <Pressable
               key={c.slug}
-              onPress={() => setSelected(c.slug)}
+              onPress={() => setPicked({ board, slug: c.slug })}
               style={[styles.chip, active ? { backgroundColor: card, borderColor: border } : null]}>
               <Text style={[styles.chipText, { color: active ? text : muted }]}>{conferenceName(c.conference)}</Text>
             </Pressable>

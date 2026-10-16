@@ -205,6 +205,8 @@ export interface GameEvent {
 
 export interface StandingsRow {
   team: string;
+  /** lax.com team slug; matches `V1TeamSummary.id`. */
+  teamId?: string;
   conferenceRecord: string;
   overallRecord: string;
   overallPct: string;
