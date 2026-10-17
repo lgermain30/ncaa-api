@@ -522,7 +522,6 @@ async function seoNamesFor(
  * ncaa.com's logo library.
  */
 const SEO_FALLBACK: Record<string, string> = {
-	ferrum: "ferrum",
 	"uc-colorado-springs": "uc-colo-springs",
 	"adams-state": "adams-st",
 	albion: "albion",
@@ -671,7 +670,7 @@ const SEO_FALLBACK: Record<string, string> = {
 	wooster: "wooster",
 };
 
-const stripGender = (id: string) => id.replace(/-?(w|m|womens|women)$/, "");
+const stripGender = (id: string) => id.replace(/-(w|m|womens|women)$/, "");
 
 export function getTeams(
 	sport: Sport,

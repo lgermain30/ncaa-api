@@ -31,6 +31,8 @@ export const storeStats = {
 	errors: 0,
 	lastError: null as string | null,
 	writes: 0,
+	/** Queries answered with another board's rows (retried). */
+	mismatchedResults: 0,
 };
 
 const memGames = new Map<string, { game: V1Game; updatedAt: string }>();
@@ -271,14 +273,28 @@ export async function listBoardTeams(
 	const to = `${season}-12-31`;
 	if (sql) {
 		try {
-			const rows = await sql<StoredTeamIdentity[]>`
-				SELECT DISTINCT ON (t->>'seoName')
-					t->>'seoName' AS "seoName", t->>'name' AS name, t->>'shortName' AS "shortName"
-				FROM games, LATERAL (VALUES (data->'home'), (data->'away')) AS s(t)
-				WHERE sport = ${sport} AND division = ${division}
-					AND game_date BETWEEN ${from} AND ${to}
-					AND t->>'seoName' IS NOT NULL AND t->>'seoName' <> ''`;
-			return rows;
+			// Rows echo sport/division: under load prod has handed this query
+			// another board's rows (men's D1 got D2's teams), wiping logos.
+			for (let attempt = 0; attempt < 3; attempt++) {
+				const rows = await sql<
+					(StoredTeamIdentity & { sport: string; division: string })[]
+				>`
+					SELECT DISTINCT ON (t->>'seoName')
+						t->>'seoName' AS "seoName", t->>'name' AS name, t->>'shortName' AS "shortName",
+						sport, division
+					FROM games, LATERAL (VALUES (data->'home'), (data->'away')) AS s(t)
+					WHERE sport = ${sport} AND division = ${division}
+						AND game_date BETWEEN ${from} AND ${to}
+						AND t->>'seoName' IS NOT NULL AND t->>'seoName' <> ''`;
+				if (rows.every((r) => r.sport === sport && r.division === division))
+					return rows.map(({ seoName, name, shortName }) => ({
+						seoName,
+						name,
+						shortName,
+					}));
+				storeStats.mismatchedResults++;
+			}
+			throw new Error(`listBoardTeams ${sport}/${division}: mismatched rows`);
 		} catch (err) {
 			recordError(err);
 		}
