@@ -193,7 +193,7 @@ export async function fetchSchoolSchedule(
 	season: string,
 ): Promise<StoredSchoolSchedule | null> {
 	const resolved = await resolveHost(host);
-	for (const p of PATHS[sport]) {
+	for (const p of PATHS[sport] ?? []) {
 		const url = `https://${resolved}/sports/${p}/schedule/${season}`;
 		let res: Response;
 		try {
@@ -298,7 +298,7 @@ async function scheduleFor(
 		? Date.now() - new Date(stored.updatedAt).getTime()
 		: Infinity;
 	if (age > (stored?.data ? SCHEDULE_REFRESH_MS : SCHEDULE_MISS_REFRESH_MS))
-		void refreshSchedule(sport, division, teamId, season);
+		void refreshSchedule(sport, division, teamId, season).catch(() => {});
 	return { known: !!stored, events: stored?.data?.events ?? [] };
 }
 
