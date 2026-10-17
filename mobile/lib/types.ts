@@ -352,7 +352,7 @@ export interface V1TeamDetail {
   rosterSeason: string | null;
 }
 
-/* /v1/matchup — Tale of the Tape (stored NCAA finals before the game + school rosters) */
+/* /v1/matchup — Head-to-Head tab (stored NCAA finals before the game + school rosters) */
 export interface V1Record {
   wins: number;
   losses: number;
