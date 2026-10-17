@@ -870,7 +870,7 @@ function TaleOfTheTape({ game }: { game: V1Game }) {
   if (!m)
     return (
       <Text style={[styles.note, { color: muted, textAlign: "center" }]}>
-        {q.loading ? "Loading Tale of the Tape…" : "Tale of the Tape not available for this game."}
+        {q.loading ? "Loading Head-to-Head…" : "Head-to-Head not available for this game."}
       </Text>
     );
   const since = m.allTime.since;
@@ -880,7 +880,7 @@ function TaleOfTheTape({ game }: { game: V1Game }) {
   ];
   const sections: [string, TapeRow[]][] = [
     ...tapeSections(game.sport === "lacrosse-women"),
-    ["Head-to-head (wins)", seriesRows],
+    ["Series record (wins)", seriesRows],
   ];
   const nameOf = (seo: string | null) =>
     seo === m.home.seoName ? m.home.name : seo === m.away.seoName ? m.away.name : "Tie";
@@ -1020,12 +1020,12 @@ export default function GameScreen() {
                     { key: "box", label: "Box score" },
                     { key: "plays", label: "Plays" },
                     { key: "info", label: "Info" },
-                    { key: "tape", label: "Tale of the Tape" },
+                    { key: "tape", label: "Head-to-Head" },
                   ]
                 : [
                     { key: "rosters", label: "Rosters" },
                     { key: "goals", label: "Goals" },
-                    { key: "tape", label: "Tale of the Tape" },
+                    { key: "tape", label: "Head-to-Head" },
                   ]
             }
             value={tab}
