@@ -700,8 +700,13 @@ export function TeamScreen({
     });
   };
 
+  const gamePath = teamPath === "/teams/[id]" ? "/teams/game/[id]" : "/games/[id]";
   const openGame = async (g: V1TeamGame) => {
     if (!team) return;
+    if (g.gameId) {
+      router.push({ pathname: gamePath, params: { id: g.gameId } });
+      return;
+    }
     try {
       const { data } = await fetchGames(sport, division, g.date);
       const sides = [team.seoName, g.opponent.seoName];
@@ -714,7 +719,7 @@ export function TeamScreen({
           names.every((n) => nm.includes(n))
         );
       });
-      if (match) router.push({ pathname: "/games/[id]", params: { id: match.id } });
+      if (match) router.push({ pathname: gamePath, params: { id: match.id } });
     } catch {
       // no NCAA game to open for this date
     }

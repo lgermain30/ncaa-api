@@ -1,4 +1,4 @@
-import { router, Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams, useSegments } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
@@ -77,10 +77,10 @@ function Card({
   );
 }
 
-function openTeam(game: V1Game, t: V1Team) {
+function openTeam(game: V1Game, t: V1Team, inTeamsTab: boolean) {
   const name = t.shortName || t.name;
   router.push({
-    pathname: "/games/team/[id]",
+    pathname: inTeamsTab ? "/teams/[id]" : "/games/team/[id]",
     params: {
       id: t.seoName || name,
       sport: game.sport,
@@ -101,10 +101,11 @@ function HeaderTeam({
   final: boolean;
 }) {
   const muted = useThemeColor({}, "muted");
+  const inTeamsTab = useSegments()[1] === "teams";
   const pre = game.status.state === "pre";
   return (
     <Pressable
-      onPress={() => openTeam(game, t)}
+      onPress={() => openTeam(game, t, inTeamsTab)}
       style={({ pressed }) => [styles.team, pressed && { opacity: 0.5 }]}
       accessibilityRole="link"
       accessibilityLabel={`${t.name} team page`}

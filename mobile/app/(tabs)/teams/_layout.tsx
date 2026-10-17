@@ -14,6 +14,7 @@ export default function TeamsLayout() {
       }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ headerBackTitle: 'Teams' }} />
+      <Stack.Screen name="game/[id]" options={{ headerBackTitle: 'Back' }} />
     </Stack>
   );
 }
