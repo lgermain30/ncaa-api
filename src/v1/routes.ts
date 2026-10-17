@@ -18,7 +18,7 @@ import { getNews, ingestNews } from "./news";
 import { replayStatus, startReplay, stopReplay } from "./replay";
 import { rosterBioStats } from "./rosterbio";
 import { rosterBioWalk, walkRosterBios } from "./rosterbiowalk";
-import { withSchoolSchedule } from "./schoolschedule";
+import { withSchoolSchedule, withSchoolScheduleBoard } from "./schoolschedule";
 import {
 	getBoard,
 	getBoxscore,
@@ -401,20 +401,32 @@ export const v1 = new Elysia({ prefix: "/v1" })
 	)
 	.get(
 		"/games/:sport/:division",
-		async (ctx) =>
-			respond(
-				ctx,
-				await getBoard(ctx.params.sport, ctx.params.division, todayEt()),
-			),
+		async (ctx) => {
+			const served = await getBoard(
+				ctx.params.sport,
+				ctx.params.division,
+				todayEt(),
+			);
+			return respond(ctx, {
+				...served,
+				data: await withSchoolScheduleBoard(served.data),
+			});
+		},
 		{ params: v.object({ sport: sportParam, division: divisionParam }) },
 	)
 	.get(
 		"/games/:sport/:division/:date",
-		async (ctx) =>
-			respond(
-				ctx,
-				await getBoard(ctx.params.sport, ctx.params.division, ctx.params.date),
-			),
+		async (ctx) => {
+			const served = await getBoard(
+				ctx.params.sport,
+				ctx.params.division,
+				ctx.params.date,
+			);
+			return respond(ctx, {
+				...served,
+				data: await withSchoolScheduleBoard(served.data),
+			});
+		},
 		{
 			params: v.object({
 				sport: sportParam,

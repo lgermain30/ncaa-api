@@ -250,6 +250,22 @@ export function matchEvent(
 
 const inflight = new Map<string, Promise<void>>();
 
+/** School-site fetches run a few at a time so a full board can't flood them. */
+const MAX_REFRESHES = 4;
+let activeRefreshes = 0;
+const waiting: (() => void)[] = [];
+async function withSlot<T>(fn: () => Promise<T>): Promise<T> {
+	if (activeRefreshes >= MAX_REFRESHES)
+		await new Promise<void>((resolve) => waiting.push(resolve));
+	activeRefreshes++;
+	try {
+		return await fn();
+	} finally {
+		activeRefreshes--;
+		waiting.shift()?.();
+	}
+}
+
 function refreshSchedule(
 	sport: Sport,
 	division: Division,
@@ -259,14 +275,14 @@ function refreshSchedule(
 	const key = scheduleKey(sport, teamId, season);
 	const running = inflight.get(key);
 	if (running) return running;
-	const job = (async () => {
+	const job = withSlot(async () => {
 		const { data: team } = await getTeam(sport, division, teamId, season);
 		const host = hostOf(team?.website ?? null);
 		const sched = host ? await fetchSchoolSchedule(host, sport, season) : null;
 		const prev = await getBio<StoredSchoolSchedule | null>(key);
 		if (!sched && prev?.data) return;
 		await upsertBio(key, sched);
-	})()
+	})
 		.catch((err) => {
 			schoolScheduleStats.errors++;
 			schoolScheduleStats.lastError =
@@ -368,4 +384,13 @@ export async function withSchoolSchedule(game: V1Game): Promise<V1Game> {
 	} catch {
 		return game;
 	}
+}
+
+/** Board version: only upcoming games need TV, start time and venue filled. */
+export function withSchoolScheduleBoard(games: V1Game[]): Promise<V1Game[]> {
+	return Promise.all(
+		games.map((g) =>
+			g.status.state === "pre" ? withSchoolSchedule(g) : Promise.resolve(g),
+		),
+	);
 }
