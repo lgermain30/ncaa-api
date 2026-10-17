@@ -60,6 +60,12 @@ function hasPreviousSchoolField(data: unknown): boolean {
 	return "previousSchool" in (players[0] as object);
 }
 
+/** 5' 12" reads as 6' 0": round to whole inches and carry into feet. */
+export function feetInches(feet: number, inches: number): string {
+	const total = Math.round(feet * 12 + inches);
+	return `${Math.floor(total / 12)}'${total % 12}"`;
+}
+
 export const PATHS: Record<Sport, string[]> = {
 	"lacrosse-men": ["mens-lacrosse", "mlax", "mens-lax", "lacrosse"],
 	"lacrosse-women": ["womens-lacrosse", "wlax", "womens-lax", "lacrosse"],
@@ -219,7 +225,7 @@ export function parseSidearmNuxt(
 				: strOf(arr, o.positionShort),
 			year: w ? null : strOf(arr, o.academicYearShort),
 			hometown: strOf(arr, o.hometown),
-			height: feet ? `${feet}'${inches ?? 0}"` : null,
+			height: feet ? feetInches(feet, inches ?? 0) : null,
 			weight: normalizeWeight(numOf(arr, o.weight)),
 			highSchool: strOf(arr, w ? o.high_school : o.highSchool),
 			previousSchool: strOf(arr, w ? o.previous_school : o.previousSchool),
@@ -316,7 +322,7 @@ export function parseSidearmVue(html: string): BioPlayer[] | null {
 			position: clean(raw.position_short ?? raw.position_long) || null,
 			year: clean(raw.academic_year_short) || null,
 			hometown: clean(raw.hometown) || null,
-			height: feet ? `${feet}'${Number(raw.height_inches) || 0}"` : null,
+			height: feet ? feetInches(feet, Number(raw.height_inches) || 0) : null,
 			weight: normalizeWeight(raw.weight),
 			highSchool: clean(raw.highschool) || null,
 			previousSchool: clean(raw.previous_school) || null,
