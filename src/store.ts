@@ -92,6 +92,22 @@ const SCHEMA = [
 ];
 
 /** Connects and applies the schema once; safe to call repeatedly. */
+/**
+ * Early rows were saved as a JSON string inside jsonb, which every
+ * `data->'field'` query silently skips (team logos, records). Unwrap them once.
+ */
+async function unwrapStringJson(client: SQL) {
+	for (const table of ["games", "game_details"]) {
+		try {
+			await client.unsafe(
+				`UPDATE ${table} SET data = (data #>> '{}')::jsonb WHERE jsonb_typeof(data) = 'string'`,
+			);
+		} catch (err) {
+			recordError(err);
+		}
+	}
+}
+
 export function initStore(): Promise<void> {
 	if (ready) return ready;
 	const url = process.env.DATABASE_URL;
@@ -108,6 +124,7 @@ export function initStore(): Promise<void> {
 			for (const stmt of SCHEMA) {
 				await client.unsafe(stmt);
 			}
+			await unwrapStringJson(client);
 			storeStats.ready = true;
 		} catch (err) {
 			recordError(err);
