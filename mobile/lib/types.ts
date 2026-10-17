@@ -351,3 +351,64 @@ export interface V1TeamDetail {
   rosterSource: 'school' | 'lax';
   rosterSeason: string | null;
 }
+
+/* /v1/matchup — Tale of the Tape (stored NCAA finals before the game + school rosters) */
+export interface V1Record {
+  wins: number;
+  losses: number;
+  ties: number;
+}
+
+export interface V1MatchupTeam {
+  seoName: string | null;
+  name: string;
+  records: {
+    overall: V1Record;
+    conference: V1Record;
+    home: V1Record;
+    away: V1Record;
+    overtime: V1Record;
+    lastTen: V1Record;
+    streak: string | null;
+  };
+  stats: {
+    games: number;
+    boxGames: number;
+    goalsFor: number;
+    goalsAgainst: number;
+    shots: number;
+    shotsOnGoal: number;
+    groundBalls: number;
+    turnovers: number;
+    causedTurnovers: number;
+    saves: number;
+    faceoffsWon: number;
+    faceoffsLost: number;
+    drawControls: number;
+    clears: number;
+    clearAttempts: number;
+    extraManGoals: number;
+    extraManOpportunities: number;
+    penalties: number;
+    penaltyMinutes: number;
+  };
+  roster: { players: number; avgHeightIn: number | null; avgWeight: number | null; classes: Record<string, number> } | null;
+}
+
+export interface V1Series {
+  since: string;
+  awayWins: number;
+  homeWins: number;
+  ties: number;
+  games: { gameId: string; date: string; homeSeoName: string | null; homeScore: number; awayScore: number; winner: string | null }[];
+}
+
+export interface V1Matchup {
+  gameId: string;
+  season: string;
+  before: string;
+  away: V1MatchupTeam;
+  home: V1MatchupTeam;
+  thisSeason: V1Series;
+  allTime: V1Series;
+}

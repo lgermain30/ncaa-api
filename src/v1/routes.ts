@@ -13,6 +13,7 @@ import {
 	type StreamFilter,
 	subscribe,
 } from "./events";
+import { getMatchup } from "./matchup";
 import { getNews, ingestNews } from "./news";
 import { replayStatus, startReplay, stopReplay } from "./replay";
 import { rosterBioStats } from "./rosterbio";
@@ -261,6 +262,7 @@ export const v1 = new Elysia({ prefix: "/v1" })
 				"GET /v1/game/:id                          game header: teams, status, linescore, venue, broadcast, attendance",
 				"GET /v1/game/:id/boxscore                 team + player lines (goals, assists, shots, GB, TO, CT, faceoffs, saves)",
 				"GET /v1/game/:id/plays                    play-by-play, typed",
+				"GET /v1/matchup/:id                       tale of the tape: records, per-game stats, roster averages, head-to-head since 2014",
 				"GET /v1/stream                            SSE: game.new/state/score/clock/linescore/details events; ?sport=&division=&date=&game= filters",
 				"GET /v1/news                              latest collegelacrossenews.com headlines",
 				"GET /v1/status                            poller / store health",
@@ -425,6 +427,14 @@ export const v1 = new Elysia({ prefix: "/v1" })
 		"/game/:id",
 		async (ctx) => {
 			const served = await getGameById(ctx.params.id);
+			return served ? respond(ctx, served) : notFound(ctx.set, "game");
+		},
+		{ params: v.object({ id: idParam }) },
+	)
+	.get(
+		"/matchup/:id",
+		async (ctx) => {
+			const served = await getMatchup(ctx.params.id);
 			return served ? respond(ctx, served) : notFound(ctx.set, "game");
 		},
 		{ params: v.object({ id: idParam }) },
