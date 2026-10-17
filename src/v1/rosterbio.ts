@@ -459,12 +459,12 @@ export function currentRosterSeason(now = new Date()): string {
  */
 export function rosterUrls(host: string, sport: Sport, season?: string) {
 	const urls: string[] = [];
-	for (const path of PATHS[sport]) {
+	for (const path of PATHS[sport] ?? []) {
 		urls.push(
 			`https://${host}/sports/${path}/roster${season ? `/${season}` : ""}`,
 		);
 	}
-	const short = PATHS[sport][1];
+	const short = PATHS[sport]?.[1] ?? "lacrosse";
 	if (season) {
 		urls.push(
 			`https://${host}/sports/${short}/roster/season/${academicYear(season)}/`,
@@ -477,7 +477,7 @@ export function rosterUrls(host: string, sport: Sport, season?: string) {
 		urls.push(`https://${host}/sports/${short}/${academicYear(prev)}/roster`);
 		// Many schools open the new academic year with a coaches-only roster
 		// page; the previous season's archived roster still names the players.
-		for (const path of PATHS[sport])
+		for (const path of PATHS[sport] ?? [])
 			urls.push(`https://${host}/sports/${path}/roster/${prev}`);
 	}
 	return urls;
@@ -534,7 +534,7 @@ export async function getRosterBio(
 	// A past season's roster never changes: once parsed it is kept for good,
 	// and only a miss (null) is retried after REFRESH_MS.
 	if (!bioIsFresh(stored, season))
-		void refreshRosterBio(sport, teamId, website, season);
+		void refreshRosterBio(sport, teamId, website, season).catch(() => {});
 	return stored?.data ?? null;
 }
 

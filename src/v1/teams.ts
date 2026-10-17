@@ -990,18 +990,18 @@ export async function getTeam(
 			: await getTeamRaw(sport, division, id, season);
 	const team = served.data;
 	if (!team) return served;
-	const withBio = await withRosterBio(team, id, season);
+	const withBio = await withRosterBio(sport, team, id, season);
 	const withGames = await withGamesPlayed(withBio);
-	const official = await getSchoolStats(team.sport, id, team.website, season);
+	const official = await getSchoolStats(sport, id, team.website, season);
 	return { ...served, data: withSchoolStats(withGames, official) };
 }
 
 async function withRosterBio(
+	sport: Sport,
 	team: V1TeamDetail,
 	id: string,
 	season: string,
 ): Promise<V1TeamDetail> {
-	const { sport } = team;
 	const bio = await getRosterBio(sport, id, team.website);
 	if (!bio?.players.length) return team;
 	if (season === defaultTeamSeason()) {

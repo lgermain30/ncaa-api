@@ -292,7 +292,7 @@ export function parseStatsHtml(
 }
 
 export const statsUrls = (host: string, sport: Sport, season: string) =>
-	PATHS[sport].map((p) => `https://${host}/sports/${p}/stats/${season}`);
+	(PATHS[sport] ?? []).map((p) => `https://${host}/sports/${p}/stats/${season}`);
 
 export async function fetchSchoolStats(
 	host: string,
@@ -341,7 +341,7 @@ export async function getSchoolStats(
 		statsKey(sport, teamId, season),
 	);
 	if (!statsAreFresh(stored, season))
-		void refreshSchoolStats(sport, teamId, website, season);
+		void refreshSchoolStats(sport, teamId, website, season).catch(() => {});
 	return stored?.data ?? null;
 }
 
