@@ -697,7 +697,7 @@ export function getTeams(
 			defaultTeamSeason(),
 		);
 		for (const t of teams)
-			t.seoName = seo.get(t.id) ?? SEO_FALLBACK[stripGender(t.id)] ?? null;
+			t.seoName = SEO_FALLBACK[stripGender(t.id)] ?? seo.get(t.id) ?? null;
 		return teams;
 	});
 }
@@ -960,7 +960,7 @@ const snapshotKey = (
 type GameSide = V1Game["home"];
 
 function sideIs(side: GameSide, seoName: string | null, name: string): boolean {
-	if (seoName) return side.seoName === seoName;
+	if (seoName && side.seoName === seoName) return true;
 	const want = new Set(matchKeys(name));
 	return [side.shortName, side.name, side.seoName].some(
 		(n) => n && matchKeys(n).some((k) => want.has(k)),
@@ -1016,7 +1016,7 @@ async function withNcaaGames(team: V1TeamDetail): Promise<V1TeamDetail> {
 			...g,
 			opponent: {
 				...g.opponent,
-				seoName: g.opponent.seoName ?? (match.them.seoName || null),
+				seoName: match.them.seoName || g.opponent.seoName,
 			},
 			gameId: match.game.id,
 		});
