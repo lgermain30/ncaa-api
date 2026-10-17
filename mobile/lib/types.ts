@@ -301,6 +301,8 @@ export interface V1TeamGame {
   score: { us: number; them: number } | null;
   result: 'W' | 'L' | 'T' | null;
   playoff: string | null;
+  /** NCAA game id when the game is in our stored NCAA results */
+  gameId?: string | null;
 }
 
 export interface V1RosterPlayer {

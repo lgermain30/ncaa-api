@@ -56,6 +56,8 @@ export interface V1TeamGame {
 	score: { us: number; them: number } | null;
 	result: "W" | "L" | "T" | null;
 	playoff: string | null;
+	/** NCAA game id when the game is in our stored NCAA results */
+	gameId?: string | null;
 }
 
 export interface V1RosterPlayer {
@@ -503,11 +505,9 @@ async function seoNamesFor(
 	season: string,
 ): Promise<Map<string, string>> {
 	const out = new Map<string, string>();
-	let ncaa: StoredTeamIdentity[] = [];
-	for (const s of [season, String(Number(season) - 1)]) {
-		ncaa = await listBoardTeams(sport, division, s);
-		if (ncaa.length) break;
-	}
+	const ncaa: StoredTeamIdentity[] = [];
+	for (const s of [season, String(Number(season) - 1)])
+		ncaa.push(...(await listBoardTeams(sport, division, s)));
 	for (const t of ncaa) {
 		const id = resolve(indexed, t.seoName) ?? resolve(indexed, t.shortName);
 		if (id && !out.has(id)) out.set(id, t.seoName);
@@ -957,6 +957,73 @@ const snapshotKey = (
 	season: string,
 ) => `${laxDivision(sport, division)}:${id}:${season}`;
 
+type GameSide = V1Game["home"];
+
+function sideIs(side: GameSide, seoName: string | null, name: string): boolean {
+	if (seoName) return side.seoName === seoName;
+	const want = new Set(matchKeys(name));
+	return [side.shortName, side.name, side.seoName].some(
+		(n) => n && matchKeys(n).some((k) => want.has(k)),
+	);
+}
+
+/**
+ * Line each schedule row up with the stored NCAA game (same day, or ±1 day as
+ * lax.com dates drift) so the app can open it directly and show the
+ * opponent's crest even when the lax.com → NCAA name match failed.
+ */
+async function withNcaaGames(team: V1TeamDetail): Promise<V1TeamDetail> {
+	const byDate = new Map<string, V1Game[]>();
+	const gamesOn = async (date: string) => {
+		let games = byDate.get(date);
+		if (!games) {
+			games = (await listGames(team.sport, team.division, date)).map(
+				(r) => r.game,
+			);
+			byDate.set(date, games);
+		}
+		return games;
+	};
+	let seoName = team.seoName;
+	const schedule: V1TeamGame[] = [];
+	for (const g of team.schedule) {
+		let match: { game: V1Game; them: GameSide } | null = null;
+		for (const date of [g.date, ...adjacentDates(g.date)]) {
+			for (const x of await gamesOn(date)) {
+				for (const [us, them] of [
+					[x.home, x.away],
+					[x.away, x.home],
+				] as const) {
+					if (
+						sideIs(us, seoName, team.name) &&
+						sideIs(them, g.opponent.seoName, g.opponent.name)
+					)
+						match = { game: x, them };
+				}
+				if (match) break;
+			}
+			if (match) break;
+		}
+		if (!match) {
+			schedule.push(g);
+			continue;
+		}
+		if (!seoName) {
+			const us = match.game.home === match.them ? match.game.away : match.game.home;
+			seoName = us.seoName || null;
+		}
+		schedule.push({
+			...g,
+			opponent: {
+				...g.opponent,
+				seoName: g.opponent.seoName ?? (match.them.seoName || null),
+			},
+			gameId: match.game.id,
+		});
+	}
+	return { ...team, seoName, schedule };
+}
+
 async function verifyAgainstStore(
 	team: V1TeamDetail,
 ): Promise<ScheduleVerification> {
@@ -993,7 +1060,8 @@ export async function getTeam(
 	const withBio = await withRosterBio(sport, team, id, season);
 	const withGames = await withGamesPlayed(withBio);
 	const official = await getSchoolStats(sport, id, team.website, season);
-	return { ...served, data: withSchoolStats(withGames, official) };
+	const withIds = await withNcaaGames(withSchoolStats(withGames, official));
+	return { ...served, data: withIds };
 }
 
 async function withRosterBio(
