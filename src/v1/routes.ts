@@ -18,6 +18,7 @@ import { getNews, ingestNews } from "./news";
 import { replayStatus, startReplay, stopReplay } from "./replay";
 import { rosterBioStats } from "./rosterbio";
 import { rosterBioWalk, walkRosterBios } from "./rosterbiowalk";
+import { withSchoolSchedule } from "./schoolschedule";
 import {
 	getBoard,
 	getBoxscore,
@@ -427,7 +428,12 @@ export const v1 = new Elysia({ prefix: "/v1" })
 		"/game/:id",
 		async (ctx) => {
 			const served = await getGameById(ctx.params.id);
-			return served ? respond(ctx, served) : notFound(ctx.set, "game");
+			return served
+				? respond(ctx, {
+						...served,
+						data: await withSchoolSchedule(served.data),
+					})
+				: notFound(ctx.set, "game");
 		},
 		{ params: v.object({ id: idParam }) },
 	)
