@@ -1,5 +1,5 @@
 import { SQL } from "bun";
-import type { V1Game } from "./v1/types";
+import type { V1Game, V1TeamLine } from "./v1/types";
 
 /**
  * Durable game state. Postgres when DATABASE_URL is set (Railway), otherwise
@@ -339,20 +339,20 @@ export async function aggregateTeamTotals(
 					max(team->>'name') AS name,
 					max(team->>'shortName') AS "shortName",
 					count(*)::int AS games,
-					coalesce(sum((ts->>'shots')::int), 0)::int AS shots,
-					coalesce(sum((ts->>'shotsOnGoal')::int), 0)::int AS "shotsOnGoal",
-					coalesce(sum((ts->>'groundBalls')::int), 0)::int AS "groundBalls",
-					coalesce(sum((ts->>'turnovers')::int), 0)::int AS turnovers,
-					coalesce(sum((ts->>'causedTurnovers')::int), 0)::int AS "causedTurnovers",
-					coalesce(sum((ts->>'saves')::int), 0)::int AS saves,
-					coalesce(sum((ts->'penalties'->>'count')::int), 0)::int AS penalties,
-					coalesce(sum((ts->'penalties'->>'minutes')::int), 0)::int AS "penaltyMinutes",
-					coalesce(sum((ts->>'faceoffsWon')::int), 0)::int AS "faceoffsWon",
-					coalesce(sum((ts->>'faceoffsLost')::int), 0)::int AS "faceoffsLost",
-					coalesce(sum((ts->>'clears')::int), 0)::int AS clears,
-					coalesce(sum((ts->>'clearAttempts')::int), 0)::int AS "clearAttempts",
-					coalesce(sum((ts->'extraMan'->>'goals')::int), 0)::int AS "extraManGoals",
-					coalesce(sum((ts->'extraMan'->>'opportunities')::int), 0)::int AS "extraManOpportunities"
+					coalesce(round(sum((ts->>'shots')::numeric)), 0)::int AS shots,
+					coalesce(round(sum((ts->>'shotsOnGoal')::numeric)), 0)::int AS "shotsOnGoal",
+					coalesce(round(sum((ts->>'groundBalls')::numeric)), 0)::int AS "groundBalls",
+					coalesce(round(sum((ts->>'turnovers')::numeric)), 0)::int AS turnovers,
+					coalesce(round(sum((ts->>'causedTurnovers')::numeric)), 0)::int AS "causedTurnovers",
+					coalesce(round(sum((ts->>'saves')::numeric)), 0)::int AS saves,
+					coalesce(round(sum((ts->'penalties'->>'count')::numeric)), 0)::int AS penalties,
+					coalesce(round(sum((ts->'penalties'->>'minutes')::numeric)), 0)::int AS "penaltyMinutes",
+					coalesce(round(sum((ts->>'faceoffsWon')::numeric)), 0)::int AS "faceoffsWon",
+					coalesce(round(sum((ts->>'faceoffsLost')::numeric)), 0)::int AS "faceoffsLost",
+					coalesce(round(sum((ts->>'clears')::numeric)), 0)::int AS clears,
+					coalesce(round(sum((ts->>'clearAttempts')::numeric)), 0)::int AS "clearAttempts",
+					coalesce(round(sum((ts->'extraMan'->>'goals')::numeric)), 0)::int AS "extraManGoals",
+					coalesce(round(sum((ts->'extraMan'->>'opportunities')::numeric)), 0)::int AS "extraManOpportunities"
 				FROM named
 				WHERE team->>'id' = team_id
 				GROUP BY team_id`;
@@ -412,6 +412,63 @@ export async function aggregateTeamTotals(
 		}
 	}
 	return [...acc.values()];
+}
+
+export interface StoredTeamFinal {
+	game: V1Game;
+	/** box score team lines; null when we hold no box score */
+	teamStats: V1TeamLine[] | null;
+}
+
+/** A team's finals (by NCAA seoName, any division) between two dates, oldest first. */
+export async function listTeamFinals(
+	sport: string,
+	seoName: string,
+	from: string,
+	to: string,
+): Promise<StoredTeamFinal[]> {
+	await initStore();
+	if (sql) {
+		try {
+			const rows = await sql<{ data: V1Game | string; team_stats: unknown }[]>`
+				SELECT g.data, d.data->'teamStats' AS team_stats
+				FROM games g
+				LEFT JOIN game_details d ON d.game_id = g.id AND d.kind = 'boxscore'
+				WHERE g.sport = ${sport} AND g.state = 'final'
+					AND g.game_date BETWEEN ${from} AND ${to}
+					AND (g.data->'home'->>'seoName' = ${seoName}
+						OR g.data->'away'->>'seoName' = ${seoName})
+				ORDER BY g.game_date, g.id`;
+			return rows.map((r) => ({
+				game: parseJson(r.data),
+				teamStats:
+					r.team_stats == null
+						? null
+						: parseJson(r.team_stats as V1TeamLine[] | string),
+			}));
+		} catch (err) {
+			recordError(err);
+		}
+	}
+	return [...memGames.values()]
+		.filter(
+			({ game }) =>
+				game.sport === sport &&
+				game.status.state === "final" &&
+				game.date >= from &&
+				game.date <= to &&
+				(game.home.seoName === seoName || game.away.seoName === seoName),
+		)
+		.sort((a, b) => a.game.date.localeCompare(b.game.date))
+		.map(({ game }) => ({
+			game,
+			teamStats:
+				(
+					memDetails.get(`${game.id}:boxscore`)?.data as
+						| { teamStats?: V1TeamLine[] }
+						| undefined
+				)?.teamStats ?? null,
+		}));
 }
 
 export interface StoredPlayerGameLine {

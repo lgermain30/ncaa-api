@@ -14,12 +14,16 @@ import { Text, View, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
 import { useGameStream } from "@/hooks/useGameStream";
 import { useV1 } from "@/hooks/useV1";
-import { fetchBoxscore, fetchGame, fetchPlays, fetchTeam } from "@/lib/api";
+import { fetchBoxscore, fetchGame, fetchMatchup, fetchPlays, fetchTeam } from "@/lib/api";
+import { conferenceName } from "@/lib/conferences";
 import { personName } from "@/lib/names";
 import type {
   GameEvent,
   V1Boxscore,
   V1Game,
+  V1Matchup,
+  V1MatchupTeam,
+  V1Record,
   V1PlayerLine,
   V1Plays,
   V1Team,
@@ -27,7 +31,7 @@ import type {
   V1TeamLine,
 } from "@/lib/types";
 
-type Tab = "rosters" | "goals" | "box" | "plays" | "info";
+type Tab = "rosters" | "goals" | "box" | "plays" | "info" | "tape";
 
 /** NCAA publishes roster names in ALL CAPS; present them in title case. */
 function titleCase(s: string): string {
@@ -751,8 +755,17 @@ function Info({ game }: { game: V1Game }) {
     ],
     ["TV", game.broadcast.network],
     ["Start", game.startTime || null],
-    ["Round", game.bracket?.roundDescription ?? null],
-    ["Conference", game.home.conference],
+    ...(game.bracket?.roundDescription
+      ? ([["Round", game.bracket.roundDescription]] as [string, string][])
+      : []),
+    [
+      "Conference",
+      game.home.conference && game.home.conference === game.away.conference
+        ? conferenceName(game.home.conference)
+        : game.home.conference && game.away.conference
+          ? "Non-conference"
+          : null,
+    ],
   ];
   return (
     <Card title="Game info">
@@ -773,9 +786,159 @@ function Info({ game }: { game: V1Game }) {
   );
 }
 
+const recStr = (r: V1Record) =>
+  `${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""}`;
+const pct = (a: number, b: number, digits = 1) =>
+  b ? `${((a / b) * 100).toFixed(digits)}%` : "–";
+const per = (v: number, g: number) => (g ? (v / g).toFixed(1) : "–");
+const height = (inches: number | null) =>
+  inches === null ? "–" : `${Math.floor(inches / 12)}' ${Math.round(inches % 12)}"`;
+
+type TapeRow = [string, (t: V1MatchupTeam) => string];
+
+function tapeSections(women: boolean): [string, TapeRow[]][] {
+  return [
+    [
+      "Records",
+      [
+        ["Overall", (t) => recStr(t.records.overall)],
+        ["Conference", (t) => recStr(t.records.conference)],
+        ["Home", (t) => recStr(t.records.home)],
+        ["Away", (t) => recStr(t.records.away)],
+        ["Overtime", (t) => recStr(t.records.overtime)],
+        ["Last 10", (t) => recStr(t.records.lastTen)],
+        ["Streak", (t) => t.records.streak ?? "–"],
+      ],
+    ],
+    [
+      "Team statistics (per game)",
+      [
+        ["Goals", (t) => per(t.stats.goalsFor, t.stats.games)],
+        ["Goals allowed", (t) => per(t.stats.goalsAgainst, t.stats.games)],
+        ["Shots", (t) => per(t.stats.shots, t.stats.boxGames)],
+        ["Shots on goal", (t) => per(t.stats.shotsOnGoal, t.stats.boxGames)],
+        ["Ground balls", (t) => per(t.stats.groundBalls, t.stats.boxGames)],
+        ["Turnovers", (t) => per(t.stats.turnovers, t.stats.boxGames)],
+        ["Caused TO", (t) => per(t.stats.causedTurnovers, t.stats.boxGames)],
+        women
+          ? ["Draw controls", (t) => per(t.stats.drawControls, t.stats.boxGames)]
+          : ["Saves", (t) => per(t.stats.saves, t.stats.boxGames)],
+      ],
+    ],
+    [
+      "Team statistics (season)",
+      [
+        ["Games", (t) => String(t.stats.games)],
+        ["Goals", (t) => String(t.stats.goalsFor)],
+        ["Goals allowed", (t) => String(t.stats.goalsAgainst)],
+        // shot % uses only games with a box score so goals and shots match
+        ["Shot %", (t) => (t.stats.boxGames === t.stats.games ? pct(t.stats.goalsFor, t.stats.shots) : "–")],
+        ["Save %", (t) => (t.stats.boxGames === t.stats.games ? pct(t.stats.saves, t.stats.saves + t.stats.goalsAgainst) : "–")],
+        women
+          ? ["Draw controls", (t) => String(t.stats.drawControls)]
+          : ["Faceoff %", (t) => pct(t.stats.faceoffsWon, t.stats.faceoffsWon + t.stats.faceoffsLost)],
+        ["Clear %", (t) => pct(t.stats.clears, t.stats.clearAttempts)],
+        ["Man-up", (t) => `${t.stats.extraManGoals}/${t.stats.extraManOpportunities}`],
+        ["Man-up %", (t) => pct(t.stats.extraManGoals, t.stats.extraManOpportunities)],
+        ["Penalties", (t) => `${t.stats.penalties}/${t.stats.penaltyMinutes}m`],
+      ],
+    ],
+    [
+      "Roster",
+      [
+        ["Players", (t) => (t.roster ? String(t.roster.players) : "–")],
+        ["Avg. height", (t) => height(t.roster?.avgHeightIn ?? null)],
+        ["Avg. weight", (t) => (t.roster?.avgWeight ? `${t.roster.avgWeight.toFixed(1)} lbs` : "–")],
+        ["Freshmen", (t) => String(t.roster?.classes.Fr ?? 0)],
+        ["Sophomores", (t) => String(t.roster?.classes.So ?? 0)],
+        ["Juniors", (t) => String(t.roster?.classes.Jr ?? 0)],
+        ["Seniors", (t) => String(t.roster?.classes.Sr ?? 0)],
+        ["Grad students", (t) => String(t.roster?.classes.Gr ?? 0)],
+      ],
+    ],
+  ];
+}
+
+function TaleOfTheTape({ game }: { game: V1Game }) {
+  const muted = useThemeColor({}, "muted");
+  const card = useThemeColor({}, "card");
+  const q = useV1<V1Matchup>(
+    `matchup/${game.id}`,
+    useCallback((s: AbortSignal) => fetchMatchup(game.id, s), [game.id]),
+  );
+  const m = q.data;
+  if (!m)
+    return (
+      <Text style={[styles.note, { color: muted, textAlign: "center" }]}>
+        {q.loading ? "Loading Tale of the Tape…" : "Tale of the Tape not available for this game."}
+      </Text>
+    );
+  const since = m.allTime.since;
+  const seriesRows: TapeRow[] = [
+    ["This season", (t) => String(t === m.away ? m.thisSeason.awayWins : m.thisSeason.homeWins)],
+    [`All-time (since ${since})`, (t) => String(t === m.away ? m.allTime.awayWins : m.allTime.homeWins)],
+  ];
+  const sections: [string, TapeRow[]][] = [
+    ...tapeSections(game.sport === "lacrosse-women"),
+    ["Head-to-head (wins)", seriesRows],
+  ];
+  const nameOf = (seo: string | null) =>
+    seo === m.home.seoName ? m.home.name : seo === m.away.seoName ? m.away.name : "Tie";
+  return (
+    <RNView style={{ backgroundColor: card }}>
+      <RNView style={styles.tapeRow}>
+        <Text style={[styles.tapeVal, styles.tapeTeam]} numberOfLines={1}>{m.away.name}</Text>
+        <Text style={styles.tapeLabel} />
+        <Text style={[styles.tapeVal, styles.tapeTeam]} numberOfLines={1}>{m.home.name}</Text>
+      </RNView>
+      {sections.map(([title, rows]) => (
+        <RNView key={title}>
+          <RNView style={[styles.periodBar, { backgroundColor: brand.navy }]}>
+            <Text style={styles.periodBarText}>{title.toUpperCase()}</Text>
+          </RNView>
+          {rows.map(([label, get], i) => (
+            <RNView key={label} style={[styles.tapeRow, i % 2 ? null : styles.tapeStripe]}>
+              <Text style={styles.tapeVal}>{get(m.away)}</Text>
+              <Text style={styles.tapeLabel}>{label}</Text>
+              <Text style={styles.tapeVal}>{get(m.home)}</Text>
+            </RNView>
+          ))}
+        </RNView>
+      ))}
+      {m.allTime.games.length ? (
+        <>
+          <RNView style={[styles.periodBar, { backgroundColor: brand.navy }]}>
+            <Text style={styles.periodBarText}>LAST MEETINGS</Text>
+          </RNView>
+          {m.allTime.games.slice(0, 10).map((g, i) => {
+            const hi = Math.max(g.homeScore, g.awayScore);
+            const lo = Math.min(g.homeScore, g.awayScore);
+            return (
+              <RNView key={g.gameId} style={[styles.tapeRow, i % 2 ? null : styles.tapeStripe]}>
+                <Text style={[styles.tapeMeetDate, { color: muted }]}>
+                  {new Date(`${g.date}T12:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                </Text>
+                <Text style={styles.tapeMeet} numberOfLines={1}>
+                  {g.winner ? `${nameOf(g.winner)} won ${hi}-${lo}` : `Tied ${hi}-${lo}`}
+                </Text>
+              </RNView>
+            );
+          })}
+        </>
+      ) : null}
+      <Text style={[styles.note, { color: muted, textAlign: "center", paddingHorizontal: 12, paddingBottom: 8 }]}>
+        Records and stats are NCAA results before this game. Head-to-head since {since}.
+      </Text>
+    </RNView>
+  );
+}
+
 export default function GameScreen() {
   const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>();
-  const [tab, setTab] = useState<Tab>(initialTab === "goals" ? "goals" : "rosters");
+  const [tab, setTab] = useState<Tab>(
+    initialTab === "goals" || initialTab === "tape" ? initialTab : "rosters",
+  );
+  const [tapeInBox, setTapeInBox] = useState(false);
   const muted = useThemeColor({}, "muted");
   const tint = useThemeColor({}, "tint");
 
@@ -831,7 +994,11 @@ export default function GameScreen() {
     live || game?.status.state === "pre",
   );
 
-  const inBoxScore = tab === "box" || tab === "plays" || tab === "info";
+  const inBoxScore =
+    tab === "box" ||
+    tab === "plays" ||
+    tab === "info" ||
+    (tab === "tape" && tapeInBox);
   const title = game
     ? `${game.sport === "lacrosse-men" ? "M" : "W"}: ${new Date(`${game.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}`
     : "Game";
@@ -853,14 +1020,19 @@ export default function GameScreen() {
                     { key: "box", label: "Box score" },
                     { key: "plays", label: "Plays" },
                     { key: "info", label: "Info" },
+                    { key: "tape", label: "Tale of the Tape" },
                   ]
                 : [
                     { key: "rosters", label: "Rosters" },
                     { key: "goals", label: "Goals" },
+                    { key: "tape", label: "Tale of the Tape" },
                   ]
             }
             value={tab}
-            onChange={setTab}
+            onChange={(k) => {
+              if (k === "tape") setTapeInBox(inBoxScore);
+              setTab(k);
+            }}
           />
         </RNView>
         {tab === "rosters" && game ? (
@@ -907,6 +1079,7 @@ export default function GameScreen() {
           )
         ) : null}
         {tab === "info" && game ? <Info game={game} /> : null}
+        {tab === "tape" && game ? <TaleOfTheTape game={game} /> : null}
     </>
   );
   return (
@@ -1084,4 +1257,11 @@ const styles = StyleSheet.create({
   },
   playText: { fontSize: 14 },
   note: { fontSize: 12, marginTop: 6 },
+  tapeRow: { flexDirection: "row", alignItems: "center", paddingVertical: 7, paddingHorizontal: 10 },
+  tapeStripe: { backgroundColor: "#f2f2f4" },
+  tapeVal: { width: 110, textAlign: "center", fontSize: 15, fontWeight: "700", color: brand.navy, fontVariant: ["tabular-nums"] },
+  tapeTeam: { color: undefined, fontWeight: "800", fontSize: 15 },
+  tapeLabel: { flex: 1, textAlign: "center", fontSize: 14 },
+  tapeMeetDate: { width: 110, fontSize: 13 },
+  tapeMeet: { flex: 1, fontSize: 14, fontWeight: "600" },
 });

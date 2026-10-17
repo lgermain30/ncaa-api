@@ -1,5 +1,6 @@
 import type {
   StandingsRow,
+  V1Matchup,
   ConferenceStandings,
   Division,
   Sport,
@@ -63,6 +64,9 @@ export const fetchGames = (sport: Sport, division: Division, date: string, signa
   getV1<V1Game[]>(`/v1/games/${sport}/${division}/${date}`, signal);
 
 export const fetchLive = (signal?: AbortSignal) => getV1<V1Game[]>('/v1/live', signal);
+
+export const fetchMatchup = (id: string, signal?: AbortSignal) =>
+  getV1<V1Matchup>(`/v1/matchup/${id}`, signal);
 
 export const fetchGame = (id: string, signal?: AbortSignal) =>
   getV1<V1Game>(`/v1/game/${id}`, signal);
