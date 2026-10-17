@@ -522,6 +522,8 @@ async function seoNamesFor(
  * ncaa.com's logo library.
  */
 const SEO_FALLBACK: Record<string, string> = {
+	ferrum: "ferrum",
+	"uc-colorado-springs": "uc-colo-springs",
 	"adams-state": "adams-st",
 	albion: "albion",
 	"alderson-broaddus": "alderson-broaddus",
