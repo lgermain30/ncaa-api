@@ -1,4 +1,5 @@
 import type {
+  StandingsRow,
   ConferenceStandings,
   Division,
   Sport,
@@ -240,6 +241,11 @@ export function seasonFor(date: string): string {
 }
 
 /** Overlay official conference records + streaks (men's D1 only) onto lax.com standings. */
+/** Whether a standings row is `team` (lax.com id, else normalized name). */
+export function isTeamRow(r: StandingsRow, team: { id: string; name: string }): boolean {
+  return r.teamId ? r.teamId === team.id : teamKey(r.team) === teamKey(team.name);
+}
+
 /** The conference whose table lists `team` (matched by lax.com id, then by name). */
 export function conferenceOf(
   data: ConferenceStandings[],
