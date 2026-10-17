@@ -859,7 +859,7 @@ function tapeSections(women: boolean): [string, TapeRow[]][] {
   ];
 }
 
-function TaleOfTheTape({ game }: { game: V1Game }) {
+function TaleOfTheTape({ game, top }: { game: V1Game; top: React.ReactNode }) {
   const muted = useThemeColor({}, "muted");
   const card = useThemeColor({}, "card");
   const q = useV1<V1Matchup>(
@@ -869,9 +869,12 @@ function TaleOfTheTape({ game }: { game: V1Game }) {
   const m = q.data;
   if (!m)
     return (
-      <Text style={[styles.note, { color: muted, textAlign: "center" }]}>
-        {q.loading ? "Loading Head-to-Head…" : "Head-to-Head not available for this game."}
-      </Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        {top}
+        <Text style={[styles.note, { color: muted, textAlign: "center" }]}>
+          {q.loading ? "Loading Head-to-Head…" : "Head-to-Head not available for this game."}
+        </Text>
+      </ScrollView>
     );
   const since = m.allTime.since;
   const seriesRows: TapeRow[] = [
@@ -885,12 +888,14 @@ function TaleOfTheTape({ game }: { game: V1Game }) {
   const nameOf = (seo: string | null) =>
     seo === m.home.seoName ? m.home.name : seo === m.away.seoName ? m.away.name : "Tie";
   return (
-    <RNView style={{ backgroundColor: card }}>
-      <RNView style={styles.tapeRow}>
+    <ScrollView contentContainerStyle={styles.content} stickyHeaderIndices={[1]}>
+      <RNView>{top}</RNView>
+      <RNView style={[styles.tapeRow, styles.tapeSticky, { backgroundColor: card }]}>
         <Text style={[styles.tapeVal, styles.tapeTeam]} numberOfLines={1}>{m.away.name}</Text>
         <Text style={styles.tapeLabel} />
         <Text style={[styles.tapeVal, styles.tapeTeam]} numberOfLines={1}>{m.home.name}</Text>
       </RNView>
+      <RNView style={{ backgroundColor: card }}>
       {sections.map(([title, rows]) => (
         <RNView key={title}>
           <RNView style={[styles.periodBar, { backgroundColor: brand.navy }]}>
@@ -929,7 +934,8 @@ function TaleOfTheTape({ game }: { game: V1Game }) {
       <Text style={[styles.note, { color: muted, textAlign: "center", paddingHorizontal: 12, paddingBottom: 8 }]}>
         Records and stats are NCAA results before this game. Head-to-head since {since}.
       </Text>
-    </RNView>
+      </RNView>
+    </ScrollView>
   );
 }
 
@@ -998,7 +1004,7 @@ export default function GameScreen() {
     ? `${game.sport === "lacrosse-men" ? "M" : "W"}: ${new Date(`${game.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}`
     : "Game";
 
-  const body = (
+  const top = (
     <>
         {game ? (
           <Header game={game} />
@@ -1026,6 +1032,11 @@ export default function GameScreen() {
             onChange={setTab}
           />
         </RNView>
+    </>
+  );
+  const body = (
+    <>
+        {top}
         {tab === "rosters" && game ? (
           <Rosters box={boxQ.data ?? null} game={game} />
         ) : null}
@@ -1070,7 +1081,6 @@ export default function GameScreen() {
           )
         ) : null}
         {tab === "info" && game ? <Info game={game} /> : null}
-        {tab === "tape" && game ? <TaleOfTheTape game={game} /> : null}
     </>
   );
   return (
@@ -1110,6 +1120,8 @@ export default function GameScreen() {
       />
       {tab === "rosters" ? (
         <RNView style={styles.fill}>{body}</RNView>
+      ) : tab === "tape" && game ? (
+        <TaleOfTheTape game={game} top={top} />
       ) : (
         <ScrollView key={tab} contentContainerStyle={styles.content}>
           {body}
@@ -1249,6 +1261,7 @@ const styles = StyleSheet.create({
   playText: { fontSize: 14 },
   note: { fontSize: 12, marginTop: 6 },
   tapeRow: { flexDirection: "row", alignItems: "center", paddingVertical: 7, paddingHorizontal: 10 },
+  tapeSticky: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#d0d0d6" },
   tapeStripe: { backgroundColor: "#f2f2f4" },
   tapeVal: { width: 110, textAlign: "center", fontSize: 15, fontWeight: "700", color: brand.navy, fontVariant: ["tabular-nums"] },
   tapeTeam: { color: undefined, fontWeight: "800", fontSize: 15 },
