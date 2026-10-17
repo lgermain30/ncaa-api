@@ -101,7 +101,7 @@ function HeaderTeam({
   final: boolean;
 }) {
   const muted = useThemeColor({}, "muted");
-  const inTeamsTab = useSegments()[1] === "teams";
+  const inTeamsTab = (useSegments() as string[]).includes("teams");
   const pre = game.status.state === "pre";
   return (
     <Pressable
