@@ -7,7 +7,7 @@ import { brand } from '@/constants/Colors';
 import { conferenceName } from '@/lib/conferences';
 import { favoriteFor, homeBoard, useFollows } from '@/lib/favorites';
 import { useV1 } from '@/hooks/useV1';
-import { applyOfficialExtras, conferenceOf, fetchOfficialExtras, fetchStandings, seasonFor, todayEt, type OfficialExtras } from '@/lib/api';
+import { applyOfficialExtras, conferenceOf, isTeamRow, fetchOfficialExtras, fetchStandings, seasonFor, todayEt, type OfficialExtras } from '@/lib/api';
 import type { ConferenceStandings, Division, Sport, StandingsRow, V1Envelope } from '@/lib/types';
 
 interface Col {
@@ -126,8 +126,10 @@ export default function StandingsScreen() {
                 </Text>
               ))}
             </RNView>
-            {conf.standings.map((r, i) => (
-              <RNView key={`${r.team}-${i}`} style={[styles.row, { backgroundColor: card, borderColor: border }]}>
+            {conf.standings.map((r, i) => {
+              const mine = !!fav && fav.division === division && isTeamRow(r, fav);
+              return (
+              <RNView key={`${r.team}-${i}`} style={[styles.row, { backgroundColor: mine ? FAV_ROW : card, borderColor: border }]}>
                 <RNView style={styles.teamCell}>
                   <Text style={styles.rank}>{i + 1}</Text>
                   <RNView style={styles.teamText}>
@@ -146,7 +148,7 @@ export default function StandingsScreen() {
                       style={[
                         styles.cell,
                         styles.cellText,
-                        { width: c.width, backgroundColor: j % 2 ? '#f0f0f2' : '#e6e6ea' },
+                        { width: c.width, backgroundColor: mine ? (j % 2 ? '#dde1e8' : '#d3d8e0') : j % 2 ? '#f0f0f2' : '#e6e6ea' },
                         streak && v.startsWith('W') ? { color: brand.win, fontWeight: '700' } : null,
                         streak && v.startsWith('L') ? { color: brand.red, fontWeight: '700' } : null,
                       ]}>
@@ -155,7 +157,8 @@ export default function StandingsScreen() {
                   );
                 })}
               </RNView>
-            ))}
+              );
+            })}
           </RNView>
         ) : null}
         {!loading && !error && !conf ? <Text style={[styles.note, { color: muted }]}>No standings available for {season}.</Text> : null}
@@ -168,6 +171,9 @@ export default function StandingsScreen() {
     </View>
   );
 }
+
+/** Light shade marking the user's favorite team's row. */
+const FAV_ROW = '#e3e7ee';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
