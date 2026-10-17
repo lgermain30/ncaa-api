@@ -938,7 +938,6 @@ export default function GameScreen() {
   const [tab, setTab] = useState<Tab>(
     initialTab === "goals" || initialTab === "tape" ? initialTab : "rosters",
   );
-  const [tapeInBox, setTapeInBox] = useState(false);
   const muted = useThemeColor({}, "muted");
   const tint = useThemeColor({}, "tint");
 
@@ -994,11 +993,7 @@ export default function GameScreen() {
     live || game?.status.state === "pre",
   );
 
-  const inBoxScore =
-    tab === "box" ||
-    tab === "plays" ||
-    tab === "info" ||
-    (tab === "tape" && tapeInBox);
+  const inBoxScore = tab === "box" || tab === "plays" || tab === "info";
   const title = game
     ? `${game.sport === "lacrosse-men" ? "M" : "W"}: ${new Date(`${game.date}T12:00:00Z`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}`
     : "Game";
@@ -1020,7 +1015,6 @@ export default function GameScreen() {
                     { key: "box", label: "Box score" },
                     { key: "plays", label: "Plays" },
                     { key: "info", label: "Info" },
-                    { key: "tape", label: "Head-to-Head" },
                   ]
                 : [
                     { key: "rosters", label: "Rosters" },
@@ -1029,10 +1023,7 @@ export default function GameScreen() {
                   ]
             }
             value={tab}
-            onChange={(k) => {
-              if (k === "tape") setTapeInBox(inBoxScore);
-              setTab(k);
-            }}
+            onChange={setTab}
           />
         </RNView>
         {tab === "rosters" && game ? (
