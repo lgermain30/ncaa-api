@@ -26,7 +26,7 @@ export type Sport = "lacrosse-men" | "lacrosse-women";
 export type Division = "d1" | "d2" | "d3";
 
 const LAX_API = "https://www.laxshop.com/shopify_stats.php";
-const cache = new TieredCache("lax-teams", 30 * 60 * 1000);
+const cache = new TieredCache("lax-teams-v2", 30 * 60 * 1000);
 
 export interface V1TeamSummary {
 	/** lax.com url_name, the id used by /v1/teams/.../:id */
@@ -522,7 +522,6 @@ async function seoNamesFor(
  * ncaa.com's logo library.
  */
 const SEO_FALLBACK: Record<string, string> = {
-	ferrum: "ferrum",
 	"uc-colorado-springs": "uc-colo-springs",
 	"adams-state": "adams-st",
 	albion: "albion",
@@ -671,7 +670,7 @@ const SEO_FALLBACK: Record<string, string> = {
 	wooster: "wooster",
 };
 
-const stripGender = (id: string) => id.replace(/-?(w|m|womens|women)$/, "");
+const stripGender = (id: string) => id.replace(/-(w|m|womens|women)$/, "");
 
 export function getTeams(
 	sport: Sport,
@@ -700,6 +699,12 @@ export function getTeams(
 		);
 		for (const t of teams)
 			t.seoName = SEO_FALLBACK[stripGender(t.id)] ?? seo.get(t.id) ?? null;
+		// A logo once matched never disappears because one lookup came back short.
+		const last = (await cache.getStale(`teams:${div}`))?.value as
+			| V1TeamSummary[]
+			| undefined;
+		const before = new Map(last?.map((t) => [t.id, t.seoName]) ?? []);
+		for (const t of teams) t.seoName ??= before.get(t.id) ?? null;
 		return teams;
 	});
 }
