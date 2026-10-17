@@ -255,7 +255,24 @@ export function seriesOf(
 	return series;
 }
 
-const CLASS_ORDER = ["Fr", "So", "Jr", "Sr", "Gr"];
+const CLASS_ALIASES: [RegExp, string][] = [
+	[/^(fr|fy|fresh|first|1st|1)/, "Fr"],
+	[/^(so|soph|second|2nd|2)/, "So"],
+	[/^(jr|ju|third|3rd|3)/, "Jr"],
+	[/^(sr|se|fourth|4th|4)/, "Sr"],
+	[/^(gr|gs|grad|fifth|5th|5|sixth|6th|6|super)/, "Gr"],
+];
+
+/** "R-Fr", "Fy", "First Year", "5th", "Grad Student" -> Fr/So/Jr/Sr/Gr. */
+export function classBucket(year: string | null): string | null {
+	const raw = (year ?? "").toLowerCase().trim();
+	if (/^(rs|rf|r|redshirt)$/.test(raw)) return "Fr";
+	const y = raw
+		.replace(/^(r-|rs-?|redshirt\s+|r\s+)/, "")
+		.replace(/[^a-z0-9]/g, "");
+	if (!y) return null;
+	return CLASS_ALIASES.find(([re]) => re.test(y))?.[1] ?? null;
+}
 
 function inches(h: string | null): number | null {
 	const m = h ? /(\d)\s*['’-]\s*(\d{1,2})/.exec(h) : null;
@@ -276,8 +293,8 @@ export function rosterSummary(
 			: null;
 	const classes: Record<string, number> = {};
 	for (const p of roster) {
-		const c = (p.year ?? "").replace(/^R-/, "");
-		if (CLASS_ORDER.includes(c)) classes[c] = (classes[c] ?? 0) + 1;
+		const c = classBucket(p.year);
+		if (c) classes[c] = (classes[c] ?? 0) + 1;
 	}
 	return {
 		players: roster.length,
