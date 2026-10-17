@@ -890,10 +890,13 @@ function TaleOfTheTape({ game, top }: { game: V1Game; top: React.ReactNode }) {
   return (
     <ScrollView contentContainerStyle={styles.content} stickyHeaderIndices={[1]}>
       <RNView>{top}</RNView>
-      <RNView style={[styles.tapeRow, styles.tapeSticky, { backgroundColor: card }]}>
-        <Text style={[styles.tapeVal, styles.tapeTeam]} numberOfLines={1}>{m.away.name}</Text>
-        <Text style={styles.tapeLabel} />
-        <Text style={[styles.tapeVal, styles.tapeTeam]} numberOfLines={1}>{m.home.name}</Text>
+      {/* Sticky headers replace their child's style, so the row sits inside a wrapper. */}
+      <RNView style={[styles.tapeSticky, { backgroundColor: card }]}>
+        <RNView style={styles.tapeRow}>
+          <Text style={[styles.tapeVal, styles.tapeTeam]} numberOfLines={1}>{m.away.name}</Text>
+          <Text style={styles.tapeLabel} />
+          <Text style={[styles.tapeVal, styles.tapeTeam]} numberOfLines={1}>{m.home.name}</Text>
+        </RNView>
       </RNView>
       <RNView style={{ backgroundColor: card }}>
       {sections.map(([title, rows]) => (
