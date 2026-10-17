@@ -791,8 +791,11 @@ const recStr = (r: V1Record) =>
 const pct = (a: number, b: number, digits = 1) =>
   b ? `${((a / b) * 100).toFixed(digits)}%` : "–";
 const per = (v: number, g: number) => (g ? (v / g).toFixed(1) : "–");
-const height = (inches: number | null) =>
-  inches === null ? "–" : `${Math.floor(inches / 12)}' ${Math.round(inches % 12)}"`;
+const height = (inches: number | null) => {
+  if (inches === null) return "–";
+  const total = Math.round(inches);
+  return `${Math.floor(total / 12)}' ${total % 12}"`;
+};
 
 type TapeRow = [string, (t: V1MatchupTeam) => string];
 
