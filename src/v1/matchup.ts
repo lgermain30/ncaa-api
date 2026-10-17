@@ -354,14 +354,20 @@ export async function getMatchup(
 		before: game.date,
 		away: side(game.away, awayFinals, awayRoster),
 		home: side(game.home, homeFinals, homeRoster),
-		thisSeason: seriesOf(homeFinals, game.away, game.home, game.date, from),
-		allTime: seriesOf(
-			history,
-			game.away,
-			game.home,
-			game.date,
-			`${SERIES_SINCE}-01-01`,
-		),
+		thisSeason: {
+			...seriesOf(homeFinals, game.away, game.home, game.date, from),
+			since: season,
+		},
+		allTime: {
+			...seriesOf(
+				history,
+				game.away,
+				game.home,
+				game.date,
+				`${SERIES_SINCE}-01-01`,
+			),
+			since: SERIES_SINCE,
+		},
 	};
 	cache.set(id, data);
 	return { data, updatedAt: new Date().toISOString(), stale: false };
