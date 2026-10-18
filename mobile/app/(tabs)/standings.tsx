@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 
 import { BoardHeader } from '@/components/BoardHeader';
+import { SeasonChips } from '@/components/SeasonChips';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { conferenceName } from '@/lib/conferences';
 import { favoriteFor, homeBoard, useFollows } from '@/lib/favorites';
 import { useV1 } from '@/hooks/useV1';
+import { seasonsFor } from '@/lib/seasons';
 import { applyOfficialExtras, conferenceOf, isTeamRow, fetchOfficialExtras, fetchStandings, seasonFor, todayEt, type OfficialExtras } from '@/lib/api';
 import type { ConferenceStandings, Division, Sport, StandingsRow, V1Envelope } from '@/lib/types';
 
@@ -46,7 +48,9 @@ export default function StandingsScreen() {
   const [home] = useState(() => homeBoard(follows));
   const [sport, setSport] = useState<Sport>(home.sport);
   const [division, setDivision] = useState<Division>(home.division);
-  const season = seasonFor(todayEt());
+  const seasons = seasonsFor('standings', sport, division, seasonFor(todayEt()));
+  const [pickedSeason, setSeason] = useState<string | null>(null);
+  const season = pickedSeason && seasons.includes(pickedSeason) ? pickedSeason : seasons[0];
   const { data: base, error, loading, refresh } = useV1<ConferenceStandings[]>(
     `standings/${sport}/${division}/${season}`,
     useCallback(
@@ -99,6 +103,7 @@ export default function StandingsScreen() {
         onSport={setSport}
         onDivision={setDivision}
       />
+      <SeasonChips seasons={seasons} value={season} onChange={setSeason} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips} contentContainerStyle={styles.chipsContent}>
         {data?.map((c) => {
           const active = c.slug === conf?.slug;

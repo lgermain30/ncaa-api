@@ -8,6 +8,8 @@ import { PlayerSheet } from '@/components/TeamScreen';
 import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { useV1 } from '@/hooks/useV1';
+import { SeasonChips } from '@/components/SeasonChips';
+import { firstSeason, seasonsFor } from '@/lib/seasons';
 import { fetchLeaders, fetchTeam, fetchTeamStats, seasonFor, todayEt } from '@/lib/api';
 import type {
   Division,
@@ -255,7 +257,10 @@ export default function StatsScreen() {
   const [mode, setMode] = useState<Mode>('players');
   const [open, setOpen] = useState<string | null>(null);
   const toggle = (key: string) => setOpen((cur) => (cur === key ? null : key));
-  const season = seasonFor(todayEt());
+  const seasons = seasonsFor('leaders', sport, division, seasonFor(todayEt()));
+  const [pickedSeason, setSeason] = useState<string | null>(null);
+  const season = pickedSeason && seasons.includes(pickedSeason) ? pickedSeason : seasons[0];
+  const teamStatsFrom = firstSeason('teamStats', sport, division);
   const [pick, setPick] = useState<LeaderRow | null>(null);
   const [sheet, setSheet] = useState<{ player: V1RosterPlayer; team: V1TeamDetail; rows?: [string, string][] } | null>(null);
 
@@ -316,6 +321,7 @@ export default function StatsScreen() {
           />
         }
       />
+      <SeasonChips seasons={seasons} value={season} onChange={setSeason} />
       <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={false} onRefresh={q.refresh} />}>
         {q.loading ? <Text style={[styles.note, { color: muted }]}>Loading…</Text> : null}
         {q.error ? <Text style={[styles.note, { color: muted }]}>Couldn&apos;t load stats ({q.error})</Text> : null}
@@ -336,7 +342,10 @@ export default function StatsScreen() {
               ) : null;
             })
           : null}
-        {mode === 'teams' && teamQ.data
+        {mode === 'teams' && Number(season) < teamStatsFrom ? (
+          <Text style={[styles.note, { color: muted }]}>Team box score stats start in {teamStatsFrom}.</Text>
+        ) : null}
+        {mode === 'teams' && teamQ.data && Number(season) >= teamStatsFrom
           ? BOX_BOARDS.filter((b) => !(b.men && women)).map((b) => (
               <BoxBoard
                 key={b.key}
