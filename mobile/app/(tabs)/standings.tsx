@@ -64,7 +64,8 @@ export default function StandingsScreen() {
 
   // Official streaks/conference records are scraped and slow; overlay them once they arrive
   // instead of holding up the table.
-  const wantExtras = sport === 'lacrosse-men' && division === 'd1';
+  // Conference sites only publish the current season, so past years use the base table.
+  const wantExtras = sport === 'lacrosse-men' && division === 'd1' && season === seasons[0];
   const [extras, setExtras] = useState<OfficialExtras | null>(null);
   useEffect(() => {
     if (!wantExtras) return;

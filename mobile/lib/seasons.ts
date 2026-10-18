@@ -13,8 +13,8 @@ const FIRST: Record<Page, Record<Sport, Record<Division, number>>> = {
     'lacrosse-women': { d1: 2018, d2: 2023, d3: 2023 },
   },
   teamStats: {
-    'lacrosse-men': { d1: 2020, d2: 2020, d3: 2020 },
-    'lacrosse-women': { d1: 2020, d2: 2020, d3: 2020 },
+    'lacrosse-men': { d1: 2022, d2: 2022, d3: 2022 },
+    'lacrosse-women': { d1: 2022, d2: 2022, d3: 2022 },
   },
 };
 
