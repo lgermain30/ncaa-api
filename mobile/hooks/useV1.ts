@@ -62,9 +62,11 @@ export function useV1<T>(
   const [tick, setTick] = useState(0);
   const loadRef = useRef(load);
   loadRef.current = load;
+  const inFlight = useRef(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
+    inFlight.current = true;
     loadWithRetry(() => loadRef.current(ctrl.signal), ctrl.signal)
       .then((env) => {
         setResult({ key, data: env.data, updatedAt: env.meta.updatedAt, stale: env.meta.stale, error: null });
@@ -75,13 +77,19 @@ export function useV1<T>(
         setResult((r) =>
           r && r.key === key ? { ...r, error: message } : { key, data: null, updatedAt: null, stale: false, error: message },
         );
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) inFlight.current = false;
       });
     return () => ctrl.abort();
   }, [key, tick]);
 
   useEffect(() => {
     if (!intervalMs) return;
-    const t = setInterval(() => setTick((n) => n + 1), intervalMs);
+    // Polls skip while a load (and its retries) is still running, so a stalled request can finish with an error.
+    const t = setInterval(() => {
+      if (!inFlight.current) setTick((n) => n + 1);
+    }, intervalMs);
     return () => clearInterval(t);
   }, [intervalMs, key]);
 
