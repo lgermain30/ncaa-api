@@ -41,6 +41,31 @@ export class ApiError extends Error {
 
 const etags = new Map<string, { etag: string; body: unknown }>();
 
+const FETCH_TIMEOUT_MS = 20000;
+
+/** fetch that gives up after FETCH_TIMEOUT_MS, so a stalled connection errors (and retries) instead of loading forever. */
+async function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
+  const ctrl = new AbortController();
+  const outer = init.signal;
+  const onAbort = () => ctrl.abort();
+  if (outer?.aborted) ctrl.abort();
+  else outer?.addEventListener('abort', onAbort);
+  let timedOut = false;
+  const t = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort();
+  }, FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } catch (err) {
+    if (timedOut && !outer?.aborted) throw new Error('Request timed out');
+    throw err;
+  } finally {
+    clearTimeout(t);
+    outer?.removeEventListener('abort', onAbort);
+  }
+}
+
 /**
  * GET a /v1 route. Reuses the ETag we last saw for the URL so a 304 costs no
  * body transfer; the cached body is returned in that case.
@@ -48,7 +73,7 @@ const etags = new Map<string, { etag: string; body: unknown }>();
 export async function getV1<T>(path: string, signal?: AbortSignal): Promise<V1Envelope<T>> {
   const url = `${API_BASE}${path}`;
   const cached = etags.get(url);
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     signal,
     headers: cached ? { 'If-None-Match': cached.etag } : undefined,
   });
@@ -120,7 +145,7 @@ export async function fetchOfficialExtras(
 ): Promise<OfficialExtras> {
   const out: OfficialExtras = new Map();
   try {
-    const res = await fetch(`${API_BASE}/official-standings?season=${season}`, { signal });
+    const res = await fetchWithTimeout(`${API_BASE}/official-standings?season=${season}`, { signal });
     if (!res.ok) return out;
     const confs = (await res.json()) as ConferenceStandings[];
     for (const c of confs) {
@@ -141,7 +166,7 @@ export async function fetchStandings(
   season: string,
   signal?: AbortSignal,
 ): Promise<ConferenceStandings[]> {
-  const res = await fetch(`${API_BASE}/standings/${sport}/${division}?season=${season}`, { signal });
+  const res = await fetchWithTimeout(`${API_BASE}/standings/${sport}/${division}?season=${season}`, { signal });
   if (!res.ok) throw new ApiError(res.status, `${res.status} standings`);
   const body: unknown = await res.json();
 
@@ -171,7 +196,7 @@ export async function fetchStandings(
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { signal });
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { signal });
   if (!res.ok) throw new ApiError(res.status, `${res.status} ${path}`);
   return (await res.json()) as T;
 }
@@ -196,7 +221,7 @@ export async function fetchGameDays(
   const days: Record<string, number> = {};
   await Promise.all(
     [year, year - 1].map(async (y) => {
-      const res = await fetch(`${API_BASE}/schedule-alt/${sport}/${division}/${y}`, { signal });
+      const res = await fetchWithTimeout(`${API_BASE}/schedule-alt/${sport}/${division}/${y}`, { signal });
       if (!res.ok) return;
       const body = (await res.json()) as Resp;
       for (const g of body.data?.schedules?.games ?? []) {
