@@ -31,6 +31,7 @@ import { openBreakers, UpstreamError, upstreamFetch, upstreamQueueSize, upstream
 import { parseStatSelect } from "./stats/stat-category-parser";
 import { pollerStats, startPoller } from "./poller";
 import { initStore, pingStore, storeStats } from "./store";
+import { oddsStats, startOddsRefresh } from "./v1/odds";
 import { startRosterBioWalk } from "./v1/rosterbiowalk";
 import { v1 } from "./v1/routes";
 import {
@@ -199,6 +200,7 @@ export const app = new Elysia()
       cache: { ...cacheStats, redisReachable: await pingRedis() },
       store: { ...storeStats, reachable: await pingStore() },
       poller: pollerStats,
+      odds: oddsStats,
     };
   })
   // normalized, versioned API for the website + mobile app
@@ -931,6 +933,7 @@ void initStore().then(() => {
   }
   if (Bun.env.NODE_ENV !== "test") {
     startOfficialStandingsWarm();
+    startOddsRefresh().catch((err) => log(`odds refresh failed to start: ${err}`));
   }
 });
 

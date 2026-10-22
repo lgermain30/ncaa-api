@@ -5,6 +5,7 @@ import { TeamLogo } from "@/components/TeamLogo";
 import { Text, useThemeColor } from "@/components/Themed";
 import { brand } from "@/constants/Colors";
 import type { Highlight } from "@/lib/favorites";
+import { spreadLabel } from "@/lib/odds";
 import type { V1Game, V1Team } from "@/lib/types";
 
 const HIGHLIGHT_BG: Record<"favorite" | "watching", [string, string]> = {
@@ -87,6 +88,7 @@ export function GameRow({
         .join(" - ")
     : "";
   const sub = [venue, game.broadcast.network].filter(Boolean).join(" · ");
+  const spread = state === "pre" || state === "live" ? spreadLabel(game) : null;
   const centerColor = live
     ? brand.live
     : state === "pre" || final
@@ -138,6 +140,11 @@ export function GameRow({
         {sub ? (
           <Text style={[styles.sub, { color: muted }]} numberOfLines={2}>
             {sub}
+          </Text>
+        ) : null}
+        {spread ? (
+          <Text style={[styles.sub, { color: muted }]} numberOfLines={1}>
+            {`Spread: ${spread}`}
           </Text>
         ) : null}
       </RNView>

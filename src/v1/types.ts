@@ -45,6 +45,20 @@ export interface V1Venue {
 	state: string;
 }
 
+/** Sportsbook point spread (The Odds API); only on games books posted a line for. */
+export interface V1Odds {
+	spread: {
+		/** e.g. -2.5 when home is favored */
+		home: number;
+		away: number;
+		homePrice: number | null;
+		awayPrice: number | null;
+	};
+	/** "DraftKings" */
+	book: string;
+	updatedAt: string;
+}
+
 export interface V1Game {
 	id: string;
 	sport: string;
@@ -72,6 +86,7 @@ export interface V1Game {
 	/** True once team ids / linescore / venue came from gamecenter. */
 	detailed: boolean;
 	updatedAt: string;
+	odds?: V1Odds;
 }
 
 export interface V1PlayerLine {

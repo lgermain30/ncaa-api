@@ -17,6 +17,7 @@ import { useV1 } from "@/hooks/useV1";
 import { fetchBoxscore, fetchGame, fetchMatchup, fetchPlays, fetchTeam } from "@/lib/api";
 import { conferenceName } from "@/lib/conferences";
 import { personName } from "@/lib/names";
+import { spreadLabel } from "@/lib/odds";
 import type {
   GameEvent,
   V1Boxscore,
@@ -756,6 +757,9 @@ function Info({ game }: { game: V1Game }) {
     ],
     ["TV", game.broadcast.network],
     ["Start", game.startTime || null],
+    ...(game.odds && spreadLabel(game)
+      ? ([["Spread", `${spreadLabel(game)} (${game.odds.book})`]] as [string, string][])
+      : []),
     ...(game.bracket?.roundDescription
       ? ([["Round", game.bracket.roundDescription]] as [string, string][])
       : []),
