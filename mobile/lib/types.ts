@@ -40,6 +40,12 @@ export interface V1Venue {
   state: string;
 }
 
+export interface V1Odds {
+  spread: { home: number; away: number; homePrice: number | null; awayPrice: number | null };
+  book: string;
+  updatedAt: string;
+}
+
 export interface V1Game {
   id: string;
   sport: Sport;
@@ -64,6 +70,7 @@ export interface V1Game {
   links: { ncaa: string | null };
   detailed: boolean;
   updatedAt: string;
+  odds?: V1Odds;
 }
 
 export interface V1PlayerLine {

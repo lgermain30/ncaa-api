@@ -15,6 +15,7 @@ import {
 } from "./events";
 import { getMatchup } from "./matchup";
 import { getNews, ingestNews } from "./news";
+import { withOdds } from "./odds";
 import { replayStatus, startReplay, stopReplay } from "./replay";
 import { rosterBioStats } from "./rosterbio";
 import { rosterBioWalk, walkRosterBios } from "./rosterbiowalk";
@@ -409,7 +410,7 @@ export const v1 = new Elysia({ prefix: "/v1" })
 			);
 			return respond(ctx, {
 				...served,
-				data: await withSchoolScheduleBoard(served.data),
+				data: (await withSchoolScheduleBoard(served.data)).map(withOdds),
 			});
 		},
 		{ params: v.object({ sport: sportParam, division: divisionParam }) },
@@ -424,7 +425,7 @@ export const v1 = new Elysia({ prefix: "/v1" })
 			);
 			return respond(ctx, {
 				...served,
-				data: await withSchoolScheduleBoard(served.data),
+				data: (await withSchoolScheduleBoard(served.data)).map(withOdds),
 			});
 		},
 		{
@@ -443,7 +444,7 @@ export const v1 = new Elysia({ prefix: "/v1" })
 			return served
 				? respond(ctx, {
 						...served,
-						data: await withSchoolSchedule(served.data),
+						data: withOdds(await withSchoolSchedule(served.data)),
 					})
 				: notFound(ctx.set, "game");
 		},
