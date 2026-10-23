@@ -672,6 +672,20 @@ const SEO_FALLBACK: Record<string, string> = {
 
 const stripGender = (id: string) => id.replace(/-(w|m|womens|women)$/, "");
 
+/** lax.com sometimes repeats a team (e.g. Trinity-DC ×12); keep its row with a conference and the most games. */
+export function dedupeTeams<
+	T extends Pick<V1TeamSummary, "id" | "conference" | "wins" | "losses">,
+>(teams: T[]): T[] {
+	const score = (t: T) =>
+		(t.conference ? 1e6 : 0) + (t.wins ?? 0) + (t.losses ?? 0);
+	const best = new Map<string, T>();
+	for (const t of teams) {
+		const prev = best.get(t.id);
+		if (!prev || score(t) > score(prev)) best.set(t.id, t);
+	}
+	return teams.filter((t) => best.get(t.id) === t);
+}
+
 export function getTeams(
 	sport: Sport,
 	division: Division,
@@ -679,18 +693,19 @@ export function getTeams(
 	const div = laxDivision(sport, division);
 	return cached(`teams:${div}`, async () => {
 		const raw = await laxJson<LaxTeam[]>({ action: "getTeams", division: div });
-		const teams = raw
-			.filter((t) => t?.url_name)
-			.map((t) => ({
-				id: t.url_name,
-				name: titleCase(t.label || t.name || t.url_name),
-				seoName: null as string | null,
-				conference: t.conference?.[0]?.label ?? null,
-				rank: rankOf(t.rank),
-				wins: num(t.wins),
-				losses: num(t.losses),
-			}))
-			.sort((a, b) => a.name.localeCompare(b.name));
+		const teams = dedupeTeams(
+			raw
+				.filter((t) => t?.url_name)
+				.map((t) => ({
+					id: t.url_name,
+					name: titleCase(t.label || t.name || t.url_name),
+					seoName: null as string | null,
+					conference: t.conference?.[0]?.label ?? null,
+					rank: rankOf(t.rank),
+					wins: num(t.wins),
+					losses: num(t.losses),
+				})),
+		).sort((a, b) => a.name.localeCompare(b.name));
 		const seo = await seoNamesFor(
 			sport,
 			division,
@@ -1016,7 +1031,8 @@ async function withNcaaGames(team: V1TeamDetail): Promise<V1TeamDetail> {
 			continue;
 		}
 		if (!seoName) {
-			const us = match.game.home === match.them ? match.game.away : match.game.home;
+			const us =
+				match.game.home === match.them ? match.game.away : match.game.home;
 			seoName = us.seoName || null;
 		}
 		schedule.push({
