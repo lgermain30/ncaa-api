@@ -4,13 +4,24 @@ import {
 	listBoardTeams,
 	listGames,
 	listPlayerGameLines,
+	listTeamFinals,
+	type StoredTeamFinal,
 	type StoredTeamIdentity,
 	upsertLaxSeason,
 } from "../store";
 import { upstreamJson } from "../upstream";
 import { formatHometown } from "./hometown";
-import { getRosterBio, matchBio, type StoredRosterBio } from "./rosterbio";
-import { getSchoolStats, type StoredSchoolStats } from "./schoolstats";
+import {
+	getRosterBio,
+	matchBio,
+	refreshRosterBio,
+	type StoredRosterBio,
+} from "./rosterbio";
+import {
+	getSchoolStats,
+	refreshSchoolStats,
+	type StoredSchoolStats,
+} from "./schoolstats";
 import type { Served } from "./service";
 import type { V1Game } from "./types";
 
@@ -1074,12 +1085,23 @@ export async function getTeam(
 	id: string,
 	season = defaultTeamSeason(),
 ): Promise<Served<V1TeamDetail | null>> {
+	const now = defaultTeamSeason();
+	const current =
+		season < now ? null : await getTeamRaw(sport, division, id, season);
+	const laxYears =
+		(current ?? (await getTeamRaw(sport, division, id, now))).data?.seasons ??
+		[];
 	const served =
-		season < defaultTeamSeason()
-			? await getPastTeam(sport, division, id, season)
-			: await getTeamRaw(sport, division, id, season);
-	const team = served.data;
+		current ??
+		(laxYears.length && !laxYears.includes(season)
+			? await getNcaaSeasonTeam(sport, division, id, season, laxYears)
+			: await getPastTeam(sport, division, id, season));
+	let team = served.data;
 	if (!team) return served;
+	team = {
+		...team,
+		seasons: await withOlderSeasons(sport, division, id, laxYears),
+	};
 	const withBio = await withRosterBio(sport, team, id, season);
 	const withGames = await withGamesPlayed(withBio);
 	const official = await getSchoolStats(sport, id, team.website, season);
@@ -1286,6 +1308,181 @@ async function getPastTeam(
 	};
 }
 
+/** NCAA results (stored from 2014) cover seasons lax.com never carried. */
+export const FIRST_NCAA_SEASON = 2014;
+
+/** Schedule rows for one team from its stored NCAA finals, oldest first. */
+export function scheduleFromFinals(
+	seoName: string,
+	finals: StoredTeamFinal[],
+	idOf: (seoName: string) => string | null,
+): V1TeamGame[] {
+	return finals.flatMap(({ game }) => {
+		const home = game.home.seoName === seoName;
+		const us = home ? game.home : game.away;
+		const them = home ? game.away : game.home;
+		if (us.seoName !== seoName || us.score == null || them.score == null)
+			return [];
+		const result =
+			us.score > them.score ? "W" : us.score < them.score ? "L" : "T";
+		return [
+			{
+				date: game.date,
+				time: null,
+				opponent: {
+					id: idOf(them.seoName),
+					name: them.shortName || them.name,
+					seoName: them.seoName || null,
+					rank: them.rank || null,
+				},
+				home,
+				final: true,
+				score: { us: us.score, them: them.score },
+				result,
+				playoff: game.bracket?.roundDescription || null,
+				gameId: game.id,
+			} satisfies V1TeamGame,
+		];
+	});
+}
+
+/** Seasons before lax.com's first year that have stored NCAA finals for the team. */
+export function olderSeasons(
+	laxYears: string[],
+	finalDates: string[],
+): string[] {
+	const first = Math.min(...laxYears.map(Number));
+	const years = new Set(
+		finalDates.map((d) => d.slice(0, 4)).filter((y) => Number(y) < first),
+	);
+	return [...years, ...laxYears].sort();
+}
+
+async function withOlderSeasons(
+	sport: Sport,
+	division: Division,
+	id: string,
+	laxYears: string[],
+): Promise<string[]> {
+	const first = Math.min(...laxYears.map(Number));
+	if (!laxYears.length || first <= FIRST_NCAA_SEASON) return laxYears;
+	const { data: teams } = await getTeams(sport, division);
+	const seoName = teams.find((t) => t.id === id)?.seoName;
+	if (!seoName) return laxYears;
+	const { data } = await cached(
+		`older:${sport}:${seoName}:${first}`,
+		async () =>
+			(
+				await listTeamFinals(
+					sport,
+					seoName,
+					`${FIRST_NCAA_SEASON}-01-01`,
+					`${first - 1}-12-31`,
+				)
+			).map((f) => f.game.date),
+	);
+	return olderSeasons(laxYears, data);
+}
+
+/** Wait (briefly) for a school-site fetch the first time a season is opened. */
+async function settle(job: Promise<void>, ms = 15000) {
+	await Promise.race([
+		job.catch(() => {}),
+		new Promise((r) => setTimeout(r, ms)),
+	]);
+}
+
+/**
+ * A season lax.com doesn't have (women's D2/D3 before 2023, women's D1 before
+ * 2018): results from our stored NCAA finals, roster and season totals from
+ * the school's archived roster/stats pages. Team pages fill in from those as
+ * usual in `getTeam`.
+ */
+function getNcaaSeasonTeam(
+	sport: Sport,
+	division: Division,
+	id: string,
+	season: string,
+	laxYears: string[],
+): Promise<Served<V1TeamDetail | null>> {
+	return cached(
+		`ncaa-team:${laxDivision(sport, division)}:${id}:${season}`,
+		async () => {
+			const { data: teams } = await getTeams(sport, division);
+			const summary = teams.find((t) => t.id === id);
+			if (!summary?.seoName) return null;
+			const finals = await listTeamFinals(
+				sport,
+				summary.seoName,
+				`${season}-01-01`,
+				`${season}-12-31`,
+			);
+			if (!finals.length) return null;
+			const ids = new Map(
+				teams.flatMap((t) => (t.seoName ? [[t.seoName, t.id] as const] : [])),
+			);
+			const schedule = scheduleFromFinals(
+				summary.seoName,
+				finals,
+				(seo) => ids.get(seo) ?? null,
+			);
+			const latest = await getTeamRaw(
+				sport,
+				division,
+				id,
+				laxYears[laxYears.length - 1] ?? defaultTeamSeason(),
+			);
+			const website = latest.data?.website ?? null;
+			if (!(await getRosterBio(sport, id, website, season)))
+				await settle(refreshRosterBio(sport, id, website, season));
+			if (!(await getSchoolStats(sport, id, website, season)))
+				await settle(refreshSchoolStats(sport, id, website, season));
+			const bio = await getRosterBio(sport, id, website, season);
+			const stats = await getSchoolStats(sport, id, website, season);
+			const roster = bio?.players.length
+				? schoolRoster(bio, [])
+				: (stats?.players ?? []).map((p, i) => ({
+						id: `school-${p.number ?? i}-${p.name}`,
+						number: p.number,
+						name: p.name,
+						position: null,
+						year: null,
+						hometown: null,
+						height: null,
+						weight: null,
+						highSchool: null,
+						previousSchool: null,
+						gamesPlayed: p.gamesPlayed,
+						gamesStarted: p.gamesStarted,
+						stats: p.stats,
+					}));
+			return {
+				id,
+				name: summary.name,
+				seoName: summary.seoName,
+				sport,
+				division,
+				season,
+				coach: null,
+				conference: null,
+				rank: null,
+				overall: {
+					wins: schedule.filter((g) => g.result === "W").length,
+					losses: schedule.filter((g) => g.result === "L").length,
+				},
+				conferenceRecord: null,
+				website,
+				seasons: laxYears,
+				schedule,
+				roster,
+				rosterSource: "school",
+				rosterSeason: null,
+				provenance: null,
+			} satisfies V1TeamDetail;
+		},
+	);
+}
+
 function getTeamRaw(
 	sport: Sport,
 	division: Division,
@@ -1301,7 +1498,8 @@ function getTeamRaw(
 				year: season,
 			});
 			const t = raw?.team?.[0];
-			if (!t) return null;
+			// Years lax.com doesn't carry come back as a row of nulls.
+			if (!t?.name) return null;
 			const conf = raw?.conference?.teams?.find((c) => c.url === id);
 			const { data: teams } = await getTeams(sport, division);
 			const seoOf = (laxId: string | undefined) =>
