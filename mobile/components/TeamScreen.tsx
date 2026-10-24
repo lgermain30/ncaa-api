@@ -51,7 +51,7 @@ const YEARS: Record<string, string> = {
 const pct = (n: number, d: number) =>
   d ? `${((n / d) * 100).toFixed(1)}%` : "–";
 
-function playerStatRows(p: V1RosterPlayer) {
+function playerStatRows(p: V1RosterPlayer, women: boolean) {
   const s = p.stats;
   const goalie = p.position === "G" || s.shotsFaced > 0;
   const rows: [string, string | number][] = [];
@@ -73,7 +73,10 @@ function playerStatRows(p: V1RosterPlayer) {
     ["Turnovers", s.turnovers],
     ["Caused Turnovers", s.causedTurnovers],
   );
-  if (s.faceoffsTaken) {
+  // Women's sources only count draws won, so there is no draw "percentage".
+  if (women) {
+    if (s.faceoffsWon) rows.push(["Draw Controls", s.faceoffsWon]);
+  } else if (s.faceoffsTaken) {
     rows.push(["Faceoffs (W-T)", `${s.faceoffsWon}-${s.faceoffsTaken}`]);
     rows.push(["Faceoff Percentage", pct(s.faceoffsWon, s.faceoffsTaken)]);
   }
@@ -96,7 +99,8 @@ export function PlayerSheet({
   const border = useThemeColor({}, "border");
   const card = useThemeColor({}, "card");
   const bg = useThemeColor({}, "background");
-  const rows = statRows ?? (p ? playerStatRows(p) : []);
+  const rows =
+    statRows ?? (p ? playerStatRows(p, team.sport === "lacrosse-women") : []);
   return (
     <Modal
       visible={!!p}
@@ -606,11 +610,18 @@ function FrozenGrid({
   );
 }
 
+/** Women's lines carry draw controls in faceoffsWon (no draws taken). */
+const WOMEN_FIELD_COLS: Col[] = FIELD_COLS.filter(
+  (c) => c.key !== "faceoffsTaken" && c.key !== "foPct",
+).map((c) => (c.key === "faceoffsWon" ? { ...c, label: "DC", wide: false } : c));
+
 function StatsTable({
   roster,
+  women,
   onPlayer,
 }: {
   roster: V1RosterPlayer[];
+  women: boolean;
   onPlayer: (p: V1RosterPlayer) => void;
 }) {
   const field = roster.filter((p) => p.position !== "G");
@@ -619,7 +630,7 @@ function StatsTable({
     <RNView>
       <FrozenGrid
         title="PLAYER"
-        cols={FIELD_COLS}
+        cols={women ? WOMEN_FIELD_COLS : FIELD_COLS}
         rows={field}
         defaultSort="points"
         onPlayer={onPlayer}
@@ -875,7 +886,11 @@ export function TeamScreen({
             ))}
           </>
         ) : (
-          <StatsTable roster={roster} onPlayer={setPlayer} />
+          <StatsTable
+            roster={roster}
+            women={sport === "lacrosse-women"}
+            onPlayer={setPlayer}
+          />
         )}
       </ScrollView>
       {team ? (
