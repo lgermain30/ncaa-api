@@ -130,6 +130,11 @@ export interface V1TeamDetail {
 	rosterSeason: string | null;
 	/** "school" when season totals come from the school's official stats page */
 	statsSource?: "school" | "lax";
+	/**
+	 * Players with a line on the season's official stats page who aren't on the
+	 * listed roster (it's already next season's: graduates, departures).
+	 */
+	formerPlayers?: V1RosterPlayer[];
 	/** where this season page came from and whether its results matched our NCAA games */
 	provenance: TeamProvenance | null;
 }
@@ -1112,7 +1117,41 @@ export async function getTeam(
 	const withGames = await withGamesPlayed(withBio);
 	const official = await getSchoolStats(sport, id, team.website, season);
 	const withIds = await withNcaaGames(withSchoolStats(withGames, official));
-	return { ...served, data: withIds };
+	return { ...served, data: withFormerPlayers(withIds, official) };
+}
+
+/**
+ * When the roster shown is already next season's, keep the season's other
+ * stat lines (graduated seniors, transfers out) so every player on that
+ * season's stats page still has a full line.
+ */
+export function withFormerPlayers(
+	team: V1TeamDetail,
+	official: Pick<StoredSchoolStats, "players"> | null,
+): V1TeamDetail {
+	if (!official?.players.length) return team;
+	if (!team.rosterSeason || team.rosterSeason === team.season) return team;
+	const matched = new Set(
+		team.roster.map((p) => sameNamePlayer(official.players, p)),
+	);
+	const former = official.players
+		.filter((l) => !matched.has(l))
+		.map((l, i) => ({
+			id: `school-${l.number ?? i}-${l.name}`,
+			number: l.number,
+			name: l.name,
+			position: null,
+			year: null,
+			hometown: null,
+			height: null,
+			weight: null,
+			highSchool: null,
+			previousSchool: null,
+			gamesPlayed: l.gamesPlayed,
+			gamesStarted: l.gamesStarted,
+			stats: l.stats,
+		}));
+	return former.length ? { ...team, formerPlayers: former } : team;
 }
 
 async function withRosterBio(

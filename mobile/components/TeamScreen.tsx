@@ -887,7 +887,7 @@ export function TeamScreen({
           </>
         ) : (
           <StatsTable
-            roster={roster}
+            roster={[...roster, ...(team.formerPlayers ?? [])]}
             women={sport === "lacrosse-women"}
             onPlayer={setPlayer}
           />

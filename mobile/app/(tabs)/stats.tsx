@@ -165,7 +165,8 @@ function findPlayer(team: V1TeamDetail, r: LeaderRow): V1RosterPlayer | null {
   const byId = r.player_id ? team.roster.find((p) => p.id === r.player_id) : undefined;
   if (byId) return byId;
   const want = norm(personName(r.name ?? ''));
-  return team.roster.find((p) => norm(personName(p.name)) === want) ?? null;
+  const pool = [...team.roster, ...(team.formerPlayers ?? [])];
+  return pool.find((p) => norm(personName(p.name)) === want) ?? null;
 }
 
 /** Season columns we can show for a player from the leader boards alone, in sheet order. */
@@ -187,13 +188,21 @@ const LEADER_STATS: { label: string; board: string; value: (r: LeaderRow) => str
  * Sheet for a leader who isn't on the team's current roster (e.g. a graduated senior in the
  * off-season): name plus whatever season totals the leader boards list for them.
  */
-function leaderOnlyPlayer(boards: LeaderBoards, r: LeaderRow): { player: V1RosterPlayer; rows: [string, string][] } {
+function leaderOnlyPlayer(
+  boards: LeaderBoards,
+  r: LeaderRow,
+  women: boolean,
+): { player: V1RosterPlayer; rows: [string, string][] } {
   const same = (x: LeaderRow) =>
     r.player_id ? x.player_id === r.player_id : x.url === r.url && norm(x.name ?? '') === norm(r.name ?? '');
+  // A board row often carries other columns too (points rows list goals and assists).
+  const mine = Object.values(boards).flatMap((rows) => rows.filter(same));
   const rows: [string, string][] = [];
   for (const st of LEADER_STATS) {
+    // Women's boards count draws won only, so a faceoff W-T would always read 100%.
+    if (women && st.board === 'faceoffs') continue;
     const hit = boards[st.board]?.find(same);
-    const v = hit ? st.value(hit) : undefined;
+    const v = (hit ? st.value(hit) : undefined) ?? mine.map(st.value).find((x) => x != null && x !== '');
     if (v != null && v !== '') rows.push([st.label, String(v)]);
   }
   const player: V1RosterPlayer = {
@@ -287,7 +296,7 @@ export default function StatsScreen() {
       .then((env) => {
         const player = findPlayer(env.data, pick);
         if (player) setSheet({ player, team: env.data });
-        else setSheet({ ...leaderOnlyPlayer(q.data ?? {}, pick), team: env.data });
+        else setSheet({ ...leaderOnlyPlayer(q.data ?? {}, pick, sport === 'lacrosse-women'), team: env.data });
       })
       .catch(() => setPick(null));
     return () => ac.abort();

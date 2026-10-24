@@ -359,6 +359,8 @@ export interface V1TeamDetail {
   roster: V1RosterPlayer[];
   rosterSource: 'school' | 'lax';
   rosterSeason: string | null;
+  /** Season stat lines for players not on the listed (next-season) roster. */
+  formerPlayers?: V1RosterPlayer[];
 }
 
 /* /v1/matchup — Head-to-Head tab (stored NCAA finals before the game + school rosters) */
