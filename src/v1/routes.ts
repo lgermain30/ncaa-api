@@ -34,6 +34,7 @@ import {
 } from "./service";
 import { getTeam, getTeams, lookupTeam } from "./teams";
 import { getTeamStats } from "./teamstats";
+import { ingestWebSeasons } from "./webseasons";
 
 /*
  * /v1 — the normalized, versioned API shared by collegelacrossenews.com and
@@ -335,6 +336,15 @@ export const v1 = new Elysia({ prefix: "/v1" })
 				remove: v.optional(v.array(v.unknown())),
 			}),
 		},
+	)
+	.put(
+		"/admin/web-seasons",
+		async ({ request, body, set }) => {
+			if (!newsPushAuthorized(request)) return forbidden(set);
+			set.headers["Cache-Control"] = "no-store";
+			return await ingestWebSeasons(body);
+		},
+		{ body: v.object({ seasons: v.optional(v.array(v.unknown())) }) },
 	)
 	.get("/admin/replay", ({ request, set }) => {
 		if (!adminAuthorized(request)) return forbidden(set);

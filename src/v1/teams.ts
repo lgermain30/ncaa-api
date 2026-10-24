@@ -24,6 +24,12 @@ import {
 } from "./schoolstats";
 import type { Served } from "./service";
 import type { V1Game } from "./types";
+import {
+	getWebSeason,
+	mergeWebSchedule,
+	rosterFromWeb,
+	webSeasonYears,
+} from "./webseasons";
 
 /*
  * Team directory, season schedule/results and rosters. NCAA publishes none of
@@ -1188,7 +1194,7 @@ async function teamGames(team: V1TeamDetail): Promise<TeamGames | null> {
  */
 export function withSchoolStats(
 	team: V1TeamDetail,
-	official: StoredSchoolStats | null,
+	official: Pick<StoredSchoolStats, "players"> | null,
 ): V1TeamDetail {
 	if (!official?.players.length) return team;
 	let matched = 0;
@@ -1381,7 +1387,11 @@ async function withOlderSeasons(
 				)
 			).map((f) => f.game.date),
 	);
-	return olderSeasons(laxYears, data);
+	const webYears = await webSeasonYears(sport, seoName);
+	return olderSeasons(laxYears, [
+		...data,
+		...webYears.map((y) => `${y}-01-01`),
+	]);
 }
 
 /** Wait (briefly) for a school-site fetch the first time a season is opened. */
@@ -1417,14 +1427,16 @@ function getNcaaSeasonTeam(
 				`${season}-01-01`,
 				`${season}-12-31`,
 			);
-			if (!finals.length) return null;
+			const web = await getWebSeason(sport, season, summary.seoName);
+			if (!finals.length && !web) return null;
 			const ids = new Map(
 				teams.flatMap((t) => (t.seoName ? [[t.seoName, t.id] as const] : [])),
 			);
-			const schedule = scheduleFromFinals(
-				summary.seoName,
-				finals,
-				(seo) => ids.get(seo) ?? null,
+			const idOf = (seo: string) => ids.get(seo) ?? null;
+			const schedule = mergeWebSchedule(
+				scheduleFromFinals(summary.seoName, finals, idOf),
+				web,
+				idOf,
 			);
 			const latest = await getTeamRaw(
 				sport,
@@ -1441,22 +1453,24 @@ function getNcaaSeasonTeam(
 			const stats = await getSchoolStats(sport, id, website, season);
 			const roster = bio?.players.length
 				? schoolRoster(bio, [])
-				: (stats?.players ?? []).map((p, i) => ({
-						id: `school-${p.number ?? i}-${p.name}`,
-						number: p.number,
-						name: p.name,
-						position: null,
-						year: null,
-						hometown: null,
-						height: null,
-						weight: null,
-						highSchool: null,
-						previousSchool: null,
-						gamesPlayed: p.gamesPlayed,
-						gamesStarted: p.gamesStarted,
-						stats: p.stats,
-					}));
-			return {
+				: !stats?.players.length && web?.players.length
+					? rosterFromWeb(web)
+					: (stats?.players ?? []).map((p, i) => ({
+							id: `school-${p.number ?? i}-${p.name}`,
+							number: p.number,
+							name: p.name,
+							position: null,
+							year: null,
+							hometown: null,
+							height: null,
+							weight: null,
+							highSchool: null,
+							previousSchool: null,
+							gamesPlayed: p.gamesPlayed,
+							gamesStarted: p.gamesStarted,
+							stats: p.stats,
+						}));
+			const team: V1TeamDetail = {
 				id,
 				name: summary.name,
 				seoName: summary.seoName,
@@ -1478,7 +1492,13 @@ function getNcaaSeasonTeam(
 				rosterSource: "school",
 				rosterSeason: null,
 				provenance: null,
-			} satisfies V1TeamDetail;
+			};
+			// A school roster without a school stats page takes the website's totals.
+			return bio?.players.length &&
+				!stats?.players.length &&
+				web?.players.length
+				? withSchoolStats(team, web)
+				: team;
 		},
 	);
 }
