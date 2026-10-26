@@ -51,9 +51,13 @@ const YEARS: Record<string, string> = {
 const pct = (n: number, d: number) =>
   d ? `${((n / d) * 100).toFixed(1)}%` : "–";
 
+/** Position may be missing (e.g. a departed player kept only for stats). */
+const isGoalie = (p: V1RosterPlayer) =>
+  p.position === "G" || p.stats.shotsFaced > 0 || p.stats.saves > 0;
+
 function playerStatRows(p: V1RosterPlayer, women: boolean) {
   const s = p.stats;
-  const goalie = p.position === "G" || s.shotsFaced > 0;
+  const goalie = isGoalie(p);
   const rows: [string, string | number][] = [];
   if (p.gamesPlayed != null) {
     rows.push(["Games Played", p.gamesPlayed]);
@@ -624,8 +628,8 @@ function StatsTable({
   women: boolean;
   onPlayer: (p: V1RosterPlayer) => void;
 }) {
-  const field = roster.filter((p) => p.position !== "G");
-  const goalies = roster.filter((p) => p.position === "G");
+  const field = roster.filter((p) => !isGoalie(p));
+  const goalies = roster.filter(isGoalie);
   return (
     <RNView>
       <FrozenGrid
