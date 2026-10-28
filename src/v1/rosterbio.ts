@@ -51,7 +51,15 @@ export function bioIsFresh(
 	if (stored.data && !hasPreviousSchoolField(stored.data)) return false;
 	if (season && stored.data) return true;
 	const age = Date.now() - new Date(stored.updatedAt).getTime();
-	return age < (stored.data ? REFRESH_MS : MISS_REFRESH_MS);
+	return (
+		age <
+		(stored.data && !behindRollover(stored.data) ? REFRESH_MS : MISS_REFRESH_MS)
+	);
+}
+/** Current roster still from an older season: check daily for next season's roster. */
+function behindRollover(data: unknown): boolean {
+	const s = (data as Partial<StoredRosterBio>).season;
+	return !!s && s < currentRosterSeason();
 }
 /** Bios stored before `previousSchool` was parsed are refetched once. */
 function hasPreviousSchoolField(data: unknown): boolean {

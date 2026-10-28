@@ -202,6 +202,16 @@ describe("roster bios: other platforms", () => {
 		expect(bioIsFresh(null)).toBe(false);
 	});
 
+	it("rechecks daily while the stored roster is from an older season", () => {
+		const old = new Date(Date.now() - 2 * 24 * 3600e3).toISOString();
+		const bio = (season: string) => ({
+			season,
+			players: [{ name: "A B", previousSchool: null }],
+		});
+		expect(bioIsFresh({ data: bio("2020"), updatedAt: old })).toBe(false);
+		expect(bioIsFresh({ data: bio("2099"), updatedAt: old })).toBe(true);
+	});
+
 	it("refetches bios stored before previousSchool was parsed", () => {
 		const now = new Date().toISOString();
 		const player = { name: "A B", highSchool: "X" };
