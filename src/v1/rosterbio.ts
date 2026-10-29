@@ -430,6 +430,19 @@ export async function fetchRosterBio(
 	season?: string,
 ): Promise<StoredRosterBio | null> {
 	const resolved = await resolveHost(host);
+	const bio = await firstRoster(resolved, sport, season);
+	if (season || bio?.season === currentRosterSeason()) return bio;
+	// Some schools post next season's roster at /roster/<next> while the
+	// default roster page still shows the season just played.
+	const next = await firstRoster(resolved, sport, currentRosterSeason());
+	return next ?? bio;
+}
+
+async function firstRoster(
+	resolved: string,
+	sport: Sport,
+	season?: string,
+): Promise<StoredRosterBio | null> {
 	for (const url of rosterUrls(resolved, sport, season)) {
 		let res: Response;
 		try {
@@ -503,7 +516,16 @@ const hostCache = new Map<string, string>();
  * lax.com's team links often point at a school's old domain
  * (suathletics.com → cuse.com). Follow the redirect once and remember it.
  */
+/** Athletics domains that lax.com lists wrongly or that redirect to the wrong host. */
+const HOST_ALIASES: Record<string, string> = {
+	"liberty.edu": "libertyflames.com",
+	"quinnipiacbobcats.com": "gobobcats.com",
+	"gobonnies.sbu.edu": "gobonnies.com",
+	"sundevils.com": "thesundevils.com",
+};
+
 export async function resolveHost(host: string): Promise<string> {
+	if (HOST_ALIASES[host]) return HOST_ALIASES[host];
 	const hit = hostCache.get(host);
 	if (hit) return hit;
 	let resolved = host;
@@ -526,6 +548,7 @@ export async function resolveHost(host: string): Promise<string> {
 			if (h) resolved = h;
 		} catch {}
 	}
+	resolved = HOST_ALIASES[resolved] ?? resolved;
 	hostCache.set(host, resolved);
 	return resolved;
 }

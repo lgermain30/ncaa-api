@@ -6,6 +6,7 @@ import {
 	matchBio,
 	normalizeHeight,
 	parseRosterHtml,
+	resolveHost,
 	rosterUrls,
 } from "../src/v1/rosterbio";
 
@@ -193,6 +194,11 @@ describe("roster bios: other platforms", () => {
 		expect(current[current.length - 1]).toMatch(
 			/\/sports\/lacrosse\/roster\/\d{4}$/,
 		);
+	});
+
+	it("maps wrong athletics domains to the real site", async () => {
+		expect(await resolveHost("liberty.edu")).toBe("libertyflames.com");
+		expect(await resolveHost("gobonnies.sbu.edu")).toBe("gobonnies.com");
 	});
 
 	it("retries misses sooner than hits", () => {

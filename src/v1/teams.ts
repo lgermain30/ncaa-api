@@ -537,6 +537,11 @@ async function seoNamesFor(
 	return out;
 }
 
+/** lax.com id → athletics site for teams lax.com lists without one. */
+const WEBSITE_FALLBACK: Record<string, string> = {
+	"fairleigh-dickinson-w": "https://fduknights.com/sports/wlax",
+};
+
 /**
  * lax.com id (gender suffix stripped) → NCAA seoName for teams that never show
  * up in stored NCAA games (or whose names differ too much to match), so they
@@ -1578,7 +1583,7 @@ function getTeamRaw(
 				conferenceRecord: conf
 					? { wins: num(conf.conf_wins), losses: num(conf.conf_losses) }
 					: null,
-				website: t.website || null,
+				website: t.website || WEBSITE_FALLBACK[id] || null,
 				rosterSource: "lax",
 				rosterSeason: null,
 				provenance: null,
