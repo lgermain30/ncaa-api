@@ -87,6 +87,9 @@ function playerStatRows(p: V1RosterPlayer, women: boolean) {
   return rows;
 }
 
+/** A season that hasn't started yet (next spring's, shown once rosters post). */
+const upcoming = (season: string) => Number(season) > new Date().getFullYear();
+
 export function PlayerSheet({
   p,
   team,
@@ -155,7 +158,12 @@ export function PlayerSheet({
             <Text style={styles.statsHeadText}>{team.season} STATISTICS</Text>
           </RNView>
           <ScrollView>
-            {rows.map(([label, v], i) => (
+            {!statRows && upcoming(team.season) ? (
+              <Text style={[styles.empty, { color: muted }]}>
+                {team.season} stats coming soon.
+              </Text>
+            ) : null}
+            {(!statRows && upcoming(team.season) ? [] : rows).map(([label, v], i) => (
               <RNView
                 key={label}
                 style={[
@@ -652,9 +660,6 @@ function StatsTable({
     </RNView>
   );
 }
-
-/** A season that hasn't started yet (next spring's, shown once rosters post). */
-const upcoming = (season: string) => Number(season) > new Date().getFullYear();
 
 export function TeamScreen({
   id,
