@@ -889,6 +889,10 @@ export function TeamScreen({
               />
             ))}
           </>
+        ) : !schedule.some((g) => g.final) ? (
+          <Text style={[styles.empty, { color: muted }]}>
+            No stats yet for {team.season}.
+          </Text>
         ) : (
           <StatsTable
             roster={[...roster, ...(team.formerPlayers ?? [])]}
