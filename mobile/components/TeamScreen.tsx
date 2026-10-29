@@ -653,6 +653,9 @@ function StatsTable({
   );
 }
 
+/** A season that hasn't started yet (next spring's, shown once rosters post). */
+const upcoming = (season: string) => Number(season) > new Date().getFullYear();
+
 export function TeamScreen({
   id,
   sport,
@@ -866,7 +869,9 @@ export function TeamScreen({
             ))
           ) : (
             <Text style={[styles.empty, { color: muted }]}>
-              No schedule published for {team.season}.
+              {upcoming(team.season)
+                ? `${team.season} schedule coming soon.`
+                : `No schedule published for ${team.season}.`}
             </Text>
           )
         ) : !roster.length ? (
@@ -889,6 +894,12 @@ export function TeamScreen({
               />
             ))}
           </>
+        ) : !schedule.some((g) => g.final) ? (
+          <Text style={[styles.empty, { color: muted }]}>
+            {upcoming(team.season)
+              ? `${team.season} stats coming soon.`
+              : `No stats yet for ${team.season}.`}
+          </Text>
         ) : (
           <StatsTable
             roster={[...roster, ...(team.formerPlayers ?? [])]}

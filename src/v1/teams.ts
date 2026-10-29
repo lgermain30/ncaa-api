@@ -1,5 +1,6 @@
 import { TieredCache } from "../cache";
 import {
+	getBio,
 	getLaxSeason,
 	listBoardTeams,
 	listGames,
@@ -12,6 +13,7 @@ import {
 import { upstreamJson } from "../upstream";
 import { formatHometown } from "./hometown";
 import {
+	bioKey,
 	getRosterBio,
 	matchBio,
 	refreshRosterBio,
@@ -126,7 +128,7 @@ export interface V1TeamDetail {
 	roster: V1RosterPlayer[];
 	/** "school" = scraped from the athletics site (current roster), "lax" = lax.com */
 	rosterSource: "school" | "lax";
-	/** roster year when it comes from the school site and differs from `season` */
+	/** roster year when the roster comes from the school site */
 	rosterSeason: string | null;
 	/** "school" when season totals come from the school's official stats page */
 	statsSource?: "school" | "lax";
@@ -1099,14 +1101,16 @@ export async function getTeam(
 	sport: Sport,
 	division: Division,
 	id: string,
-	season = defaultTeamSeason(),
+	requested?: string,
 ): Promise<Served<V1TeamDetail | null>> {
 	const now = defaultTeamSeason();
+	const next = await postedNextSeason(sport, id, now);
+	const season = requested ?? next ?? now;
 	const current =
 		season < now ? null : await getTeamRaw(sport, division, id, season);
 	const laxYears =
-		(current ?? (await getTeamRaw(sport, division, id, now))).data?.seasons ??
-		[];
+		(current?.data ? current : await getTeamRaw(sport, division, id, now)).data
+			?.seasons ?? [];
 	const served =
 		current ??
 		(laxYears.length && !laxYears.includes(season)
@@ -1114,9 +1118,10 @@ export async function getTeam(
 			: await getPastTeam(sport, division, id, season));
 	let team = served.data;
 	if (!team) return served;
+	const seasons = await withOlderSeasons(sport, division, id, laxYears);
 	team = {
 		...team,
-		seasons: await withOlderSeasons(sport, division, id, laxYears),
+		seasons: next && !seasons.includes(next) ? [...seasons, next] : seasons,
 	};
 	const withBio = await withRosterBio(sport, team, id, season);
 	const withGames = await withGamesPlayed(withBio);
@@ -1159,6 +1164,17 @@ export function withFormerPlayers(
 	return former.length ? { ...team, formerPlayers: former } : team;
 }
 
+/** Next season, once the school has posted its roster for it. */
+async function postedNextSeason(
+	sport: Sport,
+	id: string,
+	now: string,
+): Promise<string | null> {
+	const stored = await getBio<StoredRosterBio | null>(bioKey(sport, id));
+	const s = stored?.data?.season;
+	return s && s > now && stored.data?.players.length ? s : null;
+}
+
 async function withRosterBio(
 	sport: Sport,
 	team: V1TeamDetail,
@@ -1167,15 +1183,25 @@ async function withRosterBio(
 ): Promise<V1TeamDetail> {
 	const bio = await getRosterBio(sport, id, team.website);
 	if (!bio?.players.length) return team;
-	if (season === defaultTeamSeason()) {
+	const now = defaultTeamSeason();
+	const flipped = !!bio.season && bio.season > now;
+	if (season === now ? !flipped : season > now && bio.season === season) {
 		return {
 			...team,
 			roster: schoolRoster(bio, team.roster),
 			rosterSource: "school",
-			rosterSeason: bio.season && bio.season !== season ? bio.season : null,
+			rosterSeason: bio.season ?? null,
 		};
 	}
+	if (season > now) return team;
 	const seasonBio = await getRosterBio(sport, id, team.website, season);
+	if (!team.roster.length && seasonBio?.players.length)
+		return {
+			...team,
+			roster: schoolRoster(seasonBio, []),
+			rosterSource: "school",
+			rosterSeason: seasonBio.season ?? season,
+		};
 	return {
 		...team,
 		roster: team.roster.map((p) => {
