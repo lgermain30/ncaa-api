@@ -8,7 +8,7 @@ import { brand } from '@/constants/Colors';
 import { conferenceName } from '@/lib/conferences';
 import { favoriteFor, homeBoard, useFollows } from '@/lib/favorites';
 import { useV1 } from '@/hooks/useV1';
-import { seasonsFor } from '@/lib/seasons';
+import { nextSeason, seasonsFor } from '@/lib/seasons';
 import { applyOfficialExtras, conferenceOf, isTeamRow, fetchOfficialExtras, fetchStandings, seasonFor, todayEt, type OfficialExtras } from '@/lib/api';
 import type { ConferenceStandings, Division, Sport, StandingsRow, V1Envelope } from '@/lib/types';
 
@@ -48,24 +48,27 @@ export default function StandingsScreen() {
   const [home] = useState(() => homeBoard(follows));
   const [sport, setSport] = useState<Sport>(home.sport);
   const [division, setDivision] = useState<Division>(home.division);
-  const seasons = seasonsFor('standings', sport, division, seasonFor(todayEt()));
+  const current = seasonFor(todayEt());
+  const next = nextSeason(todayEt());
+  const seasons = [...(next ? [next] : []), ...seasonsFor('standings', sport, division, current)];
   const [pickedSeason, setSeason] = useState<string | null>(null);
-  const season = pickedSeason && seasons.includes(pickedSeason) ? pickedSeason : seasons[0];
+  const season = pickedSeason && seasons.includes(pickedSeason) ? pickedSeason : current;
+  const upcoming = season === next;
   const { data: base, error, loading, refresh } = useV1<ConferenceStandings[]>(
     `standings/${sport}/${division}/${season}`,
     useCallback(
       async (signal: AbortSignal): Promise<V1Envelope<ConferenceStandings[]>> => ({
-        data: await fetchStandings(sport, division, season, signal),
+        data: upcoming ? [] : await fetchStandings(sport, division, season, signal),
         meta: { updatedAt: new Date().toISOString(), stale: false },
       }),
-      [sport, division, season],
+      [sport, division, season, upcoming],
     ),
   );
 
   // Official streaks/conference records are scraped and slow; overlay them once they arrive
   // instead of holding up the table.
   // Conference sites only publish the current season, so past years use the base table.
-  const wantExtras = sport === 'lacrosse-men' && division === 'd1' && season === seasons[0];
+  const wantExtras = sport === 'lacrosse-men' && division === 'd1' && season === current;
   const [extras, setExtras] = useState<OfficialExtras | null>(null);
   useEffect(() => {
     if (!wantExtras) return;
@@ -167,7 +170,9 @@ export default function StandingsScreen() {
             })}
           </RNView>
         ) : null}
-        {!loading && !error && !conf ? <Text style={[styles.note, { color: muted }]}>No standings available for {season}.</Text> : null}
+        {!loading && !error && !conf ? <Text style={[styles.note, { color: muted }]}>
+            {upcoming ? `${season} standings coming soon.` : `No standings available for ${season}.`}
+          </Text> : null}
         {conf ? (
           <Text style={[styles.note, { color: muted }]}>
             Conference standings · {season} · GP/W/L = conference games, GF/GA = season

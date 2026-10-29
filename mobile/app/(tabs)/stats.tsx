@@ -9,7 +9,7 @@ import { Text, View, useThemeColor } from '@/components/Themed';
 import { brand } from '@/constants/Colors';
 import { useV1 } from '@/hooks/useV1';
 import { SeasonChips } from '@/components/SeasonChips';
-import { firstSeason, seasonsFor } from '@/lib/seasons';
+import { firstSeason, nextSeason, seasonsFor } from '@/lib/seasons';
 import { fetchLeaders, fetchTeam, fetchTeamStats, seasonFor, todayEt } from '@/lib/api';
 import type {
   Division,
@@ -266,9 +266,12 @@ export default function StatsScreen() {
   const [mode, setMode] = useState<Mode>('players');
   const [open, setOpen] = useState<string | null>(null);
   const toggle = (key: string) => setOpen((cur) => (cur === key ? null : key));
-  const seasons = seasonsFor('leaders', sport, division, seasonFor(todayEt()));
+  const current = seasonFor(todayEt());
+  const next = nextSeason(todayEt());
+  const seasons = [...(next ? [next] : []), ...seasonsFor('leaders', sport, division, current)];
   const [pickedSeason, setSeason] = useState<string | null>(null);
-  const season = pickedSeason && seasons.includes(pickedSeason) ? pickedSeason : seasons[0];
+  const season = pickedSeason && seasons.includes(pickedSeason) ? pickedSeason : current;
+  const upcoming = season === next;
   const teamStatsFrom = firstSeason('teamStats', sport, division);
   const [pick, setPick] = useState<LeaderRow | null>(null);
   const [sheet, setSheet] = useState<{ player: V1RosterPlayer; team: V1TeamDetail; rows?: [string, string][] } | null>(null);
@@ -282,10 +285,10 @@ export default function StatsScreen() {
     `leaders/${sport}/${division}/${season}`,
     useCallback(
       async (signal: AbortSignal): Promise<V1Envelope<LeaderBoards>> => ({
-        data: await fetchLeaders(sport, division, season, signal),
+        data: upcoming ? {} : await fetchLeaders(sport, division, season, signal),
         meta: { updatedAt: new Date().toISOString(), stale: false },
       }),
-      [sport, division, season],
+      [sport, division, season, upcoming],
     ),
   );
 
@@ -305,7 +308,13 @@ export default function StatsScreen() {
 
   const teamQ = useV1<V1TeamSeasonStats[]>(
     `team-stats/${sport}/${division}/${season}`,
-    useCallback((signal: AbortSignal) => fetchTeamStats(sport, division, season, signal), [sport, division, season]),
+    useCallback(
+      (signal: AbortSignal) =>
+        upcoming
+          ? Promise.resolve({ data: [], meta: { updatedAt: new Date().toISOString(), stale: false } })
+          : fetchTeamStats(sport, division, season, signal),
+      [sport, division, season, upcoming],
+    ),
   );
 
   const women = sport === 'lacrosse-women';
@@ -354,7 +363,7 @@ export default function StatsScreen() {
         {mode === 'teams' && Number(season) < teamStatsFrom ? (
           <Text style={[styles.note, { color: muted }]}>Team box score stats start in {teamStatsFrom}.</Text>
         ) : null}
-        {mode === 'teams' && teamQ.data && Number(season) >= teamStatsFrom
+        {mode === 'teams' && teamQ.data && !upcoming && Number(season) >= teamStatsFrom
           ? BOX_BOARDS.filter((b) => !(b.men && women)).map((b) => (
               <BoxBoard
                 key={b.key}
@@ -366,7 +375,11 @@ export default function StatsScreen() {
               />
             ))
           : null}
-        {q.data ? <Text style={[styles.note, { color: muted }]}>{season} season leaders</Text> : null}
+        {q.data ? (
+          <Text style={[styles.note, { color: muted }]}>
+            {upcoming ? `${season} stats coming soon.` : `${season} season leaders`}
+          </Text>
+        ) : null}
       </ScrollView>
       {pick && !sheet ? (
         <RNView style={styles.loadingOverlay} pointerEvents="none">

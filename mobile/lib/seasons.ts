@@ -28,3 +28,9 @@ export function seasonsFor(page: Page, sport: Sport, division: Division, current
   for (let y = Number(current); y >= firstSeason(page, sport, division); y--) out.push(String(y));
   return out.length ? out : [current];
 }
+
+/** Next spring's season once rosters start posting (July on), else null. */
+export function nextSeason(today: string): string | null {
+  const [y, m] = today.split('-').map(Number);
+  return m >= 7 ? String(y + 1) : null;
+}
