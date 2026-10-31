@@ -310,6 +310,10 @@ export interface V1TeamGame {
   playoff: string | null;
   /** NCAA game id when the game is in our stored NCAA results */
   gameId?: string | null;
+  /** set on next-season schedules read from the school's site */
+  neutral?: boolean;
+  venue?: string | null;
+  tv?: string | null;
 }
 
 export interface V1RosterPlayer {

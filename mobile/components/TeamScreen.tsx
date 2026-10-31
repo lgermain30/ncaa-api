@@ -302,7 +302,14 @@ function ScheduleRow({
           </Text>
         )}
         <Text style={[styles.sSub, { color: muted }]} numberOfLines={1}>
-          {g.final ? gameDate(g.date) : g.home ? "Home" : "Away"}
+          {g.final
+            ? gameDate(g.date)
+            : g.neutral
+              ? g.venue || "Neutral"
+              : g.home
+                ? "Home"
+                : "Away"}
+          {!g.final && g.tv ? ` · ${g.tv}` : ""}
           {g.playoff ? ` · ${g.playoff}` : ""}
         </Text>
       </Pressable>

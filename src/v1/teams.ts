@@ -19,6 +19,7 @@ import {
 	refreshRosterBio,
 	type StoredRosterBio,
 } from "./rosterbio";
+import { teamSchoolSchedule } from "./schoolschedule";
 import {
 	getSchoolStats,
 	refreshSchoolStats,
@@ -77,6 +78,10 @@ export interface V1TeamGame {
 	playoff: string | null;
 	/** NCAA game id when the game is in our stored NCAA results */
 	gameId?: string | null;
+	/** Set on schedules read from the school's site (next season) */
+	neutral?: boolean;
+	venue?: string | null;
+	tv?: string | null;
 }
 
 export interface V1RosterPlayer {
@@ -132,6 +137,8 @@ export interface V1TeamDetail {
 	rosterSeason: string | null;
 	/** "school" when season totals come from the school's official stats page */
 	statsSource?: "school" | "lax";
+	/** "school" when the schedule comes from the school's site (lax.com hasn't posted it) */
+	scheduleSource?: "school";
 	/**
 	 * Players with a line on the season's official stats page who aren't on the
 	 * listed roster (it's already next season's: graduates, departures).
@@ -1123,6 +1130,16 @@ export async function getTeam(
 		...team,
 		seasons: next && !seasons.includes(next) ? [...seasons, next] : seasons,
 	};
+	if (season >= now && !team.schedule.length) {
+		const schedule = await teamSchoolSchedule(
+			sport,
+			division,
+			id,
+			team.website,
+			season,
+		).catch(() => []);
+		if (schedule.length) team = { ...team, schedule, scheduleSource: "school" };
+	}
 	const withBio = await withRosterBio(sport, team, id, season);
 	const withGames = await withGamesPlayed(withBio);
 	const official = await getSchoolStats(sport, id, team.website, season);

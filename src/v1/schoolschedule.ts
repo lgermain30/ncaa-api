@@ -3,7 +3,14 @@ import { TieredCache } from "../cache";
 import { getBio, upsertBio } from "../store";
 import { upstreamFetch } from "../upstream";
 import { hostOf, PATHS, resolveHost } from "./rosterbio";
-import { type Division, getTeam, lookupTeam, type Sport } from "./teams";
+import {
+	type Division,
+	getTeam,
+	getTeams,
+	lookupTeam,
+	type Sport,
+	type V1TeamGame,
+} from "./teams";
 import type { V1Game, V1Team } from "./types";
 
 /*
@@ -135,6 +142,8 @@ const MONTHS = [
 	"dec",
 ];
 
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
 export function parseClassicSchedule(
 	html: string,
 	season: string,
@@ -151,8 +160,21 @@ export function parseClassicSchedule(
 		const month = dm ? MONTHS.indexOf(dm[1].toLowerCase()) : -1;
 		if (!dm || month < 0) return;
 		const cls = row.attr("class") ?? "";
+		// Fall ball (Aug-Dec) is listed on the spring season's page.
+		const year = month >= 7 ? Number(season) - 1 : Number(season);
+		// Sites serve the current season for a year they haven't posted; the
+		// weekday ("Feb 6 (Sat)") only matches the year the page is really for.
+		const wd = (spans[0] ?? "").match(
+			/\((sun|mon|tue|wed|thu|fri|sat)[a-z]*\.?\)/i,
+		);
+		if (
+			wd &&
+			WEEKDAYS.indexOf(wd[1].toLowerCase()) !==
+				new Date(Date.UTC(year, month, Number(dm[2]))).getUTCDay()
+		)
+			return;
 		events.push({
-			date: `${season}-${String(month + 1).padStart(2, "0")}-${dm[2].padStart(2, "0")}`,
+			date: `${year}-${String(month + 1).padStart(2, "0")}-${dm[2].padStart(2, "0")}`,
 			time: normalizeTime(spans[1]),
 			tv:
 				clean(
@@ -271,13 +293,17 @@ function refreshSchedule(
 	division: Division,
 	teamId: string,
 	season: string,
+	website?: string | null,
 ): Promise<void> {
 	const key = scheduleKey(sport, teamId, season);
 	const running = inflight.get(key);
 	if (running) return running;
 	const job = withSlot(async () => {
-		const { data: team } = await getTeam(sport, division, teamId, season);
-		const host = hostOf(team?.website ?? null);
+		const site =
+			website !== undefined
+				? website
+				: (await getTeam(sport, division, teamId, season)).data?.website;
+		const host = hostOf(site ?? null);
 		const sched = host ? await fetchSchoolSchedule(host, sport, season) : null;
 		const prev = await getBio<StoredSchoolSchedule | null>(key);
 		if (!sched && prev?.data) return;
@@ -392,5 +418,107 @@ export function withSchoolScheduleBoard(games: V1Game[]): Promise<V1Game[]> {
 		games.map((g) =>
 			g.status.state === "pre" ? withSchoolSchedule(g) : Promise.resolve(g),
 		),
+	);
+}
+
+/** Fall ball, alumni games and scrimmages share the page with the season. */
+const NOT_OFFICIAL = /\b(scrimmage|exhibition|alumni|alumnae|play day)\b/i;
+
+/** "#10/#7 Princeton (Senior Day)" -> "Princeton". */
+export function opponentName(raw: string): string {
+	return clean(
+		raw
+			.replace(/^(vs\.?|at|@)\s+/i, "")
+			.replace(/^RV\s+/, "")
+			.replace(/#\d+(\/#\d+)*|\bno\.\s*\d+\b/gi, " ")
+			.replace(/\(.*?\)|\*/g, " "),
+	);
+}
+
+/** The season's official games from the school's posted schedule, oldest first. */
+export function officialEvents(
+	events: SchoolEvent[],
+	season: string,
+): SchoolEvent[] {
+	return events
+		.filter(
+			(e) =>
+				e.date >= `${season}-01-01` &&
+				e.date <= `${season}-06-30` &&
+				!NOT_OFFICIAL.test(e.opponent) &&
+				!!opponentName(e.opponent),
+		)
+		.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const SCHEDULE_WAIT_MS = 12000;
+
+/** "Loyola Maryland" -> loyola: drop trailing words until a team matches. */
+async function opponentId(
+	sport: Sport,
+	division: Division,
+	name: string,
+): Promise<string | null> {
+	const words = name.split(" ");
+	for (let n = words.length; n > 0; n--) {
+		const id = await lookupTeam(sport, division, words.slice(0, n).join(" "));
+		if (id) return id;
+	}
+	return null;
+}
+
+/**
+ * A season's schedule from the school's site, for seasons lax.com hasn't
+ * published yet (next season, once the school posts it).
+ */
+export async function teamSchoolSchedule(
+	sport: Sport,
+	division: Division,
+	teamId: string,
+	website: string | null,
+	season: string,
+): Promise<V1TeamGame[]> {
+	const key = scheduleKey(sport, teamId, season);
+	let stored = await getBio<StoredSchoolSchedule | null>(key);
+	const age = stored
+		? Date.now() - new Date(stored.updatedAt).getTime()
+		: Infinity;
+	if (age > (stored?.data ? SCHEDULE_REFRESH_MS : SCHEDULE_MISS_REFRESH_MS)) {
+		const job = refreshSchedule(sport, division, teamId, season, website);
+		if (!stored) {
+			await Promise.race([
+				job,
+				new Promise((r) => setTimeout(r, SCHEDULE_WAIT_MS)),
+			]);
+			stored = await getBio<StoredSchoolSchedule | null>(key);
+		}
+	}
+	const events = officialEvents(stored?.data?.events ?? [], season);
+	if (!events.length) return [];
+	const { data: teams } = await getTeams(sport, division);
+	return Promise.all(
+		events.map(async (e) => {
+			const name = opponentName(e.opponent);
+			const id = await opponentId(sport, division, name);
+			const t = id ? teams.find((x) => x.id === id) : undefined;
+			return {
+				date: e.date,
+				time: e.time,
+				opponent: {
+					id: t?.id ?? null,
+					name: t?.name ?? name,
+					seoName: t?.seoName ?? null,
+					rank: null,
+				},
+				home: e.at !== "A",
+				neutral: e.at === "N",
+				venue: e.venue,
+				tv: e.tv,
+				final: false,
+				score: null,
+				result: null,
+				playoff: null,
+			};
+		}),
 	);
 }
