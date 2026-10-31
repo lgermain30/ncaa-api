@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	matchEvent,
 	normalizeTime,
+	officialEvents,
+	opponentName,
 	parseClassicSchedule,
 	parseNuxtSchedule,
 	patchFrom,
@@ -101,5 +103,46 @@ describe("school schedule", () => {
 			startTime: "4:00 PM",
 			venue: { name: "Sherrerd Field", city: "", state: "" },
 		});
+	});
+
+	test("dates fall ball on the season page to the year before", () => {
+		const row = (d: string, opp: string) =>
+			`<li class="sidearm-schedule-game sidearm-schedule-home-game"><div class="sidearm-schedule-game-opponent-date"><span>${d}</span></div><span class="sidearm-schedule-game-opponent-name">${opp}</span></li>`;
+		const events = parseClassicSchedule(
+			row("Oct 3 (Sat)", "Alumni Game") + row("Feb 6 (Sat)", "Drexel"),
+			"2027",
+		);
+		expect(events?.map((e) => e.date)).toEqual(["2026-10-03", "2027-02-06"]);
+		// 2026's page served for 2027: Feb 2 was a Monday in 2026, not 2027.
+		expect(
+			parseClassicSchedule(row("Feb 2 (Mon)", "Robert Morris"), "2027"),
+		).toBeNull();
+	});
+
+	test("keeps only the season's official games", () => {
+		const ev = (date: string, opponent: string) => ({
+			date,
+			time: null,
+			tv: null,
+			venue: null,
+			at: "H" as const,
+			opponent,
+		});
+		const kept = officialEvents(
+			[
+				ev("2027-02-13", "Georgetown"),
+				ev("2026-10-10", "Delaware (Scrimmage)"),
+				ev("2027-01-30", "Saint Joseph's (Scrimmage)"),
+				ev("2027-02-06", "Drexel"),
+				ev("2027-02-01", "Exhibition vs. Team USA"),
+			],
+			"2027",
+		);
+		expect(kept.map((e) => e.opponent)).toEqual(["Drexel", "Georgetown"]);
+		expect(opponentName("#10/#7 Ohio State (Homecoming)")).toBe("Ohio State");
+		expect(opponentName("No. 3 Duke *")).toBe("Duke");
+		expect(opponentName("RV University at Albany")).toBe(
+			"University at Albany",
+		);
 	});
 });
