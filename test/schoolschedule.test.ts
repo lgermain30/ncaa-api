@@ -146,3 +146,30 @@ describe("school schedule", () => {
 		);
 	});
 });
+
+describe("posted schedules", () => {
+	test("fill games the school's page doesn't list yet", async () => {
+		const { withPostedSchedule } = await import("../src/v1/postedschedules");
+		const site = [
+			{
+				date: "2027-03-27",
+				time: "1:00 PM",
+				tv: "BTN+",
+				venue: "Ohio State Lacrosse Stadium",
+				at: "H" as const,
+				opponent: "Rutgers",
+			},
+		];
+		const all = officialEvents(
+			withPostedSchedule("lacrosse-men", "ohio-state", "2027", site),
+			"2027",
+		);
+		expect(all.length).toBe(13);
+		expect(all[0].opponent).toBe("Bryant");
+		expect(all.find((e) => e.date === "2027-03-27")?.tv).toBe("BTN+");
+		expect(all.find((e) => e.date === "2027-03-20")?.at).toBe("N");
+		expect(withPostedSchedule("lacrosse-men", "syracuse", "2027", [])).toEqual(
+			[],
+		);
+	});
+});

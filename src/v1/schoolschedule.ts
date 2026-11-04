@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { TieredCache } from "../cache";
 import { getBio, upsertBio } from "../store";
 import { upstreamFetch } from "../upstream";
+import { withPostedSchedule } from "./postedschedules";
 import { hostOf, PATHS, resolveHost } from "./rosterbio";
 import {
 	type Division,
@@ -493,7 +494,10 @@ export async function teamSchoolSchedule(
 			stored = await getBio<StoredSchoolSchedule | null>(key);
 		}
 	}
-	const events = officialEvents(stored?.data?.events ?? [], season);
+	const events = officialEvents(
+		withPostedSchedule(sport, teamId, season, stored?.data?.events ?? []),
+		season,
+	);
 	if (!events.length) return [];
 	const { data: teams } = await getTeams(sport, division);
 	return Promise.all(
