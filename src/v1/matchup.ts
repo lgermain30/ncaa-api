@@ -104,7 +104,7 @@ export interface V1Matchup {
 	allTime: V1Series;
 }
 
-const cache = new TieredCache("matchup", 30 * 60 * 1000);
+const cache = new TieredCache("matchup-v2", 30 * 60 * 1000);
 
 const rec = (): V1Record => ({ wins: 0, losses: 0, ties: 0 });
 const add = (r: V1Record, res: "W" | "L" | "T") => {
@@ -317,10 +317,16 @@ async function rosterFor(
 			division,
 			team.seoName || team.shortName,
 		);
-		if (!id) return null;
+		if (!id) {
+			console.warn(
+				`matchup ${game.id}: no team for ${team.seoName || team.shortName}`,
+			);
+			return null;
+		}
 		const { data } = await getTeam(sport, division, id, season);
 		return data ? rosterSummary(data.roster) : null;
-	} catch {
+	} catch (err) {
+		console.warn(`matchup ${game.id}: roster for ${team.seoName} failed`, err);
 		return null;
 	}
 }
