@@ -490,21 +490,31 @@ async function cached<T>(
 
 interface IndexedTeam {
 	id: string;
+	seoName: string | null;
 	idKeys: string[];
 	nameKeys: string[];
 }
 
-function indexTeams(teams: { id: string; name: string }[]): IndexedTeam[] {
+export function indexTeams(
+	teams: { id: string; name: string; seoName?: string | null }[],
+): IndexedTeam[] {
 	return teams.map((t) => ({
 		id: t.id,
+		seoName: t.seoName ?? null,
 		idKeys: matchKeys(t.id),
 		nameKeys: matchKeys(t.name),
 	}));
 }
 
-function resolve(indexed: IndexedTeam[], idOrName: string): string | null {
+export function resolve(
+	indexed: IndexedTeam[],
+	idOrName: string,
+): string | null {
 	const exact = indexed.find((t) => t.id === idOrName);
 	if (exact) return exact.id;
+	// NCAA seoNames abbreviate ("fla-southern", "southern-nh"), so match them as-is first.
+	const bySeo = indexed.find((t) => t.seoName === idOrName);
+	if (bySeo) return bySeo.id;
 	const alias = ALIASES[idOrName.toLowerCase()];
 	const candidates = alias ? [alias, idOrName].flat() : [idOrName];
 	for (const candidate of candidates) {
