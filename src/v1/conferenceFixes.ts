@@ -115,6 +115,24 @@ const SEASON_ROWS: Record<
 const same = (a: string, b: string) =>
 	a.trim().toLowerCase() === b.trim().toLowerCase();
 
+/**
+ * Conference record for a team whose conference was corrected, from the
+ * official rows when we have them; null otherwise (lax.com's is the old league's).
+ */
+export function fixedConferenceRecord(
+	sport: string,
+	division: string,
+	season: number,
+	id: string,
+): { wins: number; losses: number } | null {
+	const rows = SEASON_ROWS[`${sport}|${division}|${season}`]?.rows ?? {};
+	for (const list of Object.values(rows)) {
+		const r = list.find((x) => x.url === id);
+		if (r) return { wins: r.conf_wins, losses: r.conf_losses };
+	}
+	return null;
+}
+
 export function applyStandingsFixes(
 	sport: string,
 	division: string,
@@ -122,9 +140,15 @@ export function applyStandingsFixes(
 	blocks: LaxStandingBlock[],
 ): LaxStandingBlock[] {
 	const wrong = WRONG_DIVISION_BLOCKS[`${sport}|${division}`] ?? [];
-	const out = blocks
-		.filter((b) => !wrong.some((n) => same(n, b.conference?.name ?? "")))
-		.map((b) => ({ ...b, conf_leaderboard: [...(b.conf_leaderboard ?? [])] }));
+	// A misfiled block keeps only teams with a known conference; they are moved below.
+	const out = blocks.map((b) => ({
+		...b,
+		conf_leaderboard: (b.conf_leaderboard ?? []).filter(
+			(r) =>
+				!wrong.some((n) => same(n, b.conference?.name ?? "")) ||
+				conferenceFix(r.url, season) !== null,
+		),
+	}));
 	const blockFor = (name: string) => {
 		let b = out.find((x) => same(x.conference.name, name));
 		if (!b) {

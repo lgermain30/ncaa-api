@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	applyStandingsFixes,
 	conferenceFix,
+	fixedConferenceRecord,
 	type LaxStandingBlock,
 } from "../src/v1/conferenceFixes";
 
@@ -87,6 +88,39 @@ describe("conference fixes", () => {
 			url: "hamline-w",
 			conf_wins: 2,
 		});
+	});
+
+	test("New Haven keeps its lax.com row when the NE10 block is dropped", () => {
+		const out = applyStandingsFixes("lacrosse-women", "d1", 2027, [
+			{
+				conference: { name: "NE10" },
+				conf_leaderboard: [r("pace-w"), r("new-haven-w", 1, 0)],
+			},
+		]);
+		expect(out.map((b) => b.conference.name)).toEqual(["Northeast Conference"]);
+		expect(out[0].conf_leaderboard[0]).toMatchObject({
+			url: "new-haven-w",
+			conf_wins: 1,
+		});
+		const y26 = applyStandingsFixes("lacrosse-women", "d1", 2026, [
+			{ conference: { name: "NE10" }, conf_leaderboard: [r("new-haven-w")] },
+		]);
+		const nh = y26.find((b) => b.conference.name === "Northeast Conference")
+			?.conf_leaderboard[0];
+		expect(nh).toMatchObject({
+			url: "new-haven-w",
+			conf_wins: 4,
+			goals_for: "10",
+		});
+	});
+
+	test("fixed conference record comes from official rows", () => {
+		expect(
+			fixedConferenceRecord("lacrosse-women", "d3", 2026, "hamline-w"),
+		).toEqual({ wins: 3, losses: 5 });
+		expect(
+			fixedConferenceRecord("lacrosse-women", "d3", 2027, "hamline-w"),
+		).toBeNull();
 	});
 
 	test("men's standings are untouched", () => {
