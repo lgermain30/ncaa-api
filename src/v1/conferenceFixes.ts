@@ -2,7 +2,7 @@
  * Corrections for lax.com conference data, which lags realignment: it omits
  * the Big 12 and WIAC women's leagues, files New Haven under the DII NE10 in
  * the women's DI standings, and keeps Hamline/Saint Benedict in the MWLC.
- * Sources: big12sports.com, northeastconference.org, wiacsports.com standings.
+ * Sources: big12sports.com, northeastconference.org, wiacsports.com, saa-sports.com standings.
  */
 
 type Fix = { conference: string; division: string; from: number };
@@ -29,6 +29,11 @@ export const TEAM_CONFERENCE_FIXES: Record<string, Fix> = {
 	"uwstevenspoint-w": { conference: "WIAC", division: "d3", from: 2026 },
 	"uw-stout-w": { conference: "WIAC", division: "d3", from: 2026 },
 	"augsburg-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"southwestern-w": {
+		conference: "SOUTHERN ATHLETIC ASSOCIATION",
+		division: "d3",
+		from: 2026,
+	},
 };
 
 export function conferenceFix(id: string, season?: number): string | null {
@@ -100,7 +105,17 @@ const SEASON_ROWS: Record<
 		},
 	},
 	"lacrosse-women|d3|2026": {
+		// Birmingham-Southern closed in 2024; Hendrix played no 2026 SAA schedule.
+		drop: ["birminghamsouthern-w", "hendrix-w"],
 		rows: {
+			"SOUTHERN ATHLETIC ASSOCIATION": [
+				row("rhodes-w", "Rhodes", 5, 0, 15, 4),
+				row("sewanee-w", "Sewanee", 4, 1, 14, 4),
+				row("centre-w", "Centre", 3, 2, 6, 7),
+				row("oglethorpe-w", "Oglethorpe", 2, 3, 5, 11),
+				row("berry-w", "Berry", 1, 4, 5, 9),
+				row("southwestern-w", "Southwestern (TX)", 0, 5, 1, 13),
+			],
 			WIAC: [
 				row("colorado-college-w", "Colorado College", 8, 0, 16, 4),
 				row("uwriver-falls-w", "UW-River Falls", 7, 1, 15, 4),

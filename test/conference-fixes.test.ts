@@ -134,6 +134,34 @@ describe("conference fixes", () => {
 		expect(out[0].conf_leaderboard.map((x) => x.url)).toEqual(["pace-w"]);
 	});
 
+	test("2026 women's SAA uses official records and adds Southwestern", () => {
+		const out = applyStandingsFixes("lacrosse-women", "d3", 2026, [
+			{
+				conference: { name: "SOUTHERN ATHLETIC ASSOCIATION" },
+				conf_leaderboard: [
+					r("rhodes-w", 6, 0),
+					r("hendrix-w"),
+					r("birminghamsouthern-w"),
+				],
+			},
+		]);
+		const saa = out.find(
+			(b) => b.conference.name === "SOUTHERN ATHLETIC ASSOCIATION",
+		);
+		expect(saa?.conf_leaderboard.map((x) => x.url)).toEqual([
+			"rhodes-w",
+			"sewanee-w",
+			"centre-w",
+			"oglethorpe-w",
+			"berry-w",
+			"southwestern-w",
+		]);
+		expect(saa?.conf_leaderboard[0].conf_wins).toBe(5);
+		expect(conferenceFix("southwestern-w", 2026)).toBe(
+			"SOUTHERN ATHLETIC ASSOCIATION",
+		);
+	});
+
 	test("men's standings are untouched", () => {
 		const blocks: LaxStandingBlock[] = [
 			{
