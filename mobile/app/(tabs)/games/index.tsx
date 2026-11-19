@@ -128,6 +128,8 @@ export default function ScoresScreen() {
   const muted = useThemeColor({}, "muted");
   const tint = useThemeColor({}, "tint");
   const border = useThemeColor({}, "border");
+  const sportC = useThemeColor({}, "sportChip");
+  const divC = useThemeColor({}, "divisionChip");
   const card = useThemeColor({}, "card");
   const insets = useSafeAreaInsets();
 
@@ -269,9 +271,9 @@ export default function ScoresScreen() {
           </RNView>
         </RNView>
         <RNView style={styles.filters}>
-          <Chips options={SPORTS} value={sport} onChange={setSport} />
+          <Chips options={SPORTS} value={sport} onChange={setSport} color={sportC} inactiveColor={sportC} />
           <RNView style={[styles.filterDivider, { backgroundColor: border }]} />
-          <Chips options={DIVISIONS} value={division} onChange={setDivision} />
+          <Chips options={DIVISIONS} value={division} onChange={setDivision} color={divC} inactiveColor={divC} />
         </RNView>
       </RNView>
 

@@ -59,6 +59,8 @@ export default function TeamsScreen() {
   const card = useThemeColor({}, "card");
   const muted = useThemeColor({}, "muted");
   const border = useThemeColor({}, "border");
+  const sportC = useThemeColor({}, "sportChip");
+  const divC = useThemeColor({}, "divisionChip");
   const bg = useThemeColor({}, "background");
   const insets = useSafeAreaInsets();
 
@@ -106,9 +108,9 @@ export default function TeamsScreen() {
           <RNView style={{ width: 26 }} />
         </RNView>
         <RNView style={styles.filters}>
-          <Chips options={SPORTS} value={sport} onChange={setSport} />
+          <Chips options={SPORTS} value={sport} onChange={setSport} color={sportC} inactiveColor={sportC} />
           <RNView style={[styles.filterDivider, { backgroundColor: border }]} />
-          <Chips options={DIVISIONS} value={division} onChange={setDivision} />
+          <Chips options={DIVISIONS} value={division} onChange={setDivision} color={divC} inactiveColor={divC} />
         </RNView>
       </RNView>
       <SectionList
