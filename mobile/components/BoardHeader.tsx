@@ -27,6 +27,8 @@ export function BoardHeader({
 }) {
   const card = useThemeColor({}, "card");
   const border = useThemeColor({}, "border");
+  const sportC = useThemeColor({}, "sportChip");
+  const divC = useThemeColor({}, "divisionChip");
   const insets = useSafeAreaInsets();
   return (
     <RNView
@@ -47,9 +49,9 @@ export function BoardHeader({
         {extra ?? <RNView style={{ width: 26 }} />}
       </RNView>
       <RNView style={styles.filters}>
-        <Chips options={SPORTS} value={sport} onChange={onSport} />
+        <Chips options={SPORTS} value={sport} onChange={onSport} color={sportC} inactiveColor={sportC} />
         <RNView style={[styles.filterDivider, { backgroundColor: border }]} />
-        <Chips options={DIVISIONS} value={division} onChange={onDivision} />
+        <Chips options={DIVISIONS} value={division} onChange={onDivision} color={divC} inactiveColor={divC} />
       </RNView>
     </RNView>
   );

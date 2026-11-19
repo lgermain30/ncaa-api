@@ -43,7 +43,8 @@ export default function StandingsScreen() {
   const muted = useThemeColor({}, 'muted');
   const card = useThemeColor({}, 'card');
   const border = useThemeColor({}, 'border');
-  const text = useThemeColor({}, 'text');
+  const confBar = useThemeColor({}, 'confBar');
+  const confText = useThemeColor({}, 'confChipText');
   const follows = useFollows();
   const [home] = useState(() => homeBoard(follows));
   const [sport, setSport] = useState<Sport>(home.sport);
@@ -108,15 +109,15 @@ export default function StandingsScreen() {
         onDivision={setDivision}
       />
       <SeasonChips seasons={seasons} value={season} onChange={setSeason} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips} contentContainerStyle={styles.chipsContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.chips, { backgroundColor: confBar }]} contentContainerStyle={styles.chipsContent}>
         {data?.map((c) => {
           const active = c.slug === conf?.slug;
           return (
             <Pressable
               key={c.slug}
               onPress={() => setPicked({ board, slug: c.slug })}
-              style={[styles.chip, active ? { backgroundColor: card, borderColor: border } : null]}>
-              <Text style={[styles.chipText, { color: active ? text : muted }]}>{conferenceName(c.conference)}</Text>
+              style={[styles.chip, active ? { backgroundColor: '#fff' } : null]}>
+              <Text style={[styles.chipText, { color: active ? confBar : confText }]}>{conferenceName(c.conference)}</Text>
             </Pressable>
           );
         })}

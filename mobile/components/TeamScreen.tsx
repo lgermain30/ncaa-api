@@ -681,6 +681,7 @@ export function TeamScreen({
   const [season, setSeason] = useState<string | undefined>();
   const [seasons, setSeasons] = useState<string[]>([]);
   const muted = useThemeColor({}, "muted");
+  const seasonC = useThemeColor({}, "seasonChip");
   const border = useThemeColor({}, "border");
   const card = useThemeColor({}, "card");
   const {
@@ -855,6 +856,8 @@ export function TeamScreen({
               options={seasons.map((s) => ({ key: s, label: s }))}
               value={current}
               onChange={setSeason}
+              color={seasonC}
+              inactiveColor={seasonC}
             />
           </ScrollView>
         ) : null}
