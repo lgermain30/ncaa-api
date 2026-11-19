@@ -123,6 +123,17 @@ describe("conference fixes", () => {
 		).toBeNull();
 	});
 
+	test("New Haven is dropped from the women's DII standings", () => {
+		const out = applyStandingsFixes("lacrosse-women", "d2", 2026, [
+			{
+				conference: { name: "NE10" },
+				conf_leaderboard: [r("pace-w"), r("new-haven-w")],
+			},
+		]);
+		expect(out.map((b) => b.conference.name)).toEqual(["NE10"]);
+		expect(out[0].conf_leaderboard.map((x) => x.url)).toEqual(["pace-w"]);
+	});
+
 	test("men's standings are untouched", () => {
 		const blocks: LaxStandingBlock[] = [
 			{
