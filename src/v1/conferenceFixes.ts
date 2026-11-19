@@ -5,26 +5,30 @@
  * Sources: big12sports.com, northeastconference.org, wiacsports.com standings.
  */
 
-type Fix = { conference: string; from: number };
+type Fix = { conference: string; division: string; from: number };
 
 /** lax.com team id -> conference it plays in from the given season on. */
 export const TEAM_CONFERENCE_FIXES: Record<string, Fix> = {
-	"azstate-w": { conference: "Big 12", from: 2026 },
-	"cincinnati-w": { conference: "Big 12", from: 2026 },
-	"colorado-w": { conference: "Big 12", from: 2026 },
-	"florida-w": { conference: "Big 12", from: 2026 },
-	"sdstate-w": { conference: "Big 12", from: 2026 },
-	"ucdavis-w": { conference: "Big 12", from: 2026 },
-	"new-haven-w": { conference: "Northeast Conference", from: 2026 },
-	"colorado-college-w": { conference: "WIAC", from: 2026 },
-	"uwriver-falls-w": { conference: "WIAC", from: 2026 },
-	"uwlacrosse-w": { conference: "WIAC", from: 2026 },
-	"wisconsin-eau-claire-w": { conference: "WIAC", from: 2026 },
-	"saint-benedict-w": { conference: "WIAC", from: 2026 },
-	"hamline-w": { conference: "WIAC", from: 2026 },
-	"uwstevenspoint-w": { conference: "WIAC", from: 2026 },
-	"uw-stout-w": { conference: "WIAC", from: 2026 },
-	"augsburg-w": { conference: "WIAC", from: 2026 },
+	"azstate-w": { conference: "Big 12", division: "d1", from: 2026 },
+	"cincinnati-w": { conference: "Big 12", division: "d1", from: 2026 },
+	"colorado-w": { conference: "Big 12", division: "d1", from: 2026 },
+	"florida-w": { conference: "Big 12", division: "d1", from: 2026 },
+	"sdstate-w": { conference: "Big 12", division: "d1", from: 2026 },
+	"ucdavis-w": { conference: "Big 12", division: "d1", from: 2026 },
+	"new-haven-w": {
+		conference: "Northeast Conference",
+		division: "d1",
+		from: 2026,
+	},
+	"colorado-college-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"uwriver-falls-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"uwlacrosse-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"wisconsin-eau-claire-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"saint-benedict-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"hamline-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"uwstevenspoint-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"uw-stout-w": { conference: "WIAC", division: "d3", from: 2026 },
+	"augsburg-w": { conference: "WIAC", division: "d3", from: 2026 },
 };
 
 export function conferenceFix(id: string, season?: number): string | null {
@@ -199,7 +203,9 @@ export function applyStandingsFixes(
 			const conf = conferenceFix(r.url, season);
 			if (conf && !same(conf, b.conference.name)) {
 				const moved = remove(r.url);
-				if (moved) blockFor(conf).conf_leaderboard.push(moved);
+				// A team now in another division (New Haven left the DII NE10) is dropped.
+				if (moved && TEAM_CONFERENCE_FIXES[r.url].division === division)
+					blockFor(conf).conf_leaderboard.push(moved);
 			}
 		}
 	}
