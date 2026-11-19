@@ -34,6 +34,7 @@ import { initStore, pingStore, storeStats } from "./store";
 import { oddsStats, startOddsRefresh } from "./v1/odds";
 import { startRosterBioWalk } from "./v1/rosterbiowalk";
 import { v1 } from "./v1/routes";
+import { applyStandingsFixes, type LaxStandingBlock } from "./v1/conferenceFixes";
 import {
   convertToOldFormat,
   fetchGqlScoreboard,
@@ -1250,7 +1251,14 @@ const sportSlug = parts[1] || "lacrosse-men";
     );
   }
 
-  return await res.text();
+  const text = await res.text();
+  try {
+    const blocks = JSON.parse(text) as LaxStandingBlock[];
+    if (!Array.isArray(blocks)) return text;
+    return JSON.stringify(applyStandingsFixes(sportSlug, divisionSlug, Number(year), blocks));
+  } catch {
+    return text;
+  }
 }
 async function getLaxStats(
   sportSlug: string,

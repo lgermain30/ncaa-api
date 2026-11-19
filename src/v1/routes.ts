@@ -487,8 +487,14 @@ export const v1 = new Elysia({ prefix: "/v1" })
 	.get("/news", async (ctx) => respond(ctx, await getNews()))
 	.get(
 		"/teams/:sport/:division",
-		async (ctx) =>
-			respond(ctx, await getTeams(ctx.params.sport, ctx.params.division)),
+		async (ctx) => {
+			// lax.com still lists closed/dropped programs with no conference and no games.
+			const served = await getTeams(ctx.params.sport, ctx.params.division);
+			return respond(ctx, {
+				...served,
+				data: served.data.filter((t) => t.conference || t.wins || t.losses),
+			});
+		},
 		{ params: v.object({ sport: sportParam, division: divisionParam }) },
 	)
 	.get(

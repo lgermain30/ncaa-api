@@ -11,6 +11,7 @@ import {
 	upsertLaxSeason,
 } from "../store";
 import { upstreamJson } from "../upstream";
+import { conferenceFix, fixedConferenceRecord } from "./conferenceFixes";
 import { formatHometown } from "./hometown";
 import {
 	bioKey,
@@ -746,7 +747,8 @@ export function getTeams(
 					id: t.url_name,
 					name: titleCase(t.label || t.name || t.url_name),
 					seoName: null as string | null,
-					conference: t.conference?.[0]?.label ?? null,
+					conference:
+						conferenceFix(t.url_name) ?? t.conference?.[0]?.label ?? null,
 					rank: rankOf(t.rank),
 					wins: num(t.wins),
 					losses: num(t.losses),
@@ -1618,6 +1620,8 @@ function getTeamRaw(
 			// Years lax.com doesn't carry come back as a row of nulls.
 			if (!t?.name) return null;
 			const conf = raw?.conference?.teams?.find((c) => c.url === id);
+			const fixedConf = conferenceFix(id, Number(season));
+			const movedConf = !!fixedConf && fixedConf !== t.conference_name;
 			const { data: teams } = await getTeams(sport, division);
 			const seoOf = (laxId: string | undefined) =>
 				(laxId && teams.find((x) => x.id === laxId)?.seoName) ?? null;
@@ -1630,12 +1634,14 @@ function getTeamRaw(
 				division,
 				season,
 				coach: t.coach || null,
-				conference: t.conference_name || null,
+				conference: fixedConf || t.conference_name || null,
 				rank: rankOf(t.rank),
 				overall: { wins: num(t.wins), losses: num(t.losses) },
-				conferenceRecord: conf
-					? { wins: num(conf.conf_wins), losses: num(conf.conf_losses) }
-					: null,
+				conferenceRecord: movedConf
+					? fixedConferenceRecord(sport, division, Number(season), id)
+					: conf
+						? { wins: num(conf.conf_wins), losses: num(conf.conf_losses) }
+						: null,
 				website: t.website || WEBSITE_FALLBACK[id] || null,
 				rosterSource: "lax",
 				rosterSeason: null,
