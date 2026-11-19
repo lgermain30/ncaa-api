@@ -11,6 +11,7 @@ import {
 	upsertLaxSeason,
 } from "../store";
 import { upstreamJson } from "../upstream";
+import { conferenceFix } from "./conferenceFixes";
 import { formatHometown } from "./hometown";
 import {
 	bioKey,
@@ -746,7 +747,8 @@ export function getTeams(
 					id: t.url_name,
 					name: titleCase(t.label || t.name || t.url_name),
 					seoName: null as string | null,
-					conference: t.conference?.[0]?.label ?? null,
+					conference:
+						conferenceFix(t.url_name) ?? t.conference?.[0]?.label ?? null,
 					rank: rankOf(t.rank),
 					wins: num(t.wins),
 					losses: num(t.losses),
@@ -1630,7 +1632,8 @@ function getTeamRaw(
 				division,
 				season,
 				coach: t.coach || null,
-				conference: t.conference_name || null,
+				conference:
+					conferenceFix(id, Number(season)) || t.conference_name || null,
 				rank: rankOf(t.rank),
 				overall: { wins: num(t.wins), losses: num(t.losses) },
 				conferenceRecord: conf
