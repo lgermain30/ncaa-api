@@ -47,7 +47,7 @@ export type Sport = "lacrosse-men" | "lacrosse-women";
 export type Division = "d1" | "d2" | "d3";
 
 const LAX_API = "https://www.laxshop.com/shopify_stats.php";
-const cache = new TieredCache("lax-teams-v2", 30 * 60 * 1000);
+const cache = new TieredCache("lax-teams-v3", 30 * 60 * 1000);
 
 export interface V1TeamSummary {
 	/** lax.com url_name, the id used by /v1/teams/.../:id */
