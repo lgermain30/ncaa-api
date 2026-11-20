@@ -560,7 +560,23 @@ async function seoNamesFor(
 /** lax.com id → athletics site for teams lax.com lists without one. */
 const WEBSITE_FALLBACK: Record<string, string> = {
 	"fairleigh-dickinson-w": "https://fduknights.com/sports/wlax",
+	// lax.com's team page 500s on the apostrophe in this id; the site is framed from sjcgoldeneagles.com
+	"st.-joseph's-college-ny": "https://sjliathletics.com/sports/mens-lacrosse",
 };
+
+/** lax.com's team page, or an empty answer when lax.com itself errors on the team. */
+function getTeamRawSafe(
+	sport: Sport,
+	division: Division,
+	id: string,
+	season: string,
+): Promise<Served<V1TeamDetail | null>> {
+	return getTeamRaw(sport, division, id, season).catch(() => ({
+		data: null,
+		updatedAt: new Date().toISOString(),
+		stale: false,
+	}));
+}
 
 /**
  * lax.com id (gender suffix stripped) → NCAA seoName for teams that never show
@@ -1126,13 +1142,16 @@ export async function getTeam(
 	const next = await postedNextSeason(sport, id, now);
 	const season = requested ?? next ?? now;
 	const current =
-		season < now ? null : await getTeamRaw(sport, division, id, season);
+		season < now ? null : await getTeamRawSafe(sport, division, id, season);
 	const laxYears =
-		(current?.data ? current : await getTeamRaw(sport, division, id, now)).data
-			?.seasons ?? [];
+		(current?.data ? current : await getTeamRawSafe(sport, division, id, now))
+			.data?.seasons ?? [];
+	// lax.com errors on a few teams (ids with an apostrophe): build those
+	// seasons from stored NCAA results and the school's site instead.
+	const laxBroken = !laxYears.length && season >= now;
 	const served =
-		current ??
-		(laxYears.length && !laxYears.includes(season)
+		(current?.data ? current : null) ??
+		((laxYears.length && !laxYears.includes(season)) || laxBroken
 			? await getNcaaSeasonTeam(sport, division, id, season, laxYears)
 			: await getPastTeam(sport, division, id, season));
 	let team = served.data;
@@ -1537,13 +1556,13 @@ function getNcaaSeasonTeam(
 				web,
 				idOf,
 			);
-			const latest = await getTeamRaw(
+			const latest = await getTeamRawSafe(
 				sport,
 				division,
 				id,
 				laxYears[laxYears.length - 1] ?? defaultTeamSeason(),
 			);
-			const website = latest.data?.website ?? null;
+			const website = latest.data?.website ?? WEBSITE_FALLBACK[id] ?? null;
 			if (!(await getRosterBio(sport, id, website, season)))
 				await settle(refreshRosterBio(sport, id, website, season));
 			if (!(await getSchoolStats(sport, id, website, season)))
