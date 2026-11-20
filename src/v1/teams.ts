@@ -1161,15 +1161,30 @@ export async function getTeam(
 		...team,
 		seasons: next && !seasons.includes(next) ? [...seasons, next] : seasons,
 	};
-	if (season >= now && !team.schedule.length) {
-		const schedule = await teamSchoolSchedule(
+	if (season >= now && (!team.schedule.length || laxBroken)) {
+		const school = await teamSchoolSchedule(
 			sport,
 			division,
 			id,
 			team.website,
 			season,
 		).catch(() => []);
-		if (schedule.length) team = { ...team, schedule, scheduleSource: "school" };
+		// Results already known (stored NCAA finals) stay; the school's page adds the rest.
+		const played = team.schedule;
+		const upcoming = school.filter(
+			(g) =>
+				!played.some((p) =>
+					[p.date, ...adjacentDates(p.date)].includes(g.date),
+				),
+		);
+		if (upcoming.length)
+			team = {
+				...team,
+				schedule: [...played, ...upcoming].sort((a, b) =>
+					a.date.localeCompare(b.date),
+				),
+				scheduleSource: "school",
+			};
 	}
 	const withBio = await withRosterBio(sport, team, id, season);
 	const withGames = await withGamesPlayed(withBio);
@@ -1546,7 +1561,6 @@ function getNcaaSeasonTeam(
 				`${season}-12-31`,
 			);
 			const web = await getWebSeason(sport, season, summary.seoName);
-			if (!finals.length && !web) return null;
 			const ids = new Map(
 				teams.flatMap((t) => (t.seoName ? [[t.seoName, t.id] as const] : [])),
 			);
@@ -1568,6 +1582,8 @@ function getNcaaSeasonTeam(
 			if (!(await getSchoolStats(sport, id, website, season)))
 				await settle(refreshSchoolStats(sport, id, website, season));
 			const bio = await getRosterBio(sport, id, website, season);
+			// A season nobody has anything for; a posted roster alone (preseason) is a page.
+			if (!finals.length && !web && !bio?.players.length) return null;
 			const stats = await getSchoolStats(sport, id, website, season);
 			const roster = bio?.players.length
 				? schoolRoster(bio, [])
