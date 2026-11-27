@@ -255,6 +255,14 @@ export function defaultTeamSeason(now = new Date()): string {
 	return String(now.getFullYear());
 }
 
+/**
+ * Once the season is over (July onward) every team gets a next-season tab,
+ * shown as "coming soon" until the school posts a schedule or roster.
+ */
+export function offseasonNextSeason(now = new Date()): string | null {
+	return now.getMonth() >= 6 ? String(now.getFullYear() + 1) : null;
+}
+
 const num = (v: unknown): number => {
 	const n = Number(v);
 	return Number.isFinite(n) ? n : 0;
@@ -1157,9 +1165,11 @@ export async function getTeam(
 	let team = served.data;
 	if (!team) return served;
 	const seasons = await withOlderSeasons(sport, division, id, laxYears);
+	const nextTab = next ?? offseasonNextSeason();
 	team = {
 		...team,
-		seasons: next && !seasons.includes(next) ? [...seasons, next] : seasons,
+		seasons:
+			nextTab && !seasons.includes(nextTab) ? [...seasons, nextTab] : seasons,
 	};
 	if (season >= now && (!team.schedule.length || laxBroken)) {
 		const school = await teamSchoolSchedule(
