@@ -1162,10 +1162,17 @@ export async function getTeam(
 		((laxYears.length && !laxYears.includes(season)) || laxBroken
 			? await getNcaaSeasonTeam(sport, division, id, season, laxYears)
 			: await getPastTeam(sport, division, id, season));
-	let team = served.data;
-	if (!team) return served;
-	const seasons = await withOlderSeasons(sport, division, id, laxYears);
 	const nextTab = next ?? offseasonNextSeason();
+	let team = served.data;
+	if (!team && season === nextTab) {
+		// Next season before anyone has anything for it: an empty page (the
+		// app shows "coming soon") rather than a 404 from the season tab.
+		const base = (await getTeamRawSafe(sport, division, id, now)).data;
+		if (base) team = emptyNextSeason(base, season);
+	}
+	if (!team) return served;
+	const older = await withOlderSeasons(sport, division, id, laxYears);
+	const seasons = older.length ? older : [now];
 	team = {
 		...team,
 		seasons:
@@ -1238,6 +1245,28 @@ export function withFormerPlayers(
 }
 
 /** Next season, once the school has posted its roster for it. */
+/** The team's identity carried into a season that has nothing posted yet. */
+export function emptyNextSeason(
+	base: V1TeamDetail,
+	season: string,
+): V1TeamDetail {
+	return {
+		...base,
+		season,
+		rank: null,
+		overall: { wins: 0, losses: 0 },
+		conferenceRecord: null,
+		schedule: [],
+		roster: [],
+		rosterSource: "lax",
+		rosterSeason: null,
+		statsSource: undefined,
+		scheduleSource: undefined,
+		formerPlayers: undefined,
+		provenance: null,
+	};
+}
+
 async function postedNextSeason(
 	sport: Sport,
 	id: string,
