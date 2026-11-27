@@ -462,14 +462,16 @@ async function fetchWmtSchedule(
  * description: "Men's Lacrosse on Feb 6, 2027 at 7:00 PM: Lander vs. Coker"
  * ps:opponent: "Lander" (home) / "at Wingate" (away)
  */
+// Ordered so ties break toward the zone with (far) more lacrosse schools:
+// e.g. Los Angeles over Phoenix when every timed home game is in DST.
 const US_ZONES = [
 	"America/New_York",
 	"America/Chicago",
 	"America/Denver",
-	"America/Phoenix",
 	"America/Los_Angeles",
 	"America/Anchorage",
 	"Pacific/Honolulu",
+	"America/Phoenix",
 ];
 
 export function parsePrestoRss(xml: string): SchoolEvent[] | null {

@@ -143,4 +143,24 @@ describe("PrestoSports RSS", () => {
 			) ?? [];
 		expect(ev[0]).toMatchObject({ at: "A", time: null });
 	});
+
+	test("a DST-only Pacific home slate resolves to Los Angeles, not Phoenix", () => {
+		const item = (desc: string, opp: string, dc: string) =>
+			`<item><description>${desc}</description><dc:date>${dc}</dc:date><ps:opponent>${opp}</ps:opponent></item>`;
+		const ev =
+			parsePrestoRss(
+				item("on Apr 3, 2027 at 1:00 PM: a", "Oregon", "2027-04-03T20:00:00Z") +
+					item(
+						"on Feb 6, 2027 at 7:00 PM: b",
+						"at Denver",
+						"2027-02-07T02:00:00Z",
+					),
+			) ?? [];
+		// 7:00 PM Mountain standard = 02:00Z = 6:00 PM Pacific standard
+		expect(ev[1]).toMatchObject({
+			at: "A",
+			date: "2027-02-06",
+			time: "6:00 PM",
+		});
+	});
 });
