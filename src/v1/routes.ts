@@ -14,6 +14,7 @@ import {
 	subscribe,
 } from "./events";
 import { getMatchup } from "./matchup";
+import { isPreviewId } from "./preview";
 import { getNews, ingestNews } from "./news";
 import { withOdds } from "./odds";
 import { replayStatus, startReplay, stopReplay } from "./replay";
@@ -53,7 +54,13 @@ const dateParam = v.pipe(
 	v.string(),
 	v.regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
 );
-const idParam = v.pipe(v.string(), v.regex(/^\d+$/, "id must be numeric"));
+const idParam = v.pipe(
+	v.string(),
+	v.regex(
+		/^\d+$|^preview:[a-z-]+:d[123]:\d{4}-\d{2}-\d{2}:[a-z0-9-]+:[a-z0-9-]+$/,
+		"id must be numeric or a preview id",
+	),
+);
 
 /** Key-order-independent serialization: Postgres jsonb reorders object keys. */
 function canonical(v: unknown): string {
@@ -471,6 +478,7 @@ export const v1 = new Elysia({ prefix: "/v1" })
 	.get(
 		"/game/:id/boxscore",
 		async (ctx) => {
+			if (isPreviewId(ctx.params.id)) return notFound(ctx.set, "boxscore");
 			const served = await getBoxscore(ctx.params.id);
 			return served ? respond(ctx, served) : notFound(ctx.set, "boxscore");
 		},
@@ -479,6 +487,8 @@ export const v1 = new Elysia({ prefix: "/v1" })
 	.get(
 		"/game/:id/plays",
 		async (ctx) => {
+			if (isPreviewId(ctx.params.id))
+				return notFound(ctx.set, "play-by-play");
 			const served = await getPlays(ctx.params.id);
 			return served ? respond(ctx, served) : notFound(ctx.set, "play-by-play");
 		},
