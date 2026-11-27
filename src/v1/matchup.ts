@@ -260,7 +260,7 @@ const CLASS_ALIASES: [RegExp, string][] = [
 	[/^(so|soph|second|2nd|2)/, "So"],
 	[/^(jr|ju|third|3rd|3)/, "Jr"],
 	[/^(sr|se|fourth|4th|4)/, "Sr"],
-	[/^(gr|gs|grad|fifth|5th|5|sixth|6th|6|super)/, "Gr"],
+	[/^(gr|gs|grad|post|fifth|5th|5|sixth|6th|6|super)/, "Gr"],
 ];
 
 /** "R-Fr", "Fy", "First Year", "5th", "Grad Student" -> Fr/So/Jr/Sr/Gr. */
