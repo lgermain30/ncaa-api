@@ -56,8 +56,8 @@ const dateParam = v.pipe(
 );
 const idParam = v.pipe(
 	v.string(),
-	v.regex(
-		/^\d+$|^preview:[a-z-]+:d[123]:\d{4}-\d{2}-\d{2}:[^:]+:[^:]+$/,
+	v.check(
+		(id) => /^\d+$/.test(id) || isPreviewId(id),
 		"id must be numeric or a preview id",
 	),
 );
