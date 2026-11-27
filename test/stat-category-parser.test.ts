@@ -13,11 +13,7 @@ describe("parseStatSelect", () => {
 		</body></html>`;
 
 		const { document } = parseHTML(html);
-		const result = parseStatSelect(
-			document,
-			"select-container-individual",
-			"individual",
-		);
+		const result = parseStatSelect(document, "select-container-individual", "individual");
 
 		expect(result).toEqual([
 			{ id: "5", name: "Goals Per Game", path: "individual/5" },
@@ -28,11 +24,7 @@ describe("parseStatSelect", () => {
 	it("returns empty array when select element is missing", () => {
 		const html = "<html><body><p>No dropdown here</p></body></html>";
 		const { document } = parseHTML(html);
-		const result = parseStatSelect(
-			document,
-			"select-container-individual",
-			"individual",
-		);
+		const result = parseStatSelect(document, "select-container-individual", "individual");
 
 		expect(result).toEqual([]);
 	});
@@ -62,11 +54,7 @@ describe("parseStatSelect", () => {
 		</body></html>`;
 
 		const { document } = parseHTML(html);
-		const result = parseStatSelect(
-			document,
-			"select-container-individual",
-			"individual",
-		);
+		const result = parseStatSelect(document, "select-container-individual", "individual");
 
 		expect(result).toEqual([
 			{ id: "10", name: "Saves Per Game", path: "individual/10" },
@@ -83,11 +71,7 @@ describe("parseStatSelect", () => {
 		</body></html>`;
 
 		const { document } = parseHTML(html);
-		const result = parseStatSelect(
-			document,
-			"select-container-individual",
-			"individual",
-		);
+		const result = parseStatSelect(document, "select-container-individual", "individual");
 
 		expect(result).toEqual([
 			{ id: "5", name: "Goals Per Game", path: "individual/5" },
@@ -100,11 +84,7 @@ describe("parseStatSelect", () => {
 		</body></html>`;
 
 		const { document } = parseHTML(html);
-		const result = parseStatSelect(
-			document,
-			"select-container-individual",
-			"individual",
-		);
+		const result = parseStatSelect(document, "select-container-individual", "individual");
 
 		expect(result).toEqual([]);
 	});
