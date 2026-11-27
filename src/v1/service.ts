@@ -11,6 +11,7 @@ import {
 } from "../store";
 import { UpstreamError } from "../upstream";
 import { publishDetails, publishGame } from "./events";
+import { getPreviewGame, isPreviewId } from "./preview";
 import {
 	fetchGamecenterContest,
 	fetchLacrosseBoxscore,
@@ -314,6 +315,12 @@ async function getStoredBoard(
 
 /** One game; fetches gamecenter directly when we have never seen the id. */
 export async function getGameById(id: string): Promise<Served<V1Game> | null> {
+	if (isPreviewId(id)) {
+		const preview = await getPreviewGame(id);
+		return preview
+			? { data: preview, updatedAt: preview.updatedAt, stale: false }
+			: null;
+	}
 	const replayed = replayActive() ? replayGame(id) : null;
 	if (replayed)
 		return { data: replayed, updatedAt: replayed.updatedAt, stale: false };

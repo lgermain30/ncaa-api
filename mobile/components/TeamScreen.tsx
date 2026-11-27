@@ -750,9 +750,19 @@ export function TeamScreen({
           names.every((n) => nm.includes(n))
         );
       });
-      if (match) router.push({ pathname: gamePath, params: { id: match.id } });
+      if (match) {
+        router.push({ pathname: gamePath, params: { id: match.id } });
+        return;
+      }
     } catch {
-      // no NCAA game to open for this date
+      // no NCAA game for this date yet; fall through to the preview
+    }
+    if (!g.final && g.opponent.id) {
+      const [homeId, awayId] = g.home ? [team.id, g.opponent.id] : [g.opponent.id, team.id];
+      router.push({
+        pathname: gamePath,
+        params: { id: `preview:${sport}:${division}:${g.date}:${homeId}:${awayId}` },
+      });
     }
   };
 
