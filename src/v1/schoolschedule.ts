@@ -462,6 +462,16 @@ async function fetchWmtSchedule(
  * description: "Men's Lacrosse on Feb 6, 2027 at 7:00 PM: Lander vs. Coker"
  * ps:opponent: "Lander" (home) / "at Wingate" (away)
  */
+const US_ZONES = [
+	"America/New_York",
+	"America/Chicago",
+	"America/Denver",
+	"America/Phoenix",
+	"America/Los_Angeles",
+	"America/Anchorage",
+	"Pacific/Honolulu",
+];
+
 export function parsePrestoRss(xml: string): SchoolEvent[] | null {
 	const decode = (t: string) =>
 		t
@@ -475,7 +485,8 @@ export function parsePrestoRss(xml: string): SchoolEvent[] | null {
 		const m = item.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`));
 		return m ? clean(decode(m[1])) : "";
 	};
-	const events: SchoolEvent[] = [];
+	type Row = SchoolEvent & { instant: string | null };
+	const rows: Row[] = [];
 	for (const item of xml.match(/<item>[\s\S]*?<\/item>/g) ?? []) {
 		const desc = tag(item, "description");
 		const m = desc.match(
@@ -486,18 +497,41 @@ export function parsePrestoRss(xml: string): SchoolEvent[] | null {
 		if (month < 0) continue;
 		const rawOpp = tag(item, "ps:opponent") || tag(item, "title");
 		const away = /^at\s+/i.test(rawOpp);
-		const opponent = rawOpp.replace(/^(at|vs\.?)\s+/i, "");
+		// "vs. Wingate @ Charlotte, N.C." is a neutral-site game
+		const [oppPart, sitePart] = rawOpp.split(/\s+@\s+/, 2);
+		const opponent = clean(oppPart).replace(/^(at|vs\.?)\s+/i, "");
 		if (!opponent) continue;
-		events.push({
+		const site = clean(sitePart);
+		rows.push({
 			date: `${m[3]}-${pad2(month + 1)}-${pad2(Number(m[2]))}`,
 			time: m[4] ? normalizeTime(m[4]) : null,
 			tv: null,
-			venue: null,
-			at: away ? "A" : "H",
+			venue: site && !/^tba$/i.test(site) ? site : null,
+			at: site ? "N" : away ? "A" : "H",
 			opponent,
+			instant: tag(item, "dc:date") || null,
 		});
 	}
-	return events.length ? events : null;
+	if (!rows.length) return null;
+	// The description clock is the venue's local time; dc:date is the UTC
+	// instant. Home games tell us the school's zone, which then renders
+	// every game on the school's clock (as Sidearm/WMT do).
+	const votes = new Map<string, number>();
+	for (const r of rows) {
+		if (r.at !== "H" || !r.time || !r.instant) continue;
+		for (const z of US_ZONES)
+			if (localParts(r.instant, z)?.time === r.time)
+				votes.set(z, (votes.get(z) ?? 0) + 1);
+	}
+	const zone = [...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+	return rows.map(({ instant, ...e }) => {
+		if (!e.time || e.at === "H") return e;
+		if (zone && instant) {
+			const lp = localParts(instant, zone);
+			return lp ? { ...e, date: lp.date, time: lp.time } : { ...e, time: null };
+		}
+		return { ...e, time: null };
+	});
 }
 
 async function fetchPrestoSchedule(

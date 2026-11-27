@@ -101,4 +101,46 @@ describe("PrestoSports RSS", () => {
 			opponent: "Wingate",
 		});
 	});
+
+	test("away times move to the school's clock; '@ Site' is neutral", () => {
+		const item = (desc: string, opp: string, dc: string) =>
+			`<item><description>${desc}</description><dc:date>${dc}</dc:date><ps:opponent>${opp}</ps:opponent></item>`;
+		const xml =
+			item(
+				"Men's Lacrosse on Feb 6, 2027 at 7:00 PM: X vs. Home",
+				"Lander",
+				"2027-02-07T00:00:00Z",
+			) +
+			item(
+				"Men's Lacrosse on Mar 3, 2027 at 7:00 PM: NNU vs. Home",
+				"at Northwest Nazarene",
+				"2027-03-04T02:00:00Z",
+			) +
+			item(
+				"Men's Lacrosse on Apr 1, 2027 at 1:00 PM: Home vs. Wingate",
+				"vs. Wingate @ Charlotte, N.C.",
+				"2027-04-01T17:00:00Z",
+			);
+		const ev = parsePrestoRss(xml) ?? [];
+		expect(ev[0]).toMatchObject({ at: "H", time: "7:00 PM" });
+		expect(ev[1]).toMatchObject({
+			at: "A",
+			date: "2027-03-03",
+			time: "9:00 PM",
+			opponent: "Northwest Nazarene",
+		});
+		expect(ev[2]).toMatchObject({
+			at: "N",
+			time: "1:00 PM",
+			opponent: "Wingate",
+			venue: "Charlotte, N.C.",
+		});
+	});
+	test("without a home game to fix the zone, away clocks are left unavailable", () => {
+		const ev =
+			parsePrestoRss(
+				`<item><description>Men's Lacrosse on Mar 3, 2027 at 7:00 PM: a</description><dc:date>2027-03-04T02:00:00Z</dc:date><ps:opponent>at NNU</ps:opponent></item>`,
+			) ?? [];
+		expect(ev[0]).toMatchObject({ at: "A", time: null });
+	});
 });
