@@ -52,11 +52,11 @@ export interface StoredSchoolSchedule {
 export const SCHEDULE_REFRESH_MS = 6 * 60 * 60 * 1000;
 export const SCHEDULE_MISS_REFRESH_MS = 24 * 60 * 60 * 1000;
 /**
- * Bump when a schedule parser learns a new site format: stored misses
- * recorded before this instant are retried at once instead of after the
- * 24h miss window, so newly readable schools fill in on deploy.
+ * Misses recorded by an earlier server build are retried on first request
+ * instead of after the 24h miss window, so a deploy that teaches the parser
+ * a new site format fills in the newly readable schools at once.
  */
-export const SCHEDULE_PARSERS_UPDATED = Date.parse("2026-11-27T21:00:00Z");
+const SCHEDULE_PARSERS_LOADED_AT = Date.now();
 
 const scheduleStale = (
 	stored: { data: unknown; updatedAt: string } | null | undefined,
@@ -65,7 +65,7 @@ const scheduleStale = (
 	const at = new Date(stored.updatedAt).getTime();
 	const age = Date.now() - at;
 	if (stored.data) return age > SCHEDULE_REFRESH_MS;
-	return age > SCHEDULE_MISS_REFRESH_MS || at < SCHEDULE_PARSERS_UPDATED;
+	return age > SCHEDULE_MISS_REFRESH_MS || at < SCHEDULE_PARSERS_LOADED_AT;
 };
 
 export const schoolScheduleStats = {
