@@ -20,6 +20,8 @@ import type { V1Game, V1Team } from "./types";
  * tournament games. Two Sidearm flavours are read:
  *   nuxt     schedule event objects inside the `__NUXT_DATA__` devalue array
  *   classic  server-rendered `.sidearm-schedule-game` rows
+ * plus WMT sites (/website-api/schedule-events, located via /schedule?season=YYYY)
+ * and PrestoSports sites (`.event-row` cards on /sports/<code>/YYYY-YY/schedule).
  */
 
 export interface SchoolEvent {
@@ -37,7 +39,7 @@ export interface SchoolEvent {
 export interface StoredSchoolSchedule {
 	host: string;
 	url: string;
-	source: "sidearm_nuxt" | "sidearm_classic";
+	source: "sidearm_nuxt" | "sidearm_classic" | "wmt_api" | "presto";
 	season: string;
 	events: SchoolEvent[];
 }
@@ -200,6 +202,130 @@ export function parseClassicSchedule(
 	return events.length ? events : null;
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+export interface WmtEvent {
+	datetime?: string | null;
+	opponent_name?: string | null;
+	venue_type?: string | null;
+	tba?: string | null;
+	venue?: string | null;
+	location?: string | null;
+	neutral_event?: boolean | null;
+}
+
+/** UTC instant -> the school's local YYYY-MM-DD and "h:mm AM" clock. */
+function localParts(
+	iso: string,
+	tz: string,
+): { date: string; time: string } | null {
+	const d = new Date(iso);
+	if (Number.isNaN(d.getTime())) return null;
+	try {
+		const parts = new Intl.DateTimeFormat("en-US", {
+			timeZone: tz,
+			year: "numeric",
+			month: "2-digit",
+			day: "2-digit",
+			hour: "numeric",
+			minute: "2-digit",
+			hour12: true,
+		}).formatToParts(d);
+		const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+		return {
+			date: `${get("year")}-${get("month")}-${get("day")}`,
+			time: `${get("hour")}:${get("minute")} ${get("dayPeriod").toUpperCase()}`,
+		};
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * WMT (Nuxt) athletics sites expose their schedule through
+ * /website-api/schedule-events; datetimes are UTC, so they are rendered in
+ * the school's time zone (the page's scheduleTimezone).
+ */
+export function wmtEventsToSchool(
+	rows: WmtEvent[],
+	tz: string,
+): SchoolEvent[] | null {
+	const out: SchoolEvent[] = [];
+	for (const r of rows) {
+		const opponent = clean(r.opponent_name);
+		const lp = r.datetime ? localParts(r.datetime, tz) : null;
+		if (!opponent || !lp) continue;
+		const vt = clean(r.venue_type).toLowerCase();
+		out.push({
+			date: lp.date,
+			time: r.tba ? null : lp.time,
+			tv: null,
+			venue: clean(r.venue) || null,
+			at:
+				r.neutral_event || vt === "neutral"
+					? "N"
+					: vt === "home"
+						? "H"
+						: vt === "away"
+							? "A"
+							: null,
+			opponent,
+		});
+	}
+	return out.length ? out : null;
+}
+
+/**
+ * PrestoSports schedule pages: `.section-event-month` blocks (month name
+ * only) holding `.event-row` cards with "Thu. 4", "6:00 PM EST", venue and
+ * an at/vs badge. Season YYYY runs Jul YYYY-1 .. Jun YYYY.
+ */
+export function parsePrestoSchedule(
+	html: string,
+	season: string,
+): SchoolEvent[] | null {
+	const $ = cheerio.load(html);
+	const events: SchoolEvent[] = [];
+	$(".section-event-month").each((_, sec) => {
+		const month = MONTHS.indexOf(
+			clean($(sec).find(".month-title").first().text())
+				.toLowerCase()
+				.slice(0, 3),
+		);
+		if (month < 0) return;
+		const year = month >= 6 ? Number(season) - 1 : Number(season);
+		$(sec)
+			.find(".event-row")
+			.each((_, row) => {
+				const r = $(row);
+				const day = clean(r.find(".date").first().text()).match(
+					/(\d{1,2})\s*$/,
+				);
+				const opponent = clean(r.find(".team-name").first().text());
+				if (!day || !opponent) return;
+				const badge = clean(
+					r.find(".event-location-badge").first().text(),
+				).toLowerCase();
+				const neutral = r.hasClass("neutral");
+				events.push({
+					date: `${year}-${pad2(month + 1)}-${pad2(Number(day[1]))}`,
+					time: normalizeTime(r.find(".status").first().text()),
+					tv: null,
+					venue: clean(r.find(".venue").first().text()) || null,
+					at: neutral
+						? "N"
+						: badge === "at"
+							? "A"
+							: badge === "vs"
+								? "H"
+								: null,
+					opponent,
+				});
+			});
+	});
+	return events.length ? events : null;
+}
+
 export function parseScheduleHtml(
 	html: string,
 	season: string,
@@ -237,6 +363,93 @@ export async function fetchSchoolSchedule(
 		if (!parsed) continue;
 		schoolScheduleStats.parsed++;
 		return { host: resolved, url, season, ...parsed };
+	}
+	return (
+		(await fetchWmtSchedule(resolved, sport, season)) ??
+		(await fetchPrestoSchedule(resolved, sport, season))
+	);
+}
+
+async function getHtml(url: string): Promise<string | null> {
+	let res: Response;
+	try {
+		res = await upstreamFetch(url, {
+			retries: 0,
+			timeoutMs: 20000,
+			headers: { Accept: "text/html,*/*;q=0.8" },
+		});
+	} catch (err) {
+		schoolScheduleStats.errors++;
+		schoolScheduleStats.lastError =
+			err instanceof Error ? err.message : String(err);
+		return null;
+	}
+	schoolScheduleStats.fetched++;
+	// 202 is the AWS WAF challenge page some Presto sites serve
+	if (!res.ok || res.status === 202) return null;
+	return res.text();
+}
+
+const prevSeasonSlug = (season: string) =>
+	`${Number(season) - 1}-${season.slice(2)}`;
+
+async function fetchWmtSchedule(
+	host: string,
+	sport: Sport,
+	season: string,
+): Promise<StoredSchoolSchedule | null> {
+	for (const p of PATHS[sport] ?? []) {
+		for (const q of [season, prevSeasonSlug(season)]) {
+			const page = `https://${host}/sports/${p}/schedule?season=${q}`;
+			const html = await getHtml(page);
+			if (!html || !html.includes("__NUXT_DATA__")) continue;
+			// WMT serves its default season when `season` doesn't exist
+			const title = clean(html.match(/<title>([^<]*)/)?.[1]).replace(
+				/&#x27;|&#39;/g,
+				"'",
+			);
+			if (!title.includes(season) && !title.includes(prevSeasonSlug(season)))
+				continue;
+			const id = html.match(/"schedule-(\d+)"/)?.[1];
+			if (!id) continue;
+			const tz =
+				html.match(/scheduleTimezone":"([A-Za-z_/]+)"/)?.[1] ??
+				"America/New_York";
+			const url = `https://${host}/website-api/schedule-events?filter%5Bschedule_id%5D=${id}&per_page=200&sort=datetime`;
+			let rows: WmtEvent[];
+			try {
+				const res = await upstreamFetch(url, { retries: 0, timeoutMs: 20000 });
+				schoolScheduleStats.fetched++;
+				if (!res.ok) continue;
+				rows = ((await res.json()) as { data?: WmtEvent[] }).data ?? [];
+			} catch (err) {
+				schoolScheduleStats.errors++;
+				schoolScheduleStats.lastError =
+					err instanceof Error ? err.message : String(err);
+				continue;
+			}
+			const events = wmtEventsToSchool(rows, tz);
+			if (!events) continue;
+			schoolScheduleStats.parsed++;
+			return { host, url, season, source: "wmt_api", events };
+		}
+	}
+	return null;
+}
+
+async function fetchPrestoSchedule(
+	host: string,
+	sport: Sport,
+	season: string,
+): Promise<StoredSchoolSchedule | null> {
+	for (const p of PATHS[sport] ?? []) {
+		const url = `https://${host}/sports/${p}/${prevSeasonSlug(season)}/schedule`;
+		const html = await getHtml(url);
+		if (!html || !html.includes("event-row")) continue;
+		const events = parsePrestoSchedule(html, season);
+		if (!events) continue;
+		schoolScheduleStats.parsed++;
+		return { host, url, season, source: "presto", events };
 	}
 	return null;
 }
