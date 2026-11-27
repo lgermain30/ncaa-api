@@ -39,7 +39,12 @@ export interface SchoolEvent {
 export interface StoredSchoolSchedule {
 	host: string;
 	url: string;
-	source: "sidearm_nuxt" | "sidearm_classic" | "wmt_api" | "presto";
+	source:
+		| "sidearm_nuxt"
+		| "sidearm_classic"
+		| "wmt_api"
+		| "presto"
+		| "presto_rss";
 	season: string;
 	events: SchoolEvent[];
 }
@@ -286,42 +291,56 @@ export function parsePrestoSchedule(
 ): SchoolEvent[] | null {
 	const $ = cheerio.load(html);
 	const events: SchoolEvent[] = [];
-	$(".section-event-month").each((_, sec) => {
-		const month = MONTHS.indexOf(
-			clean($(sec).find(".month-title").first().text())
-				.toLowerCase()
-				.slice(0, 3),
+	const side = (txt: string): "H" | "A" | "N" | null => {
+		const t = clean(txt).toLowerCase();
+		if (t === "vs" || t === "vs." || t === "home" || t === "h") return "H";
+		if (t === "at" || t === "away" || t === "a") return "A";
+		if (t === "neutral" || t === "n") return "N";
+		return null;
+	};
+	$(".event-row").each((_, row) => {
+		const r = $(row);
+		const opponent = clean(r.find(".team-name").first().text());
+		if (!opponent) return;
+		const dateEl = r.find(".date").first();
+		let date: string | null = null;
+		// "Wed. February 03, 2027"
+		const full = clean(dateEl.attr("title")).match(
+			/([A-Za-z]+)\.?\s+(\d{1,2}),\s+(\d{4})$/,
 		);
-		if (month < 0) return;
-		const year = month >= 6 ? Number(season) - 1 : Number(season);
-		$(sec)
-			.find(".event-row")
-			.each((_, row) => {
-				const r = $(row);
-				const day = clean(r.find(".date").first().text()).match(
-					/(\d{1,2})\s*$/,
-				);
-				const opponent = clean(r.find(".team-name").first().text());
-				if (!day || !opponent) return;
-				const badge = clean(
-					r.find(".event-location-badge").first().text(),
-				).toLowerCase();
-				const neutral = r.hasClass("neutral");
-				events.push({
-					date: `${year}-${pad2(month + 1)}-${pad2(Number(day[1]))}`,
-					time: normalizeTime(r.find(".status").first().text()),
-					tv: null,
-					venue: clean(r.find(".venue").first().text()) || null,
-					at: neutral
-						? "N"
-						: badge === "at"
-							? "A"
-							: badge === "vs"
-								? "H"
-								: null,
-					opponent,
-				});
-			});
+		if (full) {
+			const m = MONTHS.indexOf(full[1].toLowerCase().slice(0, 3));
+			if (m >= 0) date = `${full[3]}-${pad2(m + 1)}-${pad2(Number(full[2]))}`;
+		}
+		if (!date) {
+			// month comes from the enclosing month section / group header
+			const header =
+				r.closest(".section-event-month").find(".month-title").first().text() ||
+				r.closest(".event-group").find(".event-date").first().text();
+			const month = MONTHS.indexOf(clean(header).toLowerCase().slice(0, 3));
+			const day = clean(dateEl.text()).match(/(\d{1,2})\s*$/);
+			if (month < 0 || !day) return;
+			const year = month >= 6 ? Number(season) - 1 : Number(season);
+			date = `${year}-${pad2(month + 1)}-${pad2(Number(day[1]))}`;
+		}
+		const venueEl = r.find(".venue").first();
+		const venueText = clean(venueEl.text());
+		const venueIsSide =
+			side(venueText) !== null || side(venueEl.attr("title") ?? "") !== null;
+		const at = r.hasClass("neutral")
+			? "N"
+			: (side(r.find(".event-location-badge").first().text()) ??
+				side(r.find(".va").first().text()) ??
+				side(venueEl.attr("title") ?? "") ??
+				(venueIsSide ? side(venueText) : null));
+		events.push({
+			date,
+			time: normalizeTime(r.find(".status").first().text()),
+			tv: null,
+			venue: venueIsSide ? null : venueText || null,
+			at,
+			opponent,
+		});
 	});
 	return events.length ? events : null;
 }
@@ -437,19 +456,75 @@ async function fetchWmtSchedule(
 	return null;
 }
 
+/**
+ * PrestoSports RSS (`schedule?print=rss`): CloudFront's bot challenge
+ * blocks the HTML on most Presto sites but leaves the feed open.
+ * description: "Men's Lacrosse on Feb 6, 2027 at 7:00 PM: Lander vs. Coker"
+ * ps:opponent: "Lander" (home) / "at Wingate" (away)
+ */
+export function parsePrestoRss(xml: string): SchoolEvent[] | null {
+	const decode = (t: string) =>
+		t
+			.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+			.replace(/&amp;/g, "&")
+			.replace(/&#39;|&apos;/g, "'")
+			.replace(/&quot;/g, '"')
+			.replace(/&lt;/g, "<")
+			.replace(/&gt;/g, ">");
+	const tag = (item: string, name: string) => {
+		const m = item.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`));
+		return m ? clean(decode(m[1])) : "";
+	};
+	const events: SchoolEvent[] = [];
+	for (const item of xml.match(/<item>[\s\S]*?<\/item>/g) ?? []) {
+		const desc = tag(item, "description");
+		const m = desc.match(
+			/\bon\s+([A-Za-z]+)\.?\s+(\d{1,2}),\s+(\d{4})(?:\s+at\s+(\d{1,2}(?::\d{2})?\s*[AaPp]\.?[Mm]\.?))?/,
+		);
+		if (!m) continue;
+		const month = MONTHS.indexOf(m[1].toLowerCase().slice(0, 3));
+		if (month < 0) continue;
+		const rawOpp = tag(item, "ps:opponent") || tag(item, "title");
+		const away = /^at\s+/i.test(rawOpp);
+		const opponent = rawOpp.replace(/^(at|vs\.?)\s+/i, "");
+		if (!opponent) continue;
+		events.push({
+			date: `${m[3]}-${pad2(month + 1)}-${pad2(Number(m[2]))}`,
+			time: m[4] ? normalizeTime(m[4]) : null,
+			tv: null,
+			venue: null,
+			at: away ? "A" : "H",
+			opponent,
+		});
+	}
+	return events.length ? events : null;
+}
+
 async function fetchPrestoSchedule(
 	host: string,
 	sport: Sport,
 	season: string,
 ): Promise<StoredSchoolSchedule | null> {
 	for (const p of PATHS[sport] ?? []) {
-		const url = `https://${host}/sports/${p}/${prevSeasonSlug(season)}/schedule`;
-		const html = await getHtml(url);
-		if (!html || !html.includes("event-row")) continue;
-		const events = parsePrestoSchedule(html, season);
+		const base = `https://${host}/sports/${p}/${prevSeasonSlug(season)}/schedule`;
+		const html = await getHtml(base);
+		if (html?.includes("event-row")) {
+			const events = parsePrestoSchedule(html, season);
+			if (events) {
+				schoolScheduleStats.parsed++;
+				return { host, url: base, season, source: "presto", events };
+			}
+		}
+		const url = `${base}?print=rss`;
+		const xml = await getHtml(url);
+		if (!xml || !xml.includes("prestosports.com/rss/schedule")) continue;
+		const title = clean(xml.match(/<title>([^<]*)/)?.[1]);
+		if (!title.includes(season) && !title.includes(prevSeasonSlug(season)))
+			continue;
+		const events = parsePrestoRss(xml);
 		if (!events) continue;
 		schoolScheduleStats.parsed++;
-		return { host, url, season, source: "presto", events };
+		return { host, url, season, source: "presto_rss", events };
 	}
 	return null;
 }

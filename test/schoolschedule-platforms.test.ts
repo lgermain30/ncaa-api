@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	parsePrestoRss,
 	parsePrestoSchedule,
 	wmtEventsToSchool,
 } from "../src/v1/schoolschedule";
@@ -62,5 +63,40 @@ describe("PrestoSports schedules", () => {
 		});
 		expect(events.some((e) => e.date.startsWith("2027-04"))).toBe(true);
 		expect(events.filter((e) => e.time === null).length).toBe(2);
+	});
+
+	test("event-group layout: full date in the title attribute, side in .va, H/A in .venue", async () => {
+		const events =
+			parsePrestoSchedule(await fx("presto-eventgroup-2027.html"), "2027") ??
+			[];
+		expect(events.length).toBe(16);
+		expect(events[0]).toMatchObject({
+			date: "2027-02-03",
+			time: "1:00 PM",
+			at: "H",
+			opponent: "Emmanuel (Ga.)",
+			venue: null,
+		});
+		expect(events.filter((e) => e.at === "A").length).toBe(6);
+	});
+});
+
+describe("PrestoSports RSS", () => {
+	test("date/time from the description, side from the opponent prefix", async () => {
+		const events = parsePrestoRss(await fx("presto-rss-2027.xml")) ?? [];
+		expect(events.length).toBe(14);
+		expect(events[0]).toMatchObject({
+			date: "2027-02-06",
+			time: "7:00 PM",
+			at: "H",
+			opponent: "Lander",
+			venue: null,
+		});
+		expect(events[13]).toMatchObject({
+			date: "2027-04-28",
+			time: "4:00 PM",
+			at: "A",
+			opponent: "Wingate",
+		});
 	});
 });
