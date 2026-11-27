@@ -30,6 +30,7 @@ describe("WMT schedule-events", () => {
 					datetime: "2027-02-07T03:00:00.000000Z",
 					opponent_name: "Oregon",
 					venue_type: "home",
+					location: "Aztec Field",
 				},
 			],
 			"America/Los_Angeles",
@@ -38,6 +39,7 @@ describe("WMT schedule-events", () => {
 			date: "2027-02-06",
 			time: "7:00 PM",
 			at: "H",
+			venue: "Aztec Field",
 		});
 	});
 	test("nothing without rows", () => {

@@ -265,7 +265,7 @@ export function wmtEventsToSchool(
 			date: lp.date,
 			time: r.tba ? null : lp.time,
 			tv: null,
-			venue: clean(r.venue) || null,
+			venue: clean(r.venue) || clean(r.location) || null,
 			at:
 				r.neutral_event || vt === "neutral"
 					? "N"
