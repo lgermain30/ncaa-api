@@ -51,6 +51,22 @@ export interface StoredSchoolSchedule {
 
 export const SCHEDULE_REFRESH_MS = 6 * 60 * 60 * 1000;
 export const SCHEDULE_MISS_REFRESH_MS = 24 * 60 * 60 * 1000;
+/**
+ * Misses recorded by an earlier server build are retried on first request
+ * instead of after the 24h miss window, so a deploy that teaches the parser
+ * a new site format fills in the newly readable schools at once.
+ */
+const SCHEDULE_PARSERS_LOADED_AT = Date.now();
+
+const scheduleStale = (
+	stored: { data: unknown; updatedAt: string } | null | undefined,
+): boolean => {
+	if (!stored) return true;
+	const at = new Date(stored.updatedAt).getTime();
+	const age = Date.now() - at;
+	if (stored.data) return age > SCHEDULE_REFRESH_MS;
+	return age > SCHEDULE_MISS_REFRESH_MS || at < SCHEDULE_PARSERS_LOADED_AT;
+};
 
 export const schoolScheduleStats = {
 	fetched: 0,
@@ -661,10 +677,7 @@ async function scheduleFor(
 	const stored = await getBio<StoredSchoolSchedule | null>(
 		scheduleKey(sport, teamId, season),
 	);
-	const age = stored
-		? Date.now() - new Date(stored.updatedAt).getTime()
-		: Infinity;
-	if (age > (stored?.data ? SCHEDULE_REFRESH_MS : SCHEDULE_MISS_REFRESH_MS))
+	if (scheduleStale(stored))
 		void refreshSchedule(sport, division, teamId, season).catch(() => {});
 	return { known: !!stored, events: stored?.data?.events ?? [] };
 }
@@ -805,10 +818,7 @@ export async function teamSchoolSchedule(
 ): Promise<V1TeamGame[]> {
 	const key = scheduleKey(sport, teamId, season);
 	let stored = await getBio<StoredSchoolSchedule | null>(key);
-	const age = stored
-		? Date.now() - new Date(stored.updatedAt).getTime()
-		: Infinity;
-	if (age > (stored?.data ? SCHEDULE_REFRESH_MS : SCHEDULE_MISS_REFRESH_MS)) {
+	if (scheduleStale(stored)) {
 		const job = refreshSchedule(sport, division, teamId, season, website);
 		if (!stored) {
 			await Promise.race([
