@@ -677,7 +677,8 @@ async function scheduleFor(
 	const stored = await getBio<StoredSchoolSchedule | null>(
 		scheduleKey(sport, teamId, season),
 	);
-	if (scheduleStale(stored)) {void refreshSchedule(sport, division, teamId, season).catch(() => {});
+	if (scheduleStale(stored))
+		void refreshSchedule(sport, division, teamId, season).catch(() => {});
 	return { known: !!stored, events: stored?.data?.events ?? [] };
 }
 
