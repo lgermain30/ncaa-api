@@ -14,6 +14,9 @@ describe("preview games", () => {
 		expect(isPreviewId(id)).toBe(true);
 		expect(isPreviewId("6346471")).toBe(false);
 		expect(isPreviewId("preview:lacrosse-men:d4:2027-02-06:a:b")).toBe(false);
+		expect(
+			parsePreviewId("preview:lacrosse-men:d3:2027-03-01:st.-joseph's-college-ny:farmingdale-state")?.homeId,
+		).toBe("st.-joseph's-college-ny");
 		expect(parsePreviewId(id)).toEqual({
 			sport: "lacrosse-men",
 			division: "d1",

@@ -8,7 +8,7 @@ import type { V1Game, V1Team } from "./types";
  * Id: preview:<sport>:<division>:<YYYY-MM-DD>:<home team id>:<away team id>
  */
 export const PREVIEW_ID_RE =
-	/^preview:(lacrosse-men|lacrosse-women):(d[123]):(\d{4}-\d{2}-\d{2}):([a-z0-9-]+):([a-z0-9-]+)$/;
+	/^preview:(lacrosse-men|lacrosse-women):(d[123]):(\d{4}-\d{2}-\d{2}):([^:]+):([^:]+)$/;
 
 export const isPreviewId = (id: string) => PREVIEW_ID_RE.test(id);
 
