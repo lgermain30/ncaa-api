@@ -33,6 +33,9 @@ test("classBucket maps every roster class spelling seen in production", () => {
 		Fifth: "Gr",
 		"Fifth Year": "Gr",
 		"Grad Student": "Gr",
+		"Post-Bacc": "Gr",
+		"Sixth Year": "Gr",
+		"4th YR": "Sr",
 	};
 	for (const [raw, want] of Object.entries(cases))
 		expect([raw, classBucket(raw)]).toEqual([raw, want]);

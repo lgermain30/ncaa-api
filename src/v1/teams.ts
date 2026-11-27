@@ -889,6 +889,37 @@ export function positionCode(raw: string | null | undefined): string | null {
 	return code || null;
 }
 
+/** Student assistants / managers some schools list among the players. */
+const NON_PLAYER_ROLE =
+	/\b(student\s+(assistant|manager|coach)|manager|assistant\s+coach|head\s+coach|trainer|staff)\b/i;
+
+export function isNonPlayerRole(position: string | null | undefined): boolean {
+	return !!position && NON_PLAYER_ROLE.test(position);
+}
+
+const SCHOOL_NAME = /\b(high\s+school|h\.?s\.?|academy|prep|school)$/i;
+const CITY_STATE = /^[^,]+,\s*[A-Za-z. ]{2,}$/;
+
+/**
+ * Some rosters are entered with the columns crossed ("Comsewogue High
+ * School" as hometown, "Port Jefferson Station, N.Y." as high school);
+ * put each value back where it belongs.
+ */
+export function fixHometownSchool<
+	T extends { hometown: string | null; highSchool: string | null },
+>(p: T): T {
+	const { hometown, highSchool } = p;
+	if (
+		hometown &&
+		highSchool &&
+		SCHOOL_NAME.test(hometown) &&
+		!SCHOOL_NAME.test(highSchool) &&
+		CITY_STATE.test(highSchool)
+	)
+		return { ...p, hometown: highSchool, highSchool: hometown };
+	return p;
+}
+
 /**
  * Current-season roster straight from the school's site (the source of truth
  * as new rosters are posted), with each player's lax.com line matched in by
@@ -899,6 +930,8 @@ function schoolRoster(
 	lax: V1RosterPlayer[],
 ): V1RosterPlayer[] {
 	return bio.players
+		.filter((sp) => !isNonPlayerRole(sp.position))
+		.map(fixHometownSchool)
 		.map((sp, i) => {
 			const lp = sameNamePlayer(lax, sp);
 			return {
